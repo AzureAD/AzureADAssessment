@@ -108,8 +108,18 @@ function Get-MSCloudIdPasswordWritebackAgentLog
 #>
 function Get-MSCloudIdNotificationEmailAddresses
 {
+    
+
     $technicalNotificationEmail = Get-MSOLCompanyInformation | Select-Object -ExpandProperty TechnicalNotificationEmails
-    $result = New-Object -TypeName psobject -Property @{ NotificationEmailScope = "Tenant"; NotificationType = "Technical Notification"; RecipientName = "N/A";  EmailAddress = $technicalNotificationEmail; ; RoleMemberObjectType = "email address"; RoleMemberAlternateEmail = "N/A"; UPN = "N/A" }
+    $result = [PSCustomObject]@{
+        RecipientName = "N/A" ;
+        RoleMemberObjectType = "email address"; 
+        RoleMemberAlternateEmail = "N/A";
+        NotificationType  = "Technical Notification"; 
+        NotificationEmailScope = "Tenant";
+        EmailAddress = $technicalNotificationEmail; 
+        RoleMemberUPN = "N/A"
+    } 
 
     Write-Output $result
 
@@ -123,7 +133,16 @@ function Get-MSCloudIdNotificationEmailAddresses
         foreach ($roleMember in $roleMembers)
         {
             $alternateEmail = $roleMember.OtherMails -join ";"
-            $result = New-Object -TypeName psobject -Property @{ NotificationEmailScope = "Role"; NotificationType = $role.DisplayName; RecipientName = $roleMember.DisplayName;  EmailAddress = $roleMember.Mail;  RoleMemberObjectType = $roleMember.ObjectType; RoleMemberAlternateEmail = $alternateEmail; UPN = $roleMember.UserPrincipalName; }
+
+            $result = [PSCustomObject]@{
+                RecipientName = $roleMember.DisplayName ;
+                RoleMemberObjectType = $roleMember.ObjectType; 
+                RoleMemberAlternateEmail = $alternateEmail;
+                NotificationType  = $role.DisplayName; 
+                NotificationEmailScope =  "Role";
+                EmailAddress = $roleMember.Mail; 
+                RoleMemberUPN = $roleMember.UserPrincipalName
+            } 
             Write-Output $result
         }
     }
@@ -148,31 +167,6 @@ function Get-MSCloudIdAppAssignmentReport
     $servicePrincipals = Get-AzureADServicePrincipal -All $true
     $servicePrincipals | ForEach-Object { Get-AzureADServiceAppRoleAssignedTo -ObjectId $_.ObjectId -All $true }
     $servicePrincipals | ForEach-Object { Get-AzureADServiceAppRoleAssignment -ObjectId $_.ObjectId -All $true }
-}
-
-<# 
- .Synopsis
-  Gets a report of all members of roles 
-
- .Description
-  This functions returns a list of users who hold special roles in the directory
-
- .Example
-  Get-MSCloudIdAdminRolesReport | Export-Csv -Path ".\AdminRoles.csv" 
-#>
-function Get-MSCloudIdAdminRolesReport
-{	
-	$roles = Get-AzureADDirectoryRole
-
-    foreach ($role in $roles)
-    {
-        $roleMembers = Get-AzureADDirectoryRoleMember -ObjectId $role.ObjectId
-        foreach ($roleMember in $roleMembers)
-        {
-            $result = New-Object -TypeName psobject -Property @{ RoleName = $role.DisplayName; RoleMemberDisplayName = $roleMember.DisplayName; RoleMemberEmail = $roleMember.Mail; RoleMemberUPN = $roleMember.UserPrincipalName; RoleMemberObjectType = $roleMember.ObjectType }
-            Write-Output $result
-        }
-    }
 }
 
 <# 
@@ -677,7 +671,6 @@ Function Get-MSCloudIdAssessmentAzureADReports
     $reportsToRun = @{
         "Get-MSCloudIdNotificationEmailAddresses" = "NotificationsEmailAddresses.csv"
         "Get-MSCloudIdAppAssignmentReport" = "AppAssignments.csv"
-        "Get-MSCloudIdAdminRolesReport" = "AdminRoles.csv"
         "Get-MSCloudIdApplicationKeyExpirationReport" = "AppKeysReport.csv"
         "Get-MSCloudIdConsentGrantList" = "ConsentGrantList.csv"
     }
@@ -694,13 +687,6 @@ Function Get-MSCloudIdAssessmentAzureADReports
         Get-MSCloudIdAssessmentSingleReport -FunctionName $functionName -OutputDirectory $OutputDirectory -OutputCSVFileName $outputFileName
         $processedReports++
     }
-
-    
-    # Get-MSCloudIdAssessmentSingleReport -FunctionName "Get-MSCloudIdAppAssignmentReport" -OutputDirectory $OutputDirectory  -OutputCSVFileName "AppAssignments.csv"
-    # Get-MSCloudIdAssessmentSingleReport -FunctionName "Get-MSCloudIdAdminRolesReport" -OutputDirectory $OutputDirectory  -OutputCSVFileName "AdminRoles.csv"
-    # Get-MSCloudIdAssessmentSingleReport -FunctionName "Get-MSCloudIdApplicationKeyExpirationReport" -OutputDirectory $OutputDirectory  -OutputCSVFileName "AppKeysReport.csv" 
-
-    # Get-MSCloudIdAssessmentSingleReport -FunctionName "Get-MSCloudIdConsentGrantList" -OutputDirectory $OutputDirectory  -OutputCSVFileName "ConsentGrantList.csv"
 }
 
 Export-ModuleMember -Function Start-MSCloudIdSession
@@ -708,7 +694,6 @@ Export-ModuleMember -Function Get-MSCloudIdAppProxyConnectorLog
 Export-ModuleMember -Function Get-MSCloudIdPasswordWritebackAgentLog
 Export-ModuleMember -Function Get-MSCloudIdNotificationEmailAddresses
 Export-ModuleMember -Function Get-MSCloudIdAppAssignmentReport
-Export-ModuleMember -Function Get-MSCloudIdAdminRolesReport
 Export-ModuleMember -Function Get-MSCloudIdConsentGrantList
 Export-ModuleMember -Function Get-MSCloudIdApplicationKeyExpirationReport
 Export-ModuleMember -Function Get-MSCloudIdADFSEndpoints
@@ -717,6 +702,7 @@ Export-ModuleMember -Function Get-MSCloudIdGroupBasedLicensingReport
 Export-ModuleMember -Function Get-MSCloudIdAssessmentAzureADReports
 Export-ModuleMember -Function Expand-MsCloudIdAADConnectConfig
 
+#Future 
 #Get PIM data
 #Get Secure Score
 #Add Master CmdLet and make it in parallel
