@@ -11,9 +11,9 @@ function Connect-MSGraphAPI {
         [string]
         $Resource = "https://graph.microsoft.com",
         [string]
-        $RedirectUri = "urn://azuread/configassessmentapp",
+        $RedirectUri = "http://localhost",
         [string]
-        $Scopes = "Policy.Read.All",
+        $Scopes = "Policy.Read.All User.Read.All Group.Read.All Application.Read.All",
         [switch]
         $Interactive = $True
     )
@@ -50,6 +50,63 @@ function Connect-MSGraphAPI {
     end {
         Write-Output $result
     }
+}
+
+
+function New-MSGraphQueryToBatch
+{
+    [CmdletBinding()]
+    param (
+        # endpoint
+        [string]
+        $endpoint,
+        [string]
+        $QueryParameters,
+        # HTTP Method
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("GET", "POST", "PUT", "DELETE")]
+        [string]
+        $Method,
+        [string]
+        $Body
+    )
+
+    if ($null -notlike $QueryParameters) {
+        $URI = ("/{0}?{1}" -f $endpoint, $QueryParameters)
+        
+    }
+    else {
+        $URI = ("/{0}" -f $endpoint)
+    }
+
+    $result = New-Object PSObject -Property @{
+        id = [Guid]::NewGuid()
+        method=$Method
+        url=$URI
+        body=$Body
+    }
+
+    Write-Output $result
+}
+
+function Invoke-MSGraphBatch
+{
+    param (
+        # Base URI
+        [string]
+        $BaseURI = "https://graph.microsoft.com/",
+        # endpoint
+        [ValidateSet("1.0", "beta")]
+        [string]
+        $APIVersion = "beta",
+        [object[]]
+        $requests
+    )
+
+    $requestsJson = New-Object psobject -Property @{requests=$requests} | ConvertTo-Json -Depth 100
+
+    Invoke-MSGraphQuery -BaseURI $BaseURI -endpoint "`$batch" -Method "POST" -Body $requestsJson
+
 }
 
 $global:tokenRequestedTime = [DateTime]::MinValue
@@ -200,22 +257,149 @@ function Invoke-MSGraphQuery {
     }
 }
 
-
-function Get-AzureADECAPolicy {
+function Add-MSGraphObjectIdCondition
+{
     [CmdletBinding()]
     param (
+        [Parameter()]
+        [string]
+        $InitialFilter,
+        [Parameter()]
+        [string]
+        $PropertyName="id",
+        [string]
+        $ObjectId,
+        [Parameter()]
+        $Operator = "or"
     )
+
+    $oid = [Guid]::NewGuid()
+
+    if ([String]::IsNullOrWhiteSpace($oid) -or -not [Guid]::TryParse($ObjectId, [ref]$oid))
+    {
+        Write-Output $InitialFilter
+        return
+    }
+
+    $Condition = "$PropertyName+eq+'$ObjectId'"
+
+    if ([string]::IsNullOrWhiteSpace($InitialFilter))
+    {
+        Write-Output $Condition
+    }
+    else {
+        Write-Output "$InitialFilter+$Operator+$Condition"
+    }
+}
+
+function Expand-AzureADCAPolicyReferencedUsers()
+{
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true)]
+        [PSObject]
+        $Policy
+    )
+
+    $msGraphFilter = ""
+
+    $policy.conditions.users.includeUsers | %{ $msGraphFilter = Add-MSGraphObjectIdCondition -InitialFilter $msGraphFilter -ObjectId $_ }
+    $policy.conditions.users.excludeUsers | %{ $msGraphFilter = Add-MSGraphObjectIdCondition -InitialFilter $msGraphFilter -ObjectId $_ }
+
+    if ($msGraphFilter -ne "")
+    {
+        $batchQuery = New-MSGraphQueryToBatch -Method GET -endpoint "users" -QueryParameters "`$select=id,userprincipalName&filter=$msGraphFilter"
+        Write-Output $batchQuery
+    }
+
+}
+
+function Expand-AzureADCAPolicyReferencedGroups()
+{
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true)]
+        [PSObject]
+        $Policy
+    )
+
+    $msGraphFilter = ""
+
+    $policy.conditions.users.includeGroups | %{ $msGraphFilter = Add-MSGraphObjectIdCondition -InitialFilter $msGraphFilter -ObjectId $_ }
+    $policy.conditions.users.includeGroups | %{ $msGraphFilter = Add-MSGraphObjectIdCondition -InitialFilter $msGraphFilter -ObjectId $_ }
+
+    if ($msGraphFilter -ne "")
+    {
+        $batchQuery = New-MSGraphQueryToBatch -Method GET -endpoint "groups" -QueryParameters "`$select=id,displayName&filter=$msGraphFilter"
+        Write-Output $batchQuery
+    }
+}
+
+function Expand-AzureADCAPolicyReferencedApplications()
+{
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true)]
+        [PSObject]
+        $Policy
+    )
+
+    $msGraphFilter = ""
+
+    $policy.conditions.applications.includeApplications | %{ $msGraphFilter = Add-MSGraphObjectIdCondition -InitialFilter $msGraphFilter -ObjectId $_ -PropertyName "appId"}
+    $policy.conditions.applications.excludeApplications | %{ $msGraphFilter = Add-MSGraphObjectIdCondition -InitialFilter $msGraphFilter -ObjectId $_ -PropertyName "appId"}
+
+    if ($msGraphFilter -ne "")
+    {
+        $batchQuery = New-MSGraphQueryToBatch -Method GET -endpoint "applications" -QueryParameters "`$select=appId,displayName&filter=$msGraphFilter"
+        Write-Output $batchQuery
+    }
+
+}
+
+function Get-AzureADCAPolicy {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]
+        $OutputFilesPath 
+    )    
     
     begin {
         
     }
     process {
         $endpoint = "identity/conditionalAccess/policies"         
-        $results = Invoke-MSGraphQuery -Method GET -endpoint $endpoint -QueryParameters  $QueryParameters
+        $policies = Invoke-MSGraphQuery -Method GET -endpoint $endpoint
+
+        $usersBatch = @()
+        $groupsBatch = @()
+        $appsBatch = @()
+
+        foreach($policy in $policies)
+        {
+            if ($policy -ne $null)
+            {
+                $usersBatch += Expand-AzureADCAPolicyReferencedUsers -Policy $policy
+                $groupsBatch += Expand-AzureADCAPolicyReferencedGroups -Policy $policy
+                $appsBatch += Expand-AzureADCAPolicyReferencedApplications -Policy $policy
+            }
+        }
+
+        $referencedUsers = Invoke-MSGraphBatch -requests $usersBatch 
+        $referencedGroups = Invoke-MSGraphBatch -requests $groupsBatch 
+        $referencedApps = Invoke-MSGraphBatch -requests $appsBatch 
+        
+        $policies | ConvertTo-Json -Depth 100 | Out-File "$OutputFilesPath\CAPolicies.json" -Force
+        
+        $referencedUsers.responses | select-object -ExpandProperty body | select-object -ExpandProperty value | ConvertTo-Json -Depth 100| Out-File "$OutputFilesPath\CARefUsers.json" -Force
+        $referencedGroups.responses | select-object -ExpandProperty body | select-object -ExpandProperty value | ConvertTo-Json -Depth 100| Out-File "$OutputFilesPath\CARefGroups.json" -Force
+        $referencedApps.responses | select-object -ExpandProperty body | select-object -ExpandProperty value | ConvertTo-Json -Depth 100| Out-File "$OutputFilesPath\CARefApps.json" -Force
+
     }
     end {
 
-        write-output $results
+        
         
     }
 }
