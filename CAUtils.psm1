@@ -357,7 +357,7 @@ function Expand-AzureADCAPolicyReferencedApplications()
 
 }
 
-function Get-AzureADCAPolicy {
+function Export-AzureADCAPolicy {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory=$true)]
@@ -369,8 +369,8 @@ function Get-AzureADCAPolicy {
         
     }
     process {
-        $endpoint = "identity/conditionalAccess/policies"         
-        $policies = Invoke-MSGraphQuery -Method GET -endpoint $endpoint
+        $policies = Invoke-MSGraphQuery -Method GET -endpoint "identity/conditionalAccess/policies"
+        $namedLocations = Invoke-MSGraphQuery -Method GET -endpoint "identity/conditionalAccess/namedLocations"      
 
         $usersBatch = @()
         $groupsBatch = @()
@@ -391,6 +391,7 @@ function Get-AzureADCAPolicy {
         $referencedApps = Invoke-MSGraphBatch -requests $appsBatch 
         
         $policies | ConvertTo-Json -Depth 100 | Out-File "$OutputFilesPath\CAPolicies.json" -Force
+        $namedLocations | ConvertTo-Json -Depth 100 | Out-File "$OutputFilesPath\NamedLocations.json" -Force
         
         $referencedUsers.responses | select-object -ExpandProperty body | select-object -ExpandProperty value | ConvertTo-Json -Depth 100| Out-File "$OutputFilesPath\CARefUsers.json" -Force
         $referencedGroups.responses | select-object -ExpandProperty body | select-object -ExpandProperty value | ConvertTo-Json -Depth 100| Out-File "$OutputFilesPath\CARefGroups.json" -Force
