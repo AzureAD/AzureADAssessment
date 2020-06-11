@@ -326,7 +326,7 @@ function Expand-AzureADCAPolicyReferencedGroups()
     $msGraphFilter = ""
 
     $policy.conditions.users.includeGroups | %{ $msGraphFilter = Add-MSGraphObjectIdCondition -InitialFilter $msGraphFilter -ObjectId $_ }
-    $policy.conditions.users.includeGroups | %{ $msGraphFilter = Add-MSGraphObjectIdCondition -InitialFilter $msGraphFilter -ObjectId $_ }
+    $policy.conditions.users.excludeGroups | %{ $msGraphFilter = Add-MSGraphObjectIdCondition -InitialFilter $msGraphFilter -ObjectId $_ }
 
     if ($msGraphFilter -ne "")
     {
@@ -344,15 +344,19 @@ function Expand-AzureADCAPolicyReferencedApplications()
         $Policy
     )
 
-    $msGraphFilter = ""
 
-    $policy.conditions.applications.includeApplications | %{ $msGraphFilter = Add-MSGraphObjectIdCondition -InitialFilter $msGraphFilter -ObjectId $_ -PropertyName "appId"}
-    $policy.conditions.applications.excludeApplications | %{ $msGraphFilter = Add-MSGraphObjectIdCondition -InitialFilter $msGraphFilter -ObjectId $_ -PropertyName "appId"}
+    $appMSGraphFilter = ""
+    $policy.conditions.applications.includeApplications | % { $appMSGraphFilter = Add-MSGraphObjectIdCondition -InitialFilter $appMSGraphFilter -ObjectId $_ -PropertyName "appId" }
+    $policy.conditions.applications.excludeApplications | % { $appMSGraphFilter = Add-MSGraphObjectIdCondition -InitialFilter $appMSGraphFilter -ObjectId $_ -PropertyName "appId" }
 
-    if ($msGraphFilter -ne "")
+    if ($appMSGraphFilter -ne "")
     {
-        $batchQuery = New-MSGraphQueryToBatch -Method GET -endpoint "applications" -QueryParameters "`$select=appId,displayName&filter=$msGraphFilter"
-        Write-Output $batchQuery
+        #we have to find the app in the local tenant and in the service principals, in case they come
+        #from other tenants such as first party services (e.g. Exchange Online)
+        $batchAppQuery = New-MSGraphQueryToBatch -Method GET -endpoint "applications" -QueryParameters "`$select=appId,displayName&filter=$appMSGraphFilter"
+        Write-Output $batchAppQuery        
+        $batchSPQuery = New-MSGraphQueryToBatch -Method GET -endpoint "servicePrincipals" -QueryParameters "`$select=appId,displayName&filter=$appMSGraphFilter"
+        Write-Output $batchSPQuery
     }
 
 }
@@ -382,7 +386,8 @@ function Export-AzureADCAPolicy {
             {
                 $usersBatch += Expand-AzureADCAPolicyReferencedUsers -Policy $policy
                 $groupsBatch += Expand-AzureADCAPolicyReferencedGroups -Policy $policy
-                $appsBatch += Expand-AzureADCAPolicyReferencedApplications -Policy $policy
+                $appsPolicyBatch = Expand-AzureADCAPolicyReferencedApplications -Policy $policy            
+                $appsPolicyBatch | % { $appsBatch += $_}
             }
         }
 
@@ -393,15 +398,11 @@ function Export-AzureADCAPolicy {
         $policies | ConvertTo-Json -Depth 100 | Out-File "$OutputFilesPath\CAPolicies.json" -Force
         $namedLocations | ConvertTo-Json -Depth 100 | Out-File "$OutputFilesPath\NamedLocations.json" -Force
         
-        $referencedUsers.responses | select-object -ExpandProperty body | select-object -ExpandProperty value | ConvertTo-Json -Depth 100| Out-File "$OutputFilesPath\CARefUsers.json" -Force
-        $referencedGroups.responses | select-object -ExpandProperty body | select-object -ExpandProperty value | ConvertTo-Json -Depth 100| Out-File "$OutputFilesPath\CARefGroups.json" -Force
-        $referencedApps.responses | select-object -ExpandProperty body | select-object -ExpandProperty value | ConvertTo-Json -Depth 100| Out-File "$OutputFilesPath\CARefApps.json" -Force
+        $referencedUsers.responses | select-object -ExpandProperty body | select-object -ExpandProperty value  | select-object -Unique  id,userPrincipalName | ConvertTo-Json -Depth 100| Out-File "$OutputFilesPath\CARefUsers.json" -Force
+        $referencedGroups.responses | select-object -ExpandProperty body | select-object -ExpandProperty value | select-object -Unique id,displayName | ConvertTo-Json -Depth 100| Out-File "$OutputFilesPath\CARefGroups.json" -Force
+        $referencedApps.responses | select-object -ExpandProperty body | select-object -ExpandProperty value | select-object -Unique appId,displayName | ConvertTo-Json -Depth 100| Out-File "$OutputFilesPath\CARefApps.json" -Force
 
     }
     end {
-
-        
-        
     }
 }
-
