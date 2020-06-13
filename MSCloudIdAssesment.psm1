@@ -765,10 +765,39 @@ function Invoke-MSGraphBatch
         $requests
     )
 
-    $requestsJson = New-Object psobject -Property @{requests=$requests} | ConvertTo-Json -Depth 100
+    #MS Graph limit
+    $maxBatchSize = 20
+    $batchCount = 0
+    $currentBatch=@()
+    $totalResults=@()
 
-    Invoke-MSGraphQuery -BaseURI $BaseURI -endpoint "`$batch" -Method "POST" -Body $requestsJson
+    foreach($request in $requests)
+    {
+        $batchCount++
+        $currentBatch += $request
+        
+        if ($batchCount -ge $maxBatchSize)
+        {
+            $requestsJson = New-Object psobject -Property @{requests=$currentBatch} | ConvertTo-Json -Depth 100
+            $batchResults = Invoke-MSGraphQuery -BaseURI $BaseURI -endpoint "`$batch" -Method "POST" -Body $requestsJson
+            $totalResults += $batchResults
+            
+            $batchCount = 0
+            $currentBatch = @()
+        }
+    }
 
+    if ($batchCount -ge 0)
+    {
+        $requestsJson = New-Object psobject -Property @{requests=$currentBatch} | ConvertTo-Json -Depth 100
+        $batchResults = Invoke-MSGraphQuery -BaseURI $BaseURI -endpoint "`$batch" -Method "POST" -Body $requestsJson
+        $totalResults += $batchResults
+        
+        $batchCount = 0
+        $currentBatch = @()
+    }
+
+    Write-Output $totalResults
 }
 
 
@@ -954,74 +983,57 @@ function Add-MSGraphObjectIdCondition
     }
 }
 
-function Expand-AzureADCAPolicyReferencedUsers()
+function Expand-AzureADCAPolicyReferencedObjects()
 {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory=$true)]
-        [PSObject]
-        $Policy
+        $ObjectIds,
+        [Parameter(Mandatory=$true)]
+        $Endpoint,
+        [Parameter(Mandatory=$true)]
+        $SelectProperties
     )
-
+    #MS Graph limit
+    $maxConditionsPerQuery = 15
+    $objectsInQuery = 0
     $msGraphFilter = ""
 
-    $policy.conditions.users.includeUsers | %{ $msGraphFilter = Add-MSGraphObjectIdCondition -InitialFilter $msGraphFilter -ObjectId $_ }
-    $policy.conditions.users.excludeUsers | %{ $msGraphFilter = Add-MSGraphObjectIdCondition -InitialFilter $msGraphFilter -ObjectId $_ }
-
-    if ($msGraphFilter -ne "")
+    foreach($objectId in $ObjectIds)
     {
-        $batchQuery = New-MSGraphQueryToBatch -Method GET -endpoint "users" -QueryParameters "`$select=id,userprincipalName&filter=$msGraphFilter"
+        $objectsInQuery++
+        $msGraphFilter = Add-MSGraphObjectIdCondition -InitialFilter $msGraphFilter -ObjectId $objectId
+
+        if ($objectsInQuery -eq $maxConditionsPerQuery)
+        {
+            $batchQuery = New-MSGraphQueryToBatch -Method GET -endpoint $Endpoint -QueryParameters "`$select=$SelectProperties&filter=$msGraphFilter"
+            Write-Output $batchQuery
+            $objectsInQuery = 0
+            $msGraphFilter = ""
+        } 
+    }
+
+    if ($objectsInQuery -gt 0)
+    {
+        $batchQuery = New-MSGraphQueryToBatch -Method GET -endpoint $Endpoint -QueryParameters "`$select=$SelectProperties&filter=$msGraphFilter"
         Write-Output $batchQuery
-    }
-
+    }   
 }
 
-function Expand-AzureADCAPolicyReferencedGroups()
-{
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory=$true)]
-        [PSObject]
-        $Policy
-    )
+<# 
+ .Synopsis
+  Produces the Azure AD Conditional Access reports required by the Azure AD assesment
+ .Description
+  This cmdlet reads the conditional access from the target Azure AD Tenant and produces the output files 
+  in a target directory
 
-    $msGraphFilter = ""
+ .PARAMETER OutputDirectory
+    Full path of the directory where the output files will be generated.
 
-    $policy.conditions.users.includeGroups | %{ $msGraphFilter = Add-MSGraphObjectIdCondition -InitialFilter $msGraphFilter -ObjectId $_ }
-    $policy.conditions.users.excludeGroups | %{ $msGraphFilter = Add-MSGraphObjectIdCondition -InitialFilter $msGraphFilter -ObjectId $_ }
+.EXAMPLE
+   .\Get-MSCloudIdCAPolicyReports -OutputDirectory "c:\temp\contoso" 
 
-    if ($msGraphFilter -ne "")
-    {
-        $batchQuery = New-MSGraphQueryToBatch -Method GET -endpoint "groups" -QueryParameters "`$select=id,displayName&filter=$msGraphFilter"
-        Write-Output $batchQuery
-    }
-}
-
-function Expand-AzureADCAPolicyReferencedApplications()
-{
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory=$true)]
-        [PSObject]
-        $Policy
-    )
-
-
-    $appMSGraphFilter = ""
-    $policy.conditions.applications.includeApplications | % { $appMSGraphFilter = Add-MSGraphObjectIdCondition -InitialFilter $appMSGraphFilter -ObjectId $_ -PropertyName "appId" }
-    $policy.conditions.applications.excludeApplications | % { $appMSGraphFilter = Add-MSGraphObjectIdCondition -InitialFilter $appMSGraphFilter -ObjectId $_ -PropertyName "appId" }
-
-    if ($appMSGraphFilter -ne "")
-    {
-        #we have to find the app in the local tenant and in the service principals, in case they come
-        #from other tenants such as first party services (e.g. Exchange Online)
-        $batchAppQuery = New-MSGraphQueryToBatch -Method GET -endpoint "applications" -QueryParameters "`$select=appId,displayName&filter=$appMSGraphFilter"
-        Write-Output $batchAppQuery        
-        $batchSPQuery = New-MSGraphQueryToBatch -Method GET -endpoint "servicePrincipals" -QueryParameters "`$select=appId,displayName&filter=$appMSGraphFilter"
-        Write-Output $batchSPQuery
-    }
-}
-
+#>
 function Get-MSCloudIdCAPolicyReports {
     [CmdletBinding()]
     param (
@@ -1030,47 +1042,32 @@ function Get-MSCloudIdCAPolicyReports {
         $OutputDirectory 
     )    
 
-    Write-Progress -Activity "Reading Azure AD Conditional Access Policies" -CurrentOperation "Reading policy definitions" 
-
+    Write-Progress -Activity "Reading Azure AD Conditional Access Policies" -CurrentOperation "Reading policies and named locations" 
     $policies = Invoke-MSGraphQuery -Method GET -endpoint "identity/conditionalAccess/policies"
-
-    Write-Progress -Activity "Reading Azure AD Conditional Access Policies" -CurrentOperation "Reading named locations" 
-    $namedLocations = Invoke-MSGraphQuery -Method GET -endpoint "identity/conditionalAccess/namedLocations"      
-
-    $usersBatch = @()
-    $groupsBatch = @()
-    $appsBatch = @()
-
-    $totalPolicies = $policies.Count
-    $processedPolicies = 0
-
-    foreach($policy in $policies)
-    {
-        if ($policy -ne $null)
-        {
-            $usersBatch += Expand-AzureADCAPolicyReferencedUsers -Policy $policy
-            $groupsBatch += Expand-AzureADCAPolicyReferencedGroups -Policy $policy
-            $appsPolicyBatch = Expand-AzureADCAPolicyReferencedApplications -Policy $policy            
-            $appsPolicyBatch | % { $appsBatch += $_}
-
-            $percentComplete = 100 * $processedPolicies++ / $totalPolicies
-
-            Write-Progress -Activity "Reading Azure AD Conditional Access Policies" -CurrentOperation "Expanding referenced objects" -PercentComplete $percentComplete
-        }
-    }
+    $namedLocations = Invoke-MSGraphQuery -Method GET -endpoint "identity/conditionalAccess/namedLocations"  
+    
+    Write-Progress -Activity "Reading Azure AD Conditional Access Policies" -CurrentOperation "Consolidating object references" 
+    $userIds = $policies.conditions.users.includeUsers + $policies.conditions.users.excludeUsers | Sort-Object | Get-Unique
+    $groupIds = $policies.conditions.users.includeGroups + $policies.conditions.users.excludeGroups | Sort-Object | Get-Unique
+    $appIds =  $policies.conditions.applications.includeApplications + $policies.conditions.applications.excludeApplications | Sort-Object | Get-Unique
+    
+    $usersBatch = Expand-AzureADCAPolicyReferencedObjects -ObjectIds $UserIds -Endpoint "users" -SelectProperties "id,userprincipalName" 
+    $groupsBatch =  Expand-AzureADCAPolicyReferencedObjects -ObjectIds $groupIds -Endpoint "groups" -SelectProperties "id,displayName" 
+    $appsBatch = Expand-AzureADCAPolicyReferencedObjects -ObjectIds $appIds -Endpoint "applications" -SelectProperties "appId,displayName"
+    $appsBatch += Expand-AzureADCAPolicyReferencedObjects -ObjectIds $appIds -Endpoint "servicePrincipals" -SelectProperties "appId,displayName" 
 
     Write-Progress -Activity "Reading Azure AD Conditional Access Policies" -CurrentOperation "Querying referenced objects" 
     $referencedUsers = Invoke-MSGraphBatch -requests $usersBatch 
     $referencedGroups = Invoke-MSGraphBatch -requests $groupsBatch 
     $referencedApps = Invoke-MSGraphBatch -requests $appsBatch 
 
-    Write-Progress -Activity "Reading Azure AD Conditional Access Policies" -CurrentOperation "Saving Report"     
-    $policies | ConvertTo-Json -Depth 100 | Out-File "$OutputDirectory\CAPolicies.json" -Force
-    $namedLocations | ConvertTo-Json -Depth 100 | Out-File "$OutputDirectory\NamedLocations.json" -Force
-    
-    $referencedUsers.responses | select-object -ExpandProperty body | select-object -ExpandProperty value  | select-object -Unique  id,userPrincipalName | ConvertTo-Json -Depth 100| Out-File "$OutputDirectory\CARefUsers.json" -Force
-    $referencedGroups.responses | select-object -ExpandProperty body | select-object -ExpandProperty value | select-object -Unique id,displayName | ConvertTo-Json -Depth 100| Out-File "$OutputDirectory\CARefGroups.json" -Force
-    $referencedApps.responses | select-object -ExpandProperty body | select-object -ExpandProperty value | select-object -Unique appId,displayName | ConvertTo-Json -Depth 100| Out-File "$OutputDirectory\CARefApps.json" -Force
+    Write-Progress -Activity "Reading Azure AD Conditional Access Policies" -CurrentOperation "Saving Reports"
+    $policies | Sort-Object id | ConvertTo-Json -Depth 100 | Out-File "$OutputDirectory\CAPolicies.json" -Force
+    $namedLocations | Sort-Object id | ConvertTo-Json -Depth 100 | Out-File "$OutputDirectory\NamedLocations.json" -Force
+
+    $referencedUsers.responses.body.value | Sort-Object id | ConvertTo-Json -Depth 100| Out-File "$OutputDirectory\CARefUsers.json" -Force
+    $referencedGroups.responses.body.value | Sort-Object id | ConvertTo-Json -Depth 100| Out-File "$OutputDirectory\CARefGroups.json" -Force
+    $referencedApps.responses.body.value | Sort-Object appId | ConvertTo-Json -Depth 100| Out-File "$OutputDirectory\CARefApps.json" -Force
 }
 
 <# 
