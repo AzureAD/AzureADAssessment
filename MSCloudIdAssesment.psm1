@@ -787,7 +787,7 @@ function Invoke-MSGraphBatch
         }
     }
 
-    if ($batchCount -ge 0)
+    if ($batchCount -gt 0)
     {
         $requestsJson = New-Object psobject -Property @{requests=$currentBatch} | ConvertTo-Json -Depth 100
         $batchResults = Invoke-MSGraphQuery -BaseURI $BaseURI -endpoint "`$batch" -Method "POST" -Body $requestsJson
