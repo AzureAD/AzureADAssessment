@@ -1,4 +1,7 @@
 #Requires -Version 4
+#Requires -Module @{ ModuleName = 'MSAL.PS'; ModuleVersion = '4.7.1.2'  }
+#Requires -Module @{ ModuleName = 'AzureAD';  ModuleVersion= '2.0' }
+#Requires -Module @{ ModuleName = 'MSOnline'; ModuleVersion = '1.1' }
 
 <# 
  
@@ -22,6 +25,69 @@
 #>
 
 
+$global:authHeader = $null
+$global:msgraphToken = $null
+$global:tokenRequestedTime = [DateTime]::MinValue
+
+function Get-MSCloudIdAccessToken {
+    [CmdletBinding()]
+    param (
+        [string]
+        $TenantId,
+        [string]
+        $ClientID,
+        [string]
+        $RedirectUri,
+        [string]
+        $Scopes,
+        [switch]
+        $Interactive
+    )
+    
+    $msalToken = $null
+    if ($Interactive)
+    {
+        $msalToken = get-msaltoken -ClientId $ClientID -TenantId $TenantId -RedirectUri $RedirectUri -Scopes $Scopes -Resource          
+    }
+    else
+    {
+        try {
+            $msalToken = get-msaltoken -ClientId $ClientID -TenantId $TenantId -RedirectUri $RedirectUri -Scopes $Scopes -Silent  
+        }
+        catch [Microsoft.Identity.Client.MsalUiRequiredException] 
+        {
+            $MsalToken = get-msaltoken -ClientId $ClientID -TenantId $TenantId -RedirectUri $RedirectUri -Scopes $Scopes               
+        }
+    }
+
+    Write-Output $MsalToken
+}
+
+
+function Connect-MSGraphAPI {
+    [CmdletBinding()]
+    param (
+        [string]
+        $TenantId,
+        [string]
+        $ClientID = "1b730954-1685-4b74-9bfd-dac224a7b894",
+        [string]
+        $RedirectUri = "urn:ietf:wg:oauth:2.0:oob",
+        [string]
+        $Scopes = "https://graph.microsoft.com/.default",
+        [switch]
+        $Interactive
+    )
+    
+    $token = Get-MSCloudIdAccessToken -TenantId $TenantId -ClientID $ClientID -RedirectUri $RedirectUri -Scopes $Scopes -Interactive:$Interactive
+    $Header = @{ }
+    $Header.Authorization = "Bearer {0}" -f $token.AccessToken
+    $Header.'Content-type' = "application/json"
+    
+    $global:msgraphToken = $token
+    $global:authHeader = $Header
+}
+
 <# 
  .Synopsis
   Starts the sessions to AzureAD and MSOnline Powershell Modules
@@ -32,12 +98,18 @@
 #>
 function Start-MSCloudIdSession		
 {
-    [CmdletBinding()]
-    param
-    ()
+    Connect-MSGraphAPI
+    $msGraphToken = $global:msgraphToken
 
-    Connect-MsolService
-    Connect-AzureAD
+    $aadTokenPsh = Get-MSCloudIdAccessToken -ClientID 1b730954-1685-4b74-9bfd-dac224a7b894 -Scopes "https://graph.windows.net/.default"  -RedirectUri "urn:ietf:wg:oauth:2.0:oob" 
+    #$aadTokenPsh
+
+    Connect-AzureAD -AadAccessToken $aadTokenPsh.AccessToken  -MsAccessToken $msGraphToken.AccessToken -AccountId $msGraphToken.Account.UserName -TenantId $msGraphToken.TenantID  | Out-Null
+    Connect-MsolService -AdGraphAccesstoken $aadTokenPsh.AccessToken -MsGraphAccessToken $msGraphToken.AccessToken | Out-Null
+
+    $global:tokenRequestedTime = [DateTime](Get-Date)
+
+    Write-Output "Session Started!"
 }
 
 <# 
@@ -643,6 +715,364 @@ Function Get-MSCloudIdAssessmentSingleReport
     } 
 }
 
+function New-MSGraphQueryToBatch
+{
+    [CmdletBinding()]
+    param (
+        # endpoint
+        [string]
+        $endpoint,
+        [string]
+        $QueryParameters,
+        # HTTP Method
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("GET", "POST", "PUT", "DELETE")]
+        [string]
+        $Method,
+        [string]
+        $Body
+    )
+
+    if ($null -notlike $QueryParameters) {
+        $URI = ("/{0}?{1}" -f $endpoint, $QueryParameters)
+        
+    }
+    else {
+        $URI = ("/{0}" -f $endpoint)
+    }
+
+    $result = New-Object PSObject -Property @{
+        id = [Guid]::NewGuid()
+        method=$Method
+        url=$URI
+        body=$Body
+    }
+
+    Write-Output $result
+}
+
+function Invoke-MSGraphBatch
+{
+    param (
+        # Base URI
+        [string]
+        $BaseURI = "https://graph.microsoft.com/",
+        # endpoint
+        [ValidateSet("1.0", "beta")]
+        [string]
+        $APIVersion = "beta",
+        [object[]]
+        $requests
+    )
+
+    $requestsJson = New-Object psobject -Property @{requests=$requests} | ConvertTo-Json -Depth 100
+
+    Invoke-MSGraphQuery -BaseURI $BaseURI -endpoint "`$batch" -Method "POST" -Body $requestsJson
+
+}
+
+
+
+function Invoke-MSGraphQuery {
+    [CmdletBinding()]
+    param (
+        # Base URI
+        [string]
+        $BaseURI = "https://graph.microsoft.com/",
+        # endpoint
+        [string]
+        $endpoint,
+        [ValidateSet("1.0", "beta")]
+        [string]
+        $APIVersion = "beta",
+        [string]
+        $QueryParameters,
+        # HTTP Method
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("GET", "POST", "PUT", "DELETE")]
+        [string]
+        $Method,
+        [string]
+        $Body
+
+    )
+    
+    begin {
+        # Header
+        $CurrentDate = [DateTime](Get-Date)
+        $Delta= ($CurrentDate - $global:tokenRequestedTime).TotalMinutes
+        
+        if ($Delta -gt 55)
+        {
+            Connect-MSGraphAPI
+            $global:tokenRequestedTime = $CurrentDate
+        }
+        $Headers = $global:authHeader        
+    }
+    
+    process {
+
+        if ($null -notlike $QueryParameters) {
+            $URI = ("{0}{1}/{2}?{3}" -f $BaseURI, $APIVersion, $endpoint, $QueryParameters)
+            
+        }
+        else {
+            $URI = ("{0}{1}/{2}" -f $BaseURI, $APIVersion, $endpoint)
+        }
+        
+        try {
+
+            switch ($Method) {
+                "GET" {
+
+                    $queryUrl = $URI
+                    Write-Verbose ("Invoking $Method request on $queryUrl...")
+                    while (-not [String]::IsNullOrEmpty($queryUrl)) {
+                       
+                        try {                            
+                            $pagedResults = Invoke-RestMethod -Method $Method -Uri $queryUrl -Headers $Headers -ErrorAction Stop
+                        
+                        }
+                        catch {
+                        
+                            $StatusCode = [int]$_.Exception.Response.StatusCode
+                            $message = $_.Exception.Message
+                            Write-Error "ERROR During Request -  $StatusCode $message"
+
+                        }
+
+                    
+                        if ($pagedResults.value -ne $null) {
+                            $queryResults += $pagedResults.value
+                        }
+                        else {
+                            $queryResults += $pagedResults
+                        }
+                        $queryCount = $queryResults.Count
+                        Write-Progress -Id 1 -Activity "Querying directory" -CurrentOperation "Retrieving results ($queryCount found so far)" 
+                        $queryUrl = ""
+
+                        $odataNextLink = $pagedResults | Select-Object -ExpandProperty "@odata.nextLink" -ErrorAction SilentlyContinue
+
+                        if ($null -ne $odataNextLink) {
+                            $queryUrl = $odataNextLink
+                        }
+                        else {
+                            $odataNextLink = $pagedResults | Select-Object -ExpandProperty "odata.nextLink" -ErrorAction SilentlyContinue
+                            if ($null -ne $odataNextLink) {
+                                $absoluteUri = [Uri]"https://bogus/$odataNextLink"
+                                $skipToken = $absoluteUri.Query.TrimStart("?")
+                                
+                            }
+                        }
+                    }
+
+                    Write-Verbose ("Returning {0} total results" -f $queryResults.count)
+                    Write-Output $queryResults
+
+                }
+
+                "POST" {
+                    $queryUrl = $URI
+                    Write-Verbose ("Invoking $Method request on $queryUrl using $Headers with Body $body...")
+                    #Connect-MSGraphAPI
+
+                    $qErr = $Null
+                    try {                    
+                        $queryResults = Invoke-RestMethod -Method $Method -Uri $queryUrl -Headers $Headers -Body $Body -UseBasicParsing -ErrorVariable qErr -ErrorAction Stop
+                        Write-Output $queryResults
+                    }
+                    catch {
+                        $StatusCode = [int]$_.Exception.Response.StatusCode
+                        $message = $_.Exception.Message
+                        Write-Error "ERROR During Request -  $StatusCode $message"
+
+
+                    }
+                   
+
+                   
+                   
+                }
+
+                "PUT" {
+                    $queryUrl = $URI
+                    Write-Verbose ("Invoking $Method request on $queryUrl...")
+                    $pagedResults = Invoke-RestMethod -Method $Method -Uri $queryUrl -Headers $Headers -Body $Body
+                }
+                "DELETE" {
+                    $queryUrl = $URI
+                    Write-Verbose ("Invoking $Method request on $queryUrl...")
+                    $pagedResults = Invoke-RestMethod -Method $Method -Uri $queryUrl -Headers $Headers
+                }
+            }
+            
+            
+        }
+        catch {
+            
+        }
+    }
+    
+    end {
+        
+    }
+}
+
+function Add-MSGraphObjectIdCondition
+{
+    [CmdletBinding()]
+    param (
+        [Parameter()]
+        [string]
+        $InitialFilter,
+        [Parameter()]
+        [string]
+        $PropertyName="id",
+        [string]
+        $ObjectId,
+        [Parameter()]
+        $Operator = "or"
+    )
+
+    $oid = [Guid]::NewGuid()
+
+    if ([String]::IsNullOrWhiteSpace($oid) -or -not [Guid]::TryParse($ObjectId, [ref]$oid))
+    {
+        Write-Output $InitialFilter
+        return
+    }
+
+    $Condition = "$PropertyName+eq+'$ObjectId'"
+
+    if ([string]::IsNullOrWhiteSpace($InitialFilter))
+    {
+        Write-Output $Condition
+    }
+    else {
+        Write-Output "$InitialFilter+$Operator+$Condition"
+    }
+}
+
+function Expand-AzureADCAPolicyReferencedUsers()
+{
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true)]
+        [PSObject]
+        $Policy
+    )
+
+    $msGraphFilter = ""
+
+    $policy.conditions.users.includeUsers | %{ $msGraphFilter = Add-MSGraphObjectIdCondition -InitialFilter $msGraphFilter -ObjectId $_ }
+    $policy.conditions.users.excludeUsers | %{ $msGraphFilter = Add-MSGraphObjectIdCondition -InitialFilter $msGraphFilter -ObjectId $_ }
+
+    if ($msGraphFilter -ne "")
+    {
+        $batchQuery = New-MSGraphQueryToBatch -Method GET -endpoint "users" -QueryParameters "`$select=id,userprincipalName&filter=$msGraphFilter"
+        Write-Output $batchQuery
+    }
+
+}
+
+function Expand-AzureADCAPolicyReferencedGroups()
+{
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true)]
+        [PSObject]
+        $Policy
+    )
+
+    $msGraphFilter = ""
+
+    $policy.conditions.users.includeGroups | %{ $msGraphFilter = Add-MSGraphObjectIdCondition -InitialFilter $msGraphFilter -ObjectId $_ }
+    $policy.conditions.users.excludeGroups | %{ $msGraphFilter = Add-MSGraphObjectIdCondition -InitialFilter $msGraphFilter -ObjectId $_ }
+
+    if ($msGraphFilter -ne "")
+    {
+        $batchQuery = New-MSGraphQueryToBatch -Method GET -endpoint "groups" -QueryParameters "`$select=id,displayName&filter=$msGraphFilter"
+        Write-Output $batchQuery
+    }
+}
+
+function Expand-AzureADCAPolicyReferencedApplications()
+{
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true)]
+        [PSObject]
+        $Policy
+    )
+
+
+    $appMSGraphFilter = ""
+    $policy.conditions.applications.includeApplications | % { $appMSGraphFilter = Add-MSGraphObjectIdCondition -InitialFilter $appMSGraphFilter -ObjectId $_ -PropertyName "appId" }
+    $policy.conditions.applications.excludeApplications | % { $appMSGraphFilter = Add-MSGraphObjectIdCondition -InitialFilter $appMSGraphFilter -ObjectId $_ -PropertyName "appId" }
+
+    if ($appMSGraphFilter -ne "")
+    {
+        #we have to find the app in the local tenant and in the service principals, in case they come
+        #from other tenants such as first party services (e.g. Exchange Online)
+        $batchAppQuery = New-MSGraphQueryToBatch -Method GET -endpoint "applications" -QueryParameters "`$select=appId,displayName&filter=$appMSGraphFilter"
+        Write-Output $batchAppQuery        
+        $batchSPQuery = New-MSGraphQueryToBatch -Method GET -endpoint "servicePrincipals" -QueryParameters "`$select=appId,displayName&filter=$appMSGraphFilter"
+        Write-Output $batchSPQuery
+    }
+}
+
+function Get-MSCloudIdCAPolicyReports {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]
+        $OutputDirectory 
+    )    
+
+    Write-Progress -Activity "Reading Azure AD Conditional Access Policies" -CurrentOperation "Reading policy definitions" 
+
+    $policies = Invoke-MSGraphQuery -Method GET -endpoint "identity/conditionalAccess/policies"
+
+    Write-Progress -Activity "Reading Azure AD Conditional Access Policies" -CurrentOperation "Reading named locations" 
+    $namedLocations = Invoke-MSGraphQuery -Method GET -endpoint "identity/conditionalAccess/namedLocations"      
+
+    $usersBatch = @()
+    $groupsBatch = @()
+    $appsBatch = @()
+
+    $totalPolicies = $policies.Count
+    $processedPolicies = 0
+
+    foreach($policy in $policies)
+    {
+        if ($policy -ne $null)
+        {
+            $usersBatch += Expand-AzureADCAPolicyReferencedUsers -Policy $policy
+            $groupsBatch += Expand-AzureADCAPolicyReferencedGroups -Policy $policy
+            $appsPolicyBatch = Expand-AzureADCAPolicyReferencedApplications -Policy $policy            
+            $appsPolicyBatch | % { $appsBatch += $_}
+
+            $percentComplete = 100 * $processedPolicies++ / $totalPolicies
+
+            Write-Progress -Activity "Reading Azure AD Conditional Access Policies" -CurrentOperation "Expanding referenced objects" -PercentComplete $percentComplete
+        }
+    }
+
+    Write-Progress -Activity "Reading Azure AD Conditional Access Policies" -CurrentOperation "Querying referenced objects" 
+    $referencedUsers = Invoke-MSGraphBatch -requests $usersBatch 
+    $referencedGroups = Invoke-MSGraphBatch -requests $groupsBatch 
+    $referencedApps = Invoke-MSGraphBatch -requests $appsBatch 
+
+    Write-Progress -Activity "Reading Azure AD Conditional Access Policies" -CurrentOperation "Saving Report"     
+    $policies | ConvertTo-Json -Depth 100 | Out-File "$OutputDirectory\CAPolicies.json" -Force
+    $namedLocations | ConvertTo-Json -Depth 100 | Out-File "$OutputDirectory\NamedLocations.json" -Force
+    
+    $referencedUsers.responses | select-object -ExpandProperty body | select-object -ExpandProperty value  | select-object -Unique  id,userPrincipalName | ConvertTo-Json -Depth 100| Out-File "$OutputDirectory\CARefUsers.json" -Force
+    $referencedGroups.responses | select-object -ExpandProperty body | select-object -ExpandProperty value | select-object -Unique id,displayName | ConvertTo-Json -Depth 100| Out-File "$OutputDirectory\CARefGroups.json" -Force
+    $referencedApps.responses | select-object -ExpandProperty body | select-object -ExpandProperty value | select-object -Unique appId,displayName | ConvertTo-Json -Depth 100| Out-File "$OutputDirectory\CARefApps.json" -Force
+}
+
 <# 
  .Synopsis
   Produces the Azure AD Configuration reports required by the Azure AD assesment
@@ -687,9 +1117,15 @@ Function Get-MSCloudIdAssessmentAzureADReports
         Get-MSCloudIdAssessmentSingleReport -FunctionName $functionName -OutputDirectory $OutputDirectory -OutputCSVFileName $outputFileName
         $processedReports++
     }
+
+    Get-MSCloudIdCAPolicyReports -OutputDirectory $OutputDirectory
 }
 
+
+
+Export-ModuleMember -Function New-MSCloudIdGraphApp
 Export-ModuleMember -Function Start-MSCloudIdSession
+Export-ModuleMember -Function Remove-MSCloudIdGraphApp
 Export-ModuleMember -Function Get-MSCloudIdAppProxyConnectorLog
 Export-ModuleMember -Function Get-MSCloudIdPasswordWritebackAgentLog
 Export-ModuleMember -Function Get-MSCloudIdNotificationEmailAddresses
@@ -699,6 +1135,7 @@ Export-ModuleMember -Function Get-MSCloudIdApplicationKeyExpirationReport
 Export-ModuleMember -Function Get-MSCloudIdADFSEndpoints
 Export-ModuleMember -Function Export-MSCloudIdADFSConfiguration
 Export-ModuleMember -Function Get-MSCloudIdGroupBasedLicensingReport
+Export-ModuleMember -Function Get-MSCloudIdCAPolicyReports
 Export-ModuleMember -Function Get-MSCloudIdAssessmentAzureADReports
 Export-ModuleMember -Function Expand-MsCloudIdAADConnectConfig
 

@@ -1,5 +1,41 @@
 # Requires -Module @{ ModuleName = 'MSAL.PS'; RequiredVersion = '4.7.1.2' }
+$global:MSGraphAppName = "Azure Active Directory Configuration Assessment"
 $global:authHeader = $null
+
+Function New-MSCloudIdGraphApp
+{
+    $msGraphAppId="00000003-0000-0000-c000-000000000000"
+    $msGraphApp = Get-AzureADServicePrincipal -Filter "appId eq '$msGraphAppId'"          
+
+    $scopesRequired = @("Policy.Read.All","User.Read.All","Group.Read.All","Application.Read.All")
+    $msGraphPerm = New-Object -TypeName "Microsoft.Open.AzureAD.Model.RequiredResourceAccess"
+    $msGraphPerm.ResourceAppId = $msGraphAppId
+    $msGraphPermResourceAccess = @()
+
+    foreach($scopeRequired in $scopesRequired)
+    {
+        $scopeId = $msGraphApp.Oauth2Permissions | where {$_.Value -eq $scopeRequired} | Select-Object -ExpandProperty Id    
+        $msGraphPermResourceAccess += New-Object -TypeName "microsoft.open.azuread.model.resourceAccess" -ArgumentList $scopeId, "Scope"
+    }
+
+    $msGraphPerm.ResourceAccess = $msGraphPermResourceAccess
+    $app = New-AzureADApplication -DisplayName $global:MSGraphAppName  -ReplyUrls "http://localhost" -RequiredResourceAccess $msGraphPerm -PublicClient $true
+
+    Write-Output $app
+}
+
+
+
+Function Get-MSCloudIdGraphApp
+{
+    $app = Get-AzureADApplication -Filter "DisplayName eq '$global:MSGraphAppName'"
+    Write-Output $app
+}
+
+Function Remove-MSCloudIdGraphApp
+{
+    Get-AzureADApplication -Filter "DisplayName eq '$global:MSGraphAppName'" | Remove-AzureADApplication
+}
 
 function Connect-MSGraphAPI {
     [CmdletBinding()]
@@ -8,8 +44,6 @@ function Connect-MSGraphAPI {
         $TenantId,
         [string]
         $ClientID = "92cd380b-4edf-4457-946e-25b4a665cd6a",
-        [string]
-        $Resource = "https://graph.microsoft.com",
         [string]
         $RedirectUri = "http://localhost",
         [string]
