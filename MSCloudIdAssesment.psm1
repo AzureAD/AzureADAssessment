@@ -957,7 +957,7 @@ function Add-MSGraphObjectIdCondition
         $InitialFilter,
         [Parameter()]
         [string]
-        $PropertyName="id",
+        $PropertyName,
         [string]
         $ObjectId,
         [Parameter()]
@@ -990,8 +990,13 @@ function Expand-AzureADCAPolicyReferencedObjects()
         [Parameter(Mandatory=$true)]
         $ObjectIds,
         [Parameter(Mandatory=$true)]
+        [string]
         $Endpoint,
+        [Parameter()]
+        [string]
+        $FilterProperty = "id",
         [Parameter(Mandatory=$true)]
+        [string]
         $SelectProperties
     )
     #MS Graph limit
@@ -1002,7 +1007,7 @@ function Expand-AzureADCAPolicyReferencedObjects()
     foreach($objectId in $ObjectIds)
     {
         $objectsInQuery++
-        $msGraphFilter = Add-MSGraphObjectIdCondition -InitialFilter $msGraphFilter -ObjectId $objectId
+        $msGraphFilter = Add-MSGraphObjectIdCondition -InitialFilter $msGraphFilter -ObjectId $objectId -PropertyName $FilterProperty
 
         if ($objectsInQuery -eq $maxConditionsPerQuery)
         {
@@ -1050,16 +1055,20 @@ function Get-MSCloudIdCAPolicyReports {
     $userIds = $policies.conditions.users.includeUsers + $policies.conditions.users.excludeUsers | Sort-Object | Get-Unique
     $groupIds = $policies.conditions.users.includeGroups + $policies.conditions.users.excludeGroups | Sort-Object | Get-Unique
     $appIds =  $policies.conditions.applications.includeApplications + $policies.conditions.applications.excludeApplications | Sort-Object | Get-Unique
+
+    
     
     $usersBatch = Expand-AzureADCAPolicyReferencedObjects -ObjectIds $UserIds -Endpoint "users" -SelectProperties "id,userprincipalName" 
     $groupsBatch =  Expand-AzureADCAPolicyReferencedObjects -ObjectIds $groupIds -Endpoint "groups" -SelectProperties "id,displayName" 
-    $appsBatch = Expand-AzureADCAPolicyReferencedObjects -ObjectIds $appIds -Endpoint "applications" -SelectProperties "appId,displayName"
-    $appsBatch += Expand-AzureADCAPolicyReferencedObjects -ObjectIds $appIds -Endpoint "servicePrincipals" -SelectProperties "appId,displayName" 
+    $appsBatch = Expand-AzureADCAPolicyReferencedObjects -ObjectIds $appIds -Endpoint "applications" -SelectProperties "appId,displayName" -FilterProperty "appId"
+    $appsBatch += Expand-AzureADCAPolicyReferencedObjects -ObjectIds $appIds -Endpoint "servicePrincipals" -SelectProperties "appId,displayName" -FilterProperty "appId"
 
     Write-Progress -Activity "Reading Azure AD Conditional Access Policies" -CurrentOperation "Querying referenced objects" 
     $referencedUsers = Invoke-MSGraphBatch -requests $usersBatch 
     $referencedGroups = Invoke-MSGraphBatch -requests $groupsBatch 
     $referencedApps = Invoke-MSGraphBatch -requests $appsBatch 
+
+    $referencedApps
 
     Write-Progress -Activity "Reading Azure AD Conditional Access Policies" -CurrentOperation "Saving Reports"
     $policies | Sort-Object id | ConvertTo-Json -Depth 100 | Out-File "$OutputDirectory\CAPolicies.json" -Force
@@ -1067,7 +1076,7 @@ function Get-MSCloudIdCAPolicyReports {
 
     $referencedUsers.responses.body.value | Sort-Object id | ConvertTo-Json -Depth 100| Out-File "$OutputDirectory\CARefUsers.json" -Force
     $referencedGroups.responses.body.value | Sort-Object id | ConvertTo-Json -Depth 100| Out-File "$OutputDirectory\CARefGroups.json" -Force
-    $referencedApps.responses.body.value | Sort-Object appId | ConvertTo-Json -Depth 100| Out-File "$OutputDirectory\CARefApps.json" -Force
+    $referencedApps.responses.body.value | Sort-Object appId | Select-Object -Property appId,displayname -Unique  | ConvertTo-Json -Depth 100| Out-File "$OutputDirectory\CARefApps.json" -Force
 }
 
 <# 
