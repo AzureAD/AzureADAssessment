@@ -1068,8 +1068,6 @@ function Get-MSCloudIdCAPolicyReports {
     $referencedGroups = Invoke-MSGraphBatch -requests $groupsBatch 
     $referencedApps = Invoke-MSGraphBatch -requests $appsBatch 
 
-    $referencedApps
-
     Write-Progress -Activity "Reading Azure AD Conditional Access Policies" -CurrentOperation "Saving Reports"
     $policies | Sort-Object id | ConvertTo-Json -Depth 100 | Out-File "$OutputDirectory\CAPolicies.json" -Force
     $namedLocations | Sort-Object id | ConvertTo-Json -Depth 100 | Out-File "$OutputDirectory\NamedLocations.json" -Force
