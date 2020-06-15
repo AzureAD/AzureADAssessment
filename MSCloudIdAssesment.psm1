@@ -1060,7 +1060,8 @@ function Get-MSCloudIdCAPolicyReports {
     
     $usersBatch = Expand-AzureADCAPolicyReferencedObjects -ObjectIds $UserIds -Endpoint "users" -SelectProperties "id,userprincipalName" 
     $groupsBatch =  Expand-AzureADCAPolicyReferencedObjects -ObjectIds $groupIds -Endpoint "groups" -SelectProperties "id,displayName" 
-    $appsBatch = Expand-AzureADCAPolicyReferencedObjects -ObjectIds $appIds -Endpoint "applications" -SelectProperties "appId,displayName" -FilterProperty "appId"
+    $appsBatch = @()
+    $appsBatch += Expand-AzureADCAPolicyReferencedObjects -ObjectIds $appIds -Endpoint "applications" -SelectProperties "appId,displayName" -FilterProperty "appId"
     $appsBatch += Expand-AzureADCAPolicyReferencedObjects -ObjectIds $appIds -Endpoint "servicePrincipals" -SelectProperties "appId,displayName" -FilterProperty "appId"
 
     Write-Progress -Activity "Reading Azure AD Conditional Access Policies" -CurrentOperation "Querying referenced objects" 
