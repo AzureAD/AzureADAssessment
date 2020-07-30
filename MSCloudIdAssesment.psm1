@@ -170,6 +170,56 @@ function Get-MSCloudIdPasswordWritebackAgentLog
 
 <# 
  .Synopsis
+  Gets a refreshToken 
+
+ .Description
+  This functions returns a refresh Token
+
+ .Example
+  refreshToken
+   
+#>
+function refreshToken() {
+    $checkContext = Get-AzContext
+    Write-Output "Creating new Token"
+    $azureRmProfile = [Microsoft.Azure.Commands.Common.Authentication.Abstractions.AzureRmProfileProvider]::Instance.Profile;
+    $profileClient = New-Object Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient($azureRmProfile);
+    $newAccessToken = ($profileClient.AcquireAccessToken($checkContext.Subscription.TenantId))
+    if ($AzureDevOpsWikiAsCode) {
+        $script:accessTokenExipresOn = ($checkContext.TokenCache.ReadItems() | Where-Object { ($_.Resource -eq "https://management.core.windows.net/") }).ExpiresOn
+    }
+    else {
+        $script:accessTokenExipresOn = ($checkContext.TokenCache.ReadItems() | Where-Object { ($_.TenantId -eq $checkContext.Tenant.Id) -and ($_.Resource -eq "https://management.core.windows.net/") -and ($_.DisplayableId -eq $checkContext.account.id) }).ExpiresOn
+    }
+    #$script:accessTokenExipresOn = $newAccessToken.expiresOn
+    $script:accessToken = $newAccessToken.AccessToken
+}
+
+<# 
+ .Synopsis
+  Check for the Lifetime of a Token and refresh it, if its invalid 
+
+ .Description
+  This functions returns a refresh Token
+
+ .Example
+  checkToken
+   
+#>
+
+function checkToken() {
+    $tokenExirationInMinutes = ($accessTokenExipresOn - (get-date)).Minutes
+    if ($tokenExirationInMinutes -lt $tokenExirationMinimumInMinutes) {
+        Write-Output "Access Token for REST AUTH has has less than $tokenExirationMinimumInMinutes minutes lifetime ($tokenExirationInMinutes minutes). Creating new token"
+        refreshToken
+        Write-output "New Token expires: $($($script:accessTokenExipresOn).LocalDateTime) ($(($script:accessTokenExipresOn - (get-date)).Minutes) minutes)"
+    }
+    else {
+        #Write-Output "Access Token for REST AUTH remaining lifetime ($tokenExirationInMinutes minutes) above minimum lifetime ($tokenExirationMinimumInMinutes minutes)"
+    }
+}
+<# 
+ .Synopsis
   Gets various email addresses that Azure AD sends notifications to
 
  .Description
@@ -235,10 +285,12 @@ function Get-MSCloudIdAppAssignmentReport
 {
 	#Get all app assignemnts using "all users" group
 	#Get all app assignments to users directly
-
-    $servicePrincipals = Get-AzureADServicePrincipal -All $true
-    $servicePrincipals | ForEach-Object { Get-AzureADServiceAppRoleAssignedTo -ObjectId $_.ObjectId -All $true }
-    $servicePrincipals | ForEach-Object { Get-AzureADServiceAppRoleAssignment -ObjectId $_.ObjectId -All $true }
+    foreach ($f in [char[]](48..90)) {  
+        checkToken
+        $servicePrincipals = Get-AzureADServicePrincipal -All $true | Where-Object {$_.DisplayName -match "^$f.*" }
+        $servicePrincipals | ForEach-Object { Get-AzureADServiceAppRoleAssignedTo -ObjectId $_.ObjectId -All $true }
+        $servicePrincipals | ForEach-Object { Get-AzureADServiceAppRoleAssignment -ObjectId $_.ObjectId -All $true }
+    }
 }
 
 <# 
@@ -257,7 +309,10 @@ Function Get-MSCloudIdApplicationKeyExpirationReport
 {
     param()
     
-    $apps = Get-AzureADApplication -All $true
+    checkToken
+    foreach ($f in [char[]](48..90)) {  
+
+    $apps = Get-AzureADApplication -All $true | Where-Object {$_.DisplayName -match "^$f.*"}
 
     foreach($app in $apps)
     {
@@ -294,7 +349,7 @@ Function Get-MSCloudIdApplicationKeyExpirationReport
     }
 
     
-    $servicePrincipals = Get-AzureADServicePrincipal -All $true
+    $servicePrincipals = Get-AzureADServicePrincipal -All $true | Where-Object {$_.DisplayName -match "^$f.*"}
 
     foreach($sp in $servicePrincipals)
     {
@@ -329,6 +384,7 @@ Function Get-MSCloudIdApplicationKeyExpirationReport
             Write-Output $result
         }    
     }
+  }
 }
 
 
@@ -368,7 +424,7 @@ Function Get-MSCloudIdConsentGrantList
     # An in-memory cache of objects by {object ID} andy by {object class, object ID} 
     $script:ObjectByObjectId = @{}
     $script:ObjectByObjectClassId = @{}
-
+    checkToken
     # Function to add an object to the cache
     function CacheObject($Object) {
         if ($Object) {
@@ -453,7 +509,7 @@ Function Get-MSCloudIdConsentGrantList
     Write-Verbose "Retrieving AppRoleAssignments..."
     $script:ObjectByObjectClassId['ServicePrincipal'].GetEnumerator() | ForEach-Object {
         $sp = $_.Value
-
+    checkToken
         Get-AzureADServiceAppRoleAssignedTo -ObjectId $sp.ObjectId  -All $true `
         | Where-Object { $_.PrincipalType -eq "ServicePrincipal" } | ForEach-Object {
             $assignment = $_
@@ -1102,6 +1158,48 @@ Function Get-MSCloudIdAssessmentAzureADReports
     )
 
     Start-MSCloudIdSession
+
+    #check if connected, verify Access Token lifetime
+    $tokenExirationMinimumInMinutes = 5
+    $checkContext = Get-AzContext
+
+    if ($checkContext) {
+        if ($AzureDevOpsWikiAsCode) {
+            $accessTokenExipresOn = ($checkContext.TokenCache.ReadItems() | Where-Object { ($_.Resource -eq "https://management.core.windows.net/") }).ExpiresOn
+        }
+        else {
+            $accessTokenExipresOn = ($checkContext.TokenCache.ReadItems() | Where-Object { ($_.TenantId -eq $checkContext.Tenant.Id) -and ($_.Resource -eq "https://management.core.windows.net/") -and ($_.DisplayableId -eq $checkContext.account.id) }).ExpiresOn
+        }
+    
+        if ($accessTokenExipresOn -lt $(Get-Date)) {
+            Write-output "Access Token for REST AUTH has has expired"
+            refreshToken
+            Write-output "New Token expires: $($($script:accessTokenExipresOn).LocalDateTime) ($(($script:accessTokenExipresOn - (get-date)).Minutes) minutes)"
+        }
+        else {
+            $tokenExirationInMinutes = ($accessTokenExipresOn - (get-date)).Minutes
+            if ($tokenExirationInMinutes -lt $tokenExirationMinimumInMinutes) {
+                Write-Output "Access Token for REST AUTH has has less than $tokenExirationMinimumInMinutes minutes lifetime ($tokenExirationInMinutes minutes)"
+                refreshToken
+                Write-output "New Token expires: $($($script:accessTokenExipresOn).LocalDateTime) ($(($script:accessTokenExipresOn - (get-date)).Minutes) minutes)"
+            }
+            else {
+                if ($AzureDevOpsWikiAsCode) {
+                    $accessToken = ($checkContext.TokenCache.ReadItems() | Where-Object { ($_.Resource -eq "https://management.core.windows.net/") }).AccessToken
+                }
+                else {
+                    $accessToken = ($checkContext.TokenCache.ReadItems() | Where-Object { ($_.TenantId -eq $checkContext.Tenant.Id) -and ($_.Resource -eq "https://management.core.windows.net/") -and ($_.DisplayableId -eq $checkContext.account.id) }).AccessToken
+                }
+                Write-Output "Found Access Token for REST AUTH (expires in $tokenExirationInMinutes minutes; defined minimum lifetime: $tokenExirationMinimumInMinutes minutes).."
+            }
+        }
+    }
+    else {
+        Write-Output "No context found. Please connect to Azure (run: Connect-AzAccount) and re-run script"
+        return
+    }
+    
+
 
     $reportsToRun = @{
         "Get-MSCloudIdNotificationEmailAddresses" = "NotificationsEmailAddresses.csv"
