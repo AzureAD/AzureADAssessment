@@ -1,5 +1,4 @@
 #Requires -Version 4
-#Requires -Module @{ ModuleName = 'MSAL.PS'; ModuleVersion = '4.7.1.2'  }
 #Requires -Module @{ ModuleName = 'AzureAD';  ModuleVersion= '2.0' }
 #Requires -Module @{ ModuleName = 'MSOnline'; ModuleVersion = '1.1' }
 
@@ -123,8 +122,22 @@ function Start-MSCloudIdSession
   Indicates how far back in the past will the events be retrieved
 
  .Example
-  Get the last seven days of logs and saves them on a CSV file   
-  Get-MSCloudIdAppProxyConnectorLog -DaysToRetrieve 7 | Export-Csv -Path ".\AzureADAppProxyLogs-$env:ComputerName.csv" 
+
+ $targetGalleryApp = "GalleryAppName"
+ $targetGroup = Get-AzureADGroup -SearchString "TestGroupName"
+ $targetAzureADRole = "TestRoleName"
+ $targetADFSRPId = "ADFSRPIdentifier"
+
+  $RP=Get-AdfsRelyingPartyTrust -Identifier $targetADFSRPId
+  $galleryApp = Get-AzureADApplicationTemplate -DisplayNameFilter $targetGalleryApp
+
+  $RP=Get-AdfsRelyingPartyTrust -Identifier $targetADFSRPId
+
+  New-AzureADAppFromADFSRPTrust `
+    -AzureADAppTemplateId $galleryApp.id `
+    -ADFSRelyingPartyTrust $RP `
+    -TestGroupAssignmentObjectId $targetGroup.ObjectId `
+    -TestGroupAssignmentRoleName $targetAzureADRole
 #>
 function Get-MSCloudIdAppProxyConnectorLog
 {
@@ -1110,7 +1123,7 @@ Function Get-MSCloudIdAssessmentAzureADReports
         "Get-MSCloudIdConsentGrantList" = "ConsentGrantList.csv"
     }
 
-    $totalReports = $reportsToRun.Count
+    $totalReports = $reportsToRun.Count + 1 #to include conditional access
     $processedReports = 0
 
     foreach ($reportKvP in $reportsToRun.GetEnumerator())
@@ -1123,6 +1136,8 @@ Function Get-MSCloudIdAssessmentAzureADReports
         $processedReports++
     }
 
+    $percentComplete = 100 * $processedReports / $totalReports
+    Write-Progress -Activity "Reading Azure AD Configuration" -CurrentOperation "Running Report Get-MSCloudIdCAPolicyReports" -PercentComplete $percentComplete
     Get-MSCloudIdCAPolicyReports -OutputDirectory $OutputDirectory
 }
 
