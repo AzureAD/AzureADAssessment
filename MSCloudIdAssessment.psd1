@@ -30,7 +30,7 @@ CompanyName = 'Microsoft'
 Copyright = '(c) 2020 Microsoft. All rights reserved.'
 
 # Description of the functionality provided by this module
-Description = 'This module analyzes your Azure Active Directory configuration and provides recommendations'
+Description = 'This module analyzes your Azure Active Directory configuration and provides recommendations.'
 
 # Minimum version of the Windows PowerShell engine required by this module
 # PowerShellVersion = ''
