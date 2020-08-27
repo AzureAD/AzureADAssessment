@@ -20,34 +20,6 @@ stages:
     - task: PowerShell@2
       inputs:
         filePath: '$(System.DefaultWorkingDirectory)/build/build.ps1'
-    - task: EsrpCodeSigning@1
-      inputs:
-        ConnectedServiceName: 'ESRP CodeSigning'
-        FolderPath: '$(System.DefaultWorkingDirectory)'
-        Pattern: '*.psm1'
-        signConfigType: 'inlineSignParams'
-        inlineOperation: |
-          ​​​​​​​​​"SigningInfo" : {
-              "Operations" : [
-                  {
-                      "KeyCode" : "CP-401405",
-                      "OperationCode" : "NuGetSign",
-                      "Parameters" : {},
-                      "ToolName" : "sign",
-                      "ToolVersion" : "1.0"
-                  },
-                  {
-                      "KeyCode" : "CP-401405",
-                      "OperationCode" : "NuGetVerify",
-                      "Parameters" : {},
-                      "ToolName" : "sign",
-                      "ToolVersion" : "1.0"
-                  }
-              ]
-          }
-        SessionTimeout: '60'
-        MaxConcurrency: '50'
-        MaxRetryAttempts: '5'
     - task: PublishBuildArtifacts@1
       inputs:
         PathtoPublish: '$(Build.ArtifactStagingDirectory)'
