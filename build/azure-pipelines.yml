@@ -19,7 +19,7 @@ stages:
     steps:
     - task: PowerShell@2
       inputs:
-        filePath: '/build/build.ps1'
+        filePath: '$(System.DefaultWorkingDirectory)/build/build.ps1'
     - task: EsrpCodeSigning@1
       inputs:
         ConnectedServiceName: 'ESRP CodeSigning'
