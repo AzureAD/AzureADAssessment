@@ -23,7 +23,7 @@ stages:
   inputs:
     ConnectedServiceName: 'ESRP CodeSigning'
     FolderPath: '$(System.DefaultWorkingDirectory)'
-    Pattern: '*.psm1'
+    Pattern: 'MSCloudIdAssesment.psm1'
     signConfigType: 'inlineSignParams'
     inlineOperation: |
       ​​​​​​​​​"SigningInfo" : {
