@@ -1,0 +1,22 @@
+trigger:
+  - master
+
+name: 'MSCloudIdAssessment'
+
+variables:
+  major: 1
+  minor: 2
+  patch: $(Build.BuildID)
+  buildVer: $(major).$(minor).$(Build.BuildID)
+
+pool:
+  vmImage: "ubuntu-latest"
+
+stages:
+- stage: Build
+  jobs:
+  - job: Build
+    steps:
+    - task: PowerShell@2
+      inputs:
+        filePath: '$(System.DefaultWorkingDirectory)/build/build.ps1'
