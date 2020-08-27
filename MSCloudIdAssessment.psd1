@@ -27,7 +27,7 @@ Author = 'GTP-Architecture'
 CompanyName = 'Microsoft'
 
 # Copyright statement for this module
-Copyright = '(c) 2020 Microsoft. All rights reserved.'
+Copyright = '© Microsoft Corporation. All rights reserved.'
 
 # Description of the functionality provided by this module
 Description = 'This module analyzes your Azure Active Directory configuration and provides recommendations.'
