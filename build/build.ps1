@@ -5,3 +5,5 @@ $manifestPath = Join-Path -Path $env:SYSTEM_DEFAULTWORKINGDIRECTORY -ChildPath "
 ## Update build version in manifest
 $manifestContent = Get-Content -Path $manifestPath -Raw
 $manifestContent = $manifestContent -replace '<moduleversion>', $buildVersion
+
+$manifestContent | Set-Content -Path $manifestPath
