@@ -23,8 +23,8 @@ stages:
     - task: CopyFiles@2
       inputs:
         Contents: |
-          **\*.psm1
-          **\*.psd1
+          \**\*.psm1
+          \**\*.psd1
         TargetFolder: '$(Build.ArtifactStagingDirectory)/MSCloudIdAssessment'
     - task: PublishBuildArtifacts@1
       inputs:
