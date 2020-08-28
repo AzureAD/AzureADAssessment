@@ -21,7 +21,7 @@ ModuleVersion = '<moduleversion>'
 GUID = '0dc4c0ce-4ff6-43c2-9913-8e001c84e0d3'
 
 # Author of this module
-Author = 'GTP-Architecture'
+Author = 'Microsoft Identity'
 
 # Company or vendor of this module
 CompanyName = 'Microsoft'
@@ -30,7 +30,7 @@ CompanyName = 'Microsoft'
 Copyright = '© Microsoft Corporation. All rights reserved.'
 
 # Description of the functionality provided by this module
-Description = 'This module analyzes your Azure Active Directory configuration and provides recommendations.'
+Description = 'This module analyzes your Azure Active Directory configuration and provides best practice recommendations.'
 
 # Minimum version of the Windows PowerShell engine required by this module
 # PowerShellVersion = ''
