@@ -22,6 +22,6 @@ stages:
         filePath: '$(System.DefaultWorkingDirectory)/build/build.ps1'
     - task: PublishBuildArtifacts@1
       inputs:
-        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)\MSCloudIdAssessment'
         ArtifactName: 'drop'
         publishLocation: 'Container'
