@@ -22,7 +22,6 @@ stages:
         filePath: 'build/build.ps1'
     - task: CopyFiles@2
       inputs:
-        SourceFolder: '$(System.DefaultWorkingDirectory)'
         Contents: |
           **\*.psm1
           **\*.psd1
