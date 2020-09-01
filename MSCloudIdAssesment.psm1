@@ -1,4 +1,4 @@
-#Requires -Version 4
+#Requires -Version 5
 #Requires -Module @{ ModuleName = 'AzureAD';  ModuleVersion= '2.0' }
 #Requires -Module @{ ModuleName = 'MSOnline'; ModuleVersion = '1.1' }
 
@@ -28,6 +28,8 @@ $global:authHeader = $null
 $global:msgraphToken = $null
 $global:tokenRequestedTime = [DateTime]::MinValue
 
+$global:forceMSALRefreshIntervalMinutes = 30
+
 function Get-MSCloudIdAccessToken {
     [CmdletBinding()]
     param (
@@ -46,12 +48,12 @@ function Get-MSCloudIdAccessToken {
     $msalToken = $null
     if ($Interactive)
     {
-        $msalToken = get-msaltoken -ClientId $ClientID -TenantId $TenantId -RedirectUri $RedirectUri -Scopes $Scopes -Resource          
+        $msalToken = get-msaltoken -ClientId $ClientID -TenantId $TenantId -RedirectUri $RedirectUri -Scopes $Scopes -Resource -ForceRefresh        
     }
     else
     {
         try {
-            $msalToken = get-msaltoken -ClientId $ClientID -TenantId $TenantId -RedirectUri $RedirectUri -Scopes $Scopes -Silent  
+            $msalToken = get-msaltoken -ClientId $ClientID -TenantId $TenantId -RedirectUri $RedirectUri -Scopes $Scopes -Silent -ForceRefresh  
         }
         catch [Microsoft.Identity.Client.MsalUiRequiredException] 
         {
@@ -108,7 +110,7 @@ function Start-MSCloudIdSession
 
     $global:tokenRequestedTime = [DateTime](Get-Date)
 
-    Write-Output "Session Started!"
+    Write-Debug "Session Established!"
 }
 
 <# 
@@ -345,6 +347,36 @@ Function Get-MSCloudIdApplicationKeyExpirationReport
 }
 
 
+function Reset-MSCloudIdSession		
+{
+
+    $CurrentDate = [DateTime](Get-Date)
+    $Delta= ($CurrentDate - $global:tokenRequestedTime).TotalMinutes
+    
+    #we are going to attempt to get a token before the AT expires
+    #tenants who set a token lifetime shorter than 30 mins might get 
+    #issues / error messages if an activity takes longer than 30 mins
+
+    if ($Delta -gt $global:forceMSALRefreshIntervalMinutes) 
+    {
+        Connect-MSGraphAPI 
+        Write-Debug "Session Refreshed for token freshness!"
+
+        $global:tokenRequestedTime = $CurrentDate
+        $msGraphToken = $global:msgraphToken
+
+        $aadTokenPsh = Get-MSCloudIdAccessToken -ClientID 1b730954-1685-4b74-9bfd-dac224a7b894 -Scopes "https://graph.windows.net/.default"  -RedirectUri "urn:ietf:wg:oauth:2.0:oob" 
+
+        Connect-AzureAD -AadAccessToken $aadTokenPsh.AccessToken  -MsAccessToken $msGraphToken.AccessToken -AccountId $msGraphToken.Account.UserName -TenantId $msGraphToken.TenantID  | Out-Null
+        Connect-MsolService -AdGraphAccesstoken $aadTokenPsh.AccessToken -MsGraphAccessToken $msGraphToken.AccessToken | Out-Null
+
+        $global:tokenRequestedTime = [DateTime](Get-Date)
+
+    }
+    $Headers = $global:authHeader    
+}
+
+
 <# 
  .Synopsis
   Gets a report of all members of roles 
@@ -407,7 +439,8 @@ Function Get-MSCloudIdConsentGrantList
         return $script:ObjectByObjectId[$ObjectId]
     }
    
-    # Get all ServicePrincipal objects and add to the cache
+    # Step 1: Get all ServicePrincipal objects and add to the cache
+    Reset-MSCloudIdSession	
     Write-Verbose "Retrieving ServicePrincipal objects..."
     $servicePrincipals = Get-AzureADServicePrincipal -All $true 
 
@@ -420,6 +453,7 @@ Function Get-MSCloudIdConsentGrantList
 
     foreach ($sp in $servicePrincipals)
     {
+        Reset-MSCloudIdSession
         CacheObject -Object $sp
         $spPermGrants = Get-AzureADServicePrincipalOAuth2PermissionGrant -ObjectId $sp.ObjectId -All $true
         $Oauth2PermGrants += $spPermGrants
@@ -427,6 +461,7 @@ Function Get-MSCloudIdConsentGrantList
 
     # Get one page of User objects and add to the cache
     Write-Verbose "Retrieving User objects..."
+    Reset-MSCloudIdSession
     Get-AzureADUser -Top $PrecacheSize | ForEach-Object { CacheObject -Object $_ }
 
     # Get all existing OAuth2 permission grants, get the client, resource and scope details
@@ -434,6 +469,7 @@ Function Get-MSCloudIdConsentGrantList
     {
         if ($grant.Scope) 
         {
+            Reset-MSCloudIdSession
             $grant.Scope.Split(" ") | Where-Object { $_ } | ForEach-Object {               
                 $scope = $_
                 $client = GetObjectByObjectId -ObjectId $grant.ClientId
@@ -462,11 +498,12 @@ Function Get-MSCloudIdConsentGrantList
         }
     }
     
+
     # Iterate over all ServicePrincipal objects and get app permissions
     Write-Verbose "Retrieving AppRoleAssignments..."
     $script:ObjectByObjectClassId['ServicePrincipal'].GetEnumerator() | ForEach-Object {
         $sp = $_.Value
-
+        Reset-MSCloudIdSession
         Get-AzureADServiceAppRoleAssignedTo -ObjectId $sp.ObjectId  -All $true `
         | Where-Object { $_.PrincipalType -eq "ServicePrincipal" } | ForEach-Object {
             $assignment = $_
@@ -708,6 +745,7 @@ Function Get-MSCloudIdAssessmentSingleReport
         [String]$OutputDirectory,
         [String]$OutputCSVFileName
     )
+
     $OriginalThreadUICulture = [System.Threading.Thread]::CurrentThread.CurrentUICulture
     $OriginalThreadCulture = [System.Threading.Thread]::CurrentThread.CurrentCulture
 
@@ -844,7 +882,7 @@ function Invoke-MSGraphQuery {
         $CurrentDate = [DateTime](Get-Date)
         $Delta= ($CurrentDate - $global:tokenRequestedTime).TotalMinutes
         
-        if ($Delta -gt 55)
+        if ($Delta -gt $global:forceMSALRefreshIntervalMinutes)
         {
             Connect-MSGraphAPI
             $global:tokenRequestedTime = $CurrentDate
@@ -1114,7 +1152,7 @@ Function Get-MSCloudIdAssessmentAzureADReports
         [String]$OutputDirectory
     )
 
-    Start-MSCloudIdSession
+    
 
     $reportsToRun = @{
         "Get-MSCloudIdNotificationEmailAddresses" = "NotificationsEmailAddresses.csv"
@@ -1128,6 +1166,7 @@ Function Get-MSCloudIdAssessmentAzureADReports
 
     foreach ($reportKvP in $reportsToRun.GetEnumerator())
     {
+        Start-MSCloudIdSession
         $functionName = $reportKvP.Name
         $outputFileName= $reportKvP.Value
         $percentComplete = 100 * $processedReports / $totalReports
@@ -1138,6 +1177,8 @@ Function Get-MSCloudIdAssessmentAzureADReports
 
     $percentComplete = 100 * $processedReports / $totalReports
     Write-Progress -Activity "Reading Azure AD Configuration" -CurrentOperation "Running Report Get-MSCloudIdCAPolicyReports" -PercentComplete $percentComplete
+    
+    Start-MSCloudIdSession
     Get-MSCloudIdCAPolicyReports -OutputDirectory $OutputDirectory
 }
 
