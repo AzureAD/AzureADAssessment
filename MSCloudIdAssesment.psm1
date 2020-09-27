@@ -493,6 +493,8 @@ Function Get-MSCloudIdConsentGrantList
                     "ConsentType" = $grant.ConsentType
                     "PrincipalObjectId" = $grant.PrincipalId
                     "PrincipalDisplayName" = $principalDisplayName
+
+                    "AppOwnerTenantId" = $client.AppOwnerTenantId
                 })
             }
         }
@@ -521,6 +523,8 @@ Function Get-MSCloudIdConsentGrantList
                 "ResourceObjectId" = $assignment.ResourceId
                 "ResourceDisplayName" = $resource.DisplayName
                 "Permission" = $appRole.Value
+
+                "AppOwnerTenantId" = $client.AppOwnerTenantId
             })
         }
     }

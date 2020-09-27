@@ -1,0 +1,42 @@
+Type,Permission,Risk,Reason
+Delegated,Mail.ReadBasic,Medium,DataExfiltration
+Delegated,Mail,High,Phishing
+Delegated,Contacts,High,Phishing
+Delegated,MailboxSettings,High,Phishing
+Delegated,People,High,Phishing
+Delegated,Files,High,Phishing
+Delegated,Notes,High,Phishing
+Delegated,Directory.AccessAsUser.All,High,Phishing
+Delegated,user_impersonation,High,Phishing
+Delegated,Application.ReadWrite.All,High,BroadImpact
+Delegated,Directory.ReadWrite.All,High,BroadImpact
+Delegated,Domain.ReadWrite.All,High,BroadImpact
+Delegated,EduRoster.ReadWrite.All,High,BroadImpact
+Delegated,Group.ReadWrite.All,High,BroadImpact
+Delegated,Member.Read.Hidden,High,BroadImpact
+Delegated,RoleManagement.ReadWrite.Directory,High,BroadImpact
+Delegated,User.ReadWrite.All,High,BroadImpact
+Delegated,User.ManageCreds.All,High,BroadImpact
+Application,Mail,High,Phishing
+Application,Contacts,High,Phishing
+Application,MailboxSettings,High,Phishing
+Application,People,High,Phishing
+Application,Files,High,Phishing
+Application,Notes,High,Phishing
+Application,Directory.AccessAsUser.All,High,Phishing
+Application,user_impersonation,High,Phishing
+Application,Application.ReadWrite.All,High,BroadImpact
+Application,Directory.ReadWrite.All,High,BroadImpact
+Application,Domain.ReadWrite.All,High,BroadImpact
+Application,EduRoster.ReadWrite.All,High,BroadImpact
+Application,Group.ReadWrite.All,High,BroadImpact
+Application,Member.Read.Hidden,High,BroadImpact
+Application,RoleManagement.ReadWrite.Directory,High,BroadImpact
+Application,User.ReadWrite.All,High,BroadImpact
+Application,User.ManageCreds.All,High,BroadImpact
+Delegated,User.Read,Low,Common pattern
+Delegated,User.ReadBasic.All,Low,Common pattern
+Delegated,open_id,Low,Common pattern
+Delegated,email,Low,Common pattern
+Delegated,profile,Low,Common pattern
+Delegated,offline_access,Low,Common pattern when used with other low permissions
