@@ -9,10 +9,10 @@
 @{
 
 # Script module or binary module file associated with this manifest.
-RootModule = 'MSCloudIdAssesment.psm1'
+RootModule = 'AzureADAssessment.psm1'
 
 # Version number of this module.
-ModuleVersion = '<moduleversion>'
+ModuleVersion = '1.1'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
