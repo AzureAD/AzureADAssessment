@@ -15,7 +15,7 @@ RootModule = 'AzureADAssessment.psm1'
 ModuleVersion = '1.1'
 
 # Supported PSEditions
-# CompatiblePSEditions = @()
+CompatiblePSEditions = 'Core','Desktop'
 
 # ID used to uniquely identify this module
 GUID = '0dc4c0ce-4ff6-43c2-9913-8e001c84e0d3'
@@ -24,7 +24,7 @@ GUID = '0dc4c0ce-4ff6-43c2-9913-8e001c84e0d3'
 Author = 'Microsoft Identity'
 
 # Company or vendor of this module
-CompanyName = 'Microsoft'
+CompanyName = 'Microsoft Corporation'
 
 # Copyright statement for this module
 Copyright = '© Microsoft Corporation. All rights reserved.'
@@ -33,7 +33,7 @@ Copyright = '© Microsoft Corporation. All rights reserved.'
 Description = 'This module analyzes your Azure Active Directory configuration and provides best practice recommendations.'
 
 # Minimum version of the Windows PowerShell engine required by this module
-# PowerShellVersion = ''
+PowerShellVersion = '5.1'
 
 # Name of the Windows PowerShell host required by this module
 # PowerShellHostName = ''
@@ -51,7 +51,11 @@ Description = 'This module analyzes your Azure Active Directory configuration an
 # ProcessorArchitecture = ''
 
 # Modules that must be imported into the global environment prior to importing this module
-RequiredModules = @('AzureAD', 'MSOnline')
+RequiredModules = @(
+    @{ ModuleName = 'MSAL.PS'; Guid = 'c765c957-c730-4520-9c36-6a522e35d60b'; ModuleVersion = '4.10.0.1' }        
+    @{ ModuleName = 'AzureAD'; Guid = 'd60c0004-962d-4dfb-8d28-5707572ffd00'; ModuleVersion = '2.0.0.55' }        
+    @{ ModuleName = 'MSOnline'; Guid = 'd162594e-d7aa-42be-9884-84928d3f7acf'; ModuleVersion = '1.1' }
+)
 
 # Assemblies that must be loaded prior to importing this module
 # RequiredAssemblies = @()
@@ -66,25 +70,25 @@ RequiredModules = @('AzureAD', 'MSOnline')
 # FormatsToProcess = @()
 
 # Modules to import as nested modules of the module specified in RootModule/ModuleToProcess
-# NestedModules = @()
+NestedModules = @(
+    '.\Get-AADAssessAppProxyConnectorLog.ps1'
+)
 
 # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
 FunctionsToExport = @(
-    'New-MSCloudIdGraphApp'
-    'Start-MSCloudIdSession'
-    'Remove-MSCloudIdGraphApp'
-    'Get-MSCloudIdAppProxyConnectorLog'
-    'Get-MSCloudIdPasswordWritebackAgentLog'
-    'Get-MSCloudIdNotificationEmailAddresses'
-    'Get-MSCloudIdAppAssignmentReport'
-    'Get-MSCloudIdConsentGrantList'
-    'Get-MSCloudIdApplicationKeyExpirationReport'
-    'Get-MSCloudIdADFSEndpoints'
-    'Export-MSCloudIdADFSConfiguration'
-    'Get-MSCloudIdGroupBasedLicensingReport'
-    'Get-MSCloudIdCAPolicyReports'
-    'Get-MSCloudIdAssessmentAzureADReports'
-    'Expand-MsCloudIdAADConnectConfig'
+    'Connect-AADAssessment'
+    'Get-AADAssessAppProxyConnectorLog'
+    'Get-AADAssessPasswordWritebackAgentLog'
+    'Get-AADAssessNotificationEmailAddresses'
+    'Get-AADAssessAppAssignmentReport'
+    'Get-AADAssessConsentGrantList'
+    'Get-AADAssessApplicationKeyExpirationReport'
+    'Get-AADAssessADFSEndpoints'
+    'Export-AADAssessADFSConfiguration'
+    'Get-AADAssessGroupBasedLicensingReport'
+    'Get-AADAssessCAPolicyReports'
+    'Get-AADAssessmentAzureADReports'
+    'Expand-AADAssessAADConnectConfig'
 )
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
@@ -111,13 +115,13 @@ PrivateData = @{
     PSData = @{
 
         # Tags applied to this module. These help with module discovery in online galleries.
-        # Tags = @()
+        Tags = 'Microsoft', 'Identity', 'Azure', 'AzureActiveDirectory', 'AzureAD', 'AAD', 'PSEdition_Desktop', 'Windows'
 
         # A URL to the license for this module.
-        # LicenseUri = ''
+        LicenseUri = 'https://raw.githubusercontent.com/AzureAD/AzureADAssessment/master/LICENSE'
 
         # A URL to the main website for this project.
-        # ProjectUri = ''
+        ProjectUri = 'https://github.com/AzureAD/AzureADAssessment'
 
         # A URL to an icon representing this module.
         # IconUri = ''
