@@ -52,7 +52,8 @@ PowerShellVersion = '5.1'
 
 # Modules that must be imported into the global environment prior to importing this module
 RequiredModules = @(
-    @{ ModuleName = 'MSAL.PS'; Guid = 'c765c957-c730-4520-9c36-6a522e35d60b'; ModuleVersion = '4.10.0.1' }        
+    @{ ModuleName = 'MSAL.PS'; Guid = 'c765c957-c730-4520-9c36-6a522e35d60b'; ModuleVersion = '4.10.0.1' }
+    @{ ModuleName = 'Microsoft.Graph.Authentication'; Guid = '883916f2-9184-46ee-b1f8-b6a2fb784cee'; ModuleVersion = '1.1.0' }
     @{ ModuleName = 'AzureAD'; Guid = 'd60c0004-962d-4dfb-8d28-5707572ffd00'; ModuleVersion = '2.0.0.55' }        
     @{ ModuleName = 'MSOnline'; Guid = 'd162594e-d7aa-42be-9884-84928d3f7acf'; ModuleVersion = '1.1' }
 )
@@ -71,12 +72,32 @@ RequiredModules = @(
 
 # Modules to import as nested modules of the module specified in RootModule/ModuleToProcess
 NestedModules = @(
+    '.\Connect-AADAssessment.ps1'
+    '.\Connect-AADAssessModules.ps1'
+    '.\ConvertFrom-Base64String.ps1'
+    '.\ConvertFrom-QueryString.ps1'
+    '.\ConvertTo-QueryString.ps1'
+    '.\Expand-AADAssessAADConnectConfig.ps1'
+    '.\Expand-JsonWebTokenPayload.ps1'
+    '.\Export-AADAssessADFSConfiguration.ps1'
+    '.\Get-AADAssessADFSEndpoints.ps1'
+    '.\Get-AADAssessAppAssignmentReport.ps1'
+    '.\Get-AADAssessApplicationKeyExpirationReport.ps1'
     '.\Get-AADAssessAppProxyConnectorLog.ps1'
+    '.\Get-AADAssessCAPolicyReports.ps1'
+    '.\Get-AADAssessConsentGrantList.ps1'
+    '.\Get-AADAssessGroupBasedLicensingReport.ps1'
+    '.\Get-AADAssessmentAzureADReports.ps1'
+    '.\Get-AADAssessNotificationEmailAddresses.ps1'
+    '.\Get-AADAssessPasswordWritebackAgentLog.ps1'
+    '.\Invoke-MgGraphQuery.ps1'
 )
 
 # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
 FunctionsToExport = @(
     'Connect-AADAssessment'
+    #'Connect-AADAssessModules'
+    #'Invoke-MgGraphQuery'
     'Get-AADAssessAppProxyConnectorLog'
     'Get-AADAssessPasswordWritebackAgentLog'
     'Get-AADAssessNotificationEmailAddresses'
@@ -95,7 +116,7 @@ FunctionsToExport = @(
 CmdletsToExport = @()
 
 # Variables to export from this module
-VariablesToExport = '*'
+VariablesToExport = @()
 
 # Aliases to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no aliases to export.
 AliasesToExport = @()

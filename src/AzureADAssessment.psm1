@@ -1,6 +1,5 @@
-#Requires -Version 5
-#Requires -Module @{ ModuleName = 'AzureAD';  ModuleVersion= '2.0' }
-#Requires -Module @{ ModuleName = 'MSOnline'; ModuleVersion = '1.1' }
+## Set Strict Mode for Module. https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/set-strictmode
+Set-StrictMode -Version 3.0
 
 <# 
  
@@ -23,6 +22,27 @@
 	Copyright (c) Microsoft Corporation. All rights reserved.
 #>
 
+$script:ConnectState = @{
+    ClientApplication = $null
+    CloudEnvironment  = $null
+    MsGraphToken      = $null
+    AadGraphToken     = $null
+}
+
+$script:mapMgEnvironmentToAzureCloudInstance = @{
+    'Global'   = 'AzurePublic'
+    'China'    = 'AzureChina'
+    'Germany'  = 'AzureGermany'
+    'USGov'    = 'AzureUsGovernment'
+    'USGovDoD' = 'AzureUsGovernment'
+}
+$script:mapMgEnvironmentToAzureEnvironment = @{
+    'Global'   = 'AzureCloud'
+    'China'    = 'AzureChinaCloud'
+    'Germany'  = 'AzureGermanyCloud'
+    'USGov'    = 'AzureUSGovernment'
+    'USGovDoD' = 'AzureUsGovernment'
+}
 
 $global:authHeader = $null
 $global:msgraphToken = $null
@@ -97,7 +117,7 @@ function Connect-MSGraphAPI {
   This function prompts for authentication against azure AD 
 
 #>
-function Connect-AADAssessment		
+function Start-MSCloudIdSession		
 {
     Connect-MSGraphAPI
     $msGraphToken = $global:msgraphToken
