@@ -532,7 +532,6 @@ function Expand-AzureADCAPolicyReferencedObjects()
 # Export-ModuleMember -Function Get-AADAssessApplicationKeyExpirationReport
 # Export-ModuleMember -Function Get-AADAssessADFSEndpoints
 # Export-ModuleMember -Function Export-AADAssessADFSConfiguration
-# Export-ModuleMember -Function Get-AADAssessGroupBasedLicensingReport
 # Export-ModuleMember -Function Get-AADAssessCAPolicyReports
 # Export-ModuleMember -Function Get-AADAssessmentAzureADReports
 # Export-ModuleMember -Function Expand-AADAssessAADConnectConfig
