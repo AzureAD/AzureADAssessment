@@ -55,7 +55,6 @@ RequiredModules = @(
     @{ ModuleName = 'MSAL.PS'; Guid = 'c765c957-c730-4520-9c36-6a522e35d60b'; ModuleVersion = '4.10.0.1' }
     @{ ModuleName = 'Microsoft.Graph.Authentication'; Guid = '883916f2-9184-46ee-b1f8-b6a2fb784cee'; ModuleVersion = '1.1.0' }
     @{ ModuleName = 'AzureAD'; Guid = 'd60c0004-962d-4dfb-8d28-5707572ffd00'; ModuleVersion = '2.0.0.55' }        
-    @{ ModuleName = 'MSOnline'; Guid = 'd162594e-d7aa-42be-9884-84928d3f7acf'; ModuleVersion = '1.1' }
 )
 
 # Assemblies that must be loaded prior to importing this module

@@ -40,7 +40,6 @@ function Connect-AADAssessModules {
             Write-Verbose 'Connecting Modules...'
             Connect-MgGraph -Environment $CloudEnvironment -TenantId $MsGraphToken.TenantId -AccessToken $MsGraphToken.AccessToken | Out-Null
             Connect-AzureAD -AzureEnvironmentName $mapMgEnvironmentToAzureEnvironment[$CloudEnvironment] -TenantId $AadGraphToken.TenantId -AadAccessToken $AadGraphToken.AccessToken -MsAccessToken $MsGraphToken.AccessToken -AccountId $AadGraphToken.Account.Username | Out-Null
-            Connect-MsolService -AzureEnvironment $mapMgEnvironmentToAzureEnvironment[$CloudEnvironment] -AdGraphAccesstoken $AadGraphToken.AccessToken -MsGraphAccessToken $MsGraphToken.AccessToken | Out-Null
         }
     }
     else {
@@ -52,7 +51,6 @@ function Connect-AADAssessModules {
             $JwtPayload = Expand-JsonWebTokenPayload $AadGraphToken.AccessToken
             Connect-MgGraph -Environment $CloudEnvironment -TenantId $MsGraphToken.TenantId -AccessToken $MsGraphToken.AccessToken | Out-Null
             Connect-AzureAD -AzureEnvironmentName $mapMgEnvironmentToAzureEnvironment[$CloudEnvironment] -TenantId $JwtPayload.tid -AadAccessToken $AadGraphToken.AccessToken -MsAccessToken $MsGraphToken.AccessToken -AccountId $JwtPayload.sub | Out-Null
-            Connect-MsolService -AzureEnvironment $mapMgEnvironmentToAzureEnvironment[$CloudEnvironment] -AdGraphAccesstoken $AadGraphToken.AccessToken -MsGraphAccessToken $MsGraphToken.AccessToken | Out-Null
         }
     }
     $script:ConnectState.MsGraphToken = $MsGraphToken

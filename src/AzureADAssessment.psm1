@@ -126,7 +126,6 @@ function Start-MSCloudIdSession
     #$aadTokenPsh
 
     Connect-AzureAD -AadAccessToken $aadTokenPsh.AccessToken  -MsAccessToken $msGraphToken.AccessToken -AccountId $msGraphToken.Account.UserName -TenantId $msGraphToken.TenantID  | Out-Null
-    Connect-MsolService -AdGraphAccesstoken $aadTokenPsh.AccessToken -MsGraphAccessToken $msGraphToken.AccessToken | Out-Null
 
     $global:tokenRequestedTime = [DateTime](Get-Date)
 
@@ -156,7 +155,6 @@ function Reset-MSCloudIdSession
         $aadTokenPsh = Get-MSCloudIdAccessToken -ClientID 1b730954-1685-4b74-9bfd-dac224a7b894 -Scopes "https://graph.windows.net/.default"  -RedirectUri "urn:ietf:wg:oauth:2.0:oob" 
 
         Connect-AzureAD -AadAccessToken $aadTokenPsh.AccessToken  -MsAccessToken $msGraphToken.AccessToken -AccountId $msGraphToken.Account.UserName -TenantId $msGraphToken.TenantID  | Out-Null
-        Connect-MsolService -AdGraphAccesstoken $aadTokenPsh.AccessToken -MsGraphAccessToken $msGraphToken.AccessToken | Out-Null
 
         $global:tokenRequestedTime = [DateTime](Get-Date)
 
