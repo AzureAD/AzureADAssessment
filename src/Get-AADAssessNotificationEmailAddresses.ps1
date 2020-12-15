@@ -27,7 +27,7 @@ function Get-AADAssessNotificationEmailAddresses {
 
     #Get email addresses of all users with privileged roles
 
-    $aadRoles = Invoke-MgGraphQuery -RelativeUri 'directoryRoles?$select=displayName&$expand=members'
+    $aadRoles = Invoke-MgGraphQuery -RelativeUri 'directoryRoles?$select=displayName&$expand=members' -ReturnAllResults
 
     foreach ($role in $aadRoles.value) {
         foreach ($roleMember in $role.members) {
