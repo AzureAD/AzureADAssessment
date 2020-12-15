@@ -11,7 +11,8 @@
 function Get-AADAssessNotificationEmailAddresses {
     
 
-    $technicalNotificationEmail = Get-MSOLCompanyInformation | Select-Object -ExpandProperty TechnicalNotificationEmails
+    $orgInfo = Invoke-MgGraphQuery -RelativeUri 'organization?$select=technicalNotificationMails'
+    $technicalNotificationEmail = $orgInfo.value.technicalNotificationMails    
     $result = [PSCustomObject]@{
         RecipientName            = "N/A" ;
         RoleMemberObjectType     = "email address"; 
@@ -26,21 +27,25 @@ function Get-AADAssessNotificationEmailAddresses {
 
     #Get email addresses of all users with privileged roles
 
-    $roles = Get-AzureADDirectoryRole
+    $aadRoles = Invoke-MgGraphQuery -RelativeUri 'directoryRoles?$select=displayName&$expand=members'
 
-    foreach ($role in $roles) {
-        $roleMembers = Get-AzureADDirectoryRoleMember -ObjectId $role.ObjectId
-        foreach ($roleMember in $roleMembers) {
-            $alternateEmail = $roleMember.OtherMails -join ";"
+    foreach ($role in $aadRoles.value) {
+        foreach ($roleMember in $role.members) {
+            $alternateEmail = ""
+            if($roleMember.otherMails) {$alternateEmail = $roleMember.otherMails -join ";"}
+            
+            $memberObjectType = "ServicePrincipal"
+            if($roleMember.UserType) { $memberObjectType = "User" }
+            
 
             $result = [PSCustomObject]@{
-                RecipientName            = $roleMember.DisplayName ;
-                RoleMemberObjectType     = $roleMember.ObjectType; 
+                RecipientName            = $roleMember.displayName ;
+                RoleMemberObjectType     = $memberObjectType;
                 RoleMemberAlternateEmail = $alternateEmail;
-                NotificationType         = $role.DisplayName; 
+                NotificationType         = $role.displayName; 
                 NotificationEmailScope   = "Role";
-                EmailAddress             = $roleMember.Mail; 
-                RoleMemberUPN            = $roleMember.UserPrincipalName
+                EmailAddress             = $roleMember.mail; 
+                RoleMemberUPN            = $roleMember.userPrincipalName
             } 
             Write-Output $result
         }
