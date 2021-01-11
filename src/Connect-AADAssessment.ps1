@@ -30,6 +30,9 @@ function Connect-AADAssessment {
         # Tenant identifier of the authority to issue token.
         [Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
         [string] $TenantId = 'organizations'
+        # Stay signed in across PowerShell sessions on current device.
+        #[Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
+        #[switch] $StaySignedIn
     )
 
     ## Create Client Application
@@ -47,6 +50,7 @@ function Connect-AADAssessment {
             break
         }
     }
+    #if ($StaySignedIn) { $script:ConnectState.ClientApplication | Enable-MsalTokenCacheOnDisk }
     $script:ConnectState.CloudEnvironment = $CloudEnvironment
 
     Connect-AADAssessModules $script:ConnectState.ClientApplication -CloudEnvironment $script:ConnectState.CloudEnvironment -ErrorAction Stop

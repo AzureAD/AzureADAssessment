@@ -9,43 +9,35 @@
   Get-AADAssessNotificationEmailAddresses | Export-Csv -Path ".\NotificationsEmailAddresses.csv" 
 #>
 function Get-AADAssessNotificationEmailAddresses {
-    
+ 
 
     $orgInfo = Invoke-MgGraphQuery -RelativeUri 'organization?$select=technicalNotificationMails'
-    $technicalNotificationEmail = $orgInfo.value.technicalNotificationMails    
     $result = [PSCustomObject]@{
-        RecipientName            = "N/A" ;
-        RoleMemberObjectType     = "email address"; 
-        RoleMemberAlternateEmail = "N/A";
-        NotificationType         = "Technical Notification"; 
-        NotificationEmailScope   = "Tenant";
-        EmailAddress             = $technicalNotificationEmail; 
-        RoleMemberUPN            = "N/A"
+        RecipientName              = ""
+        RecipientObjectType        = "emailAddress"
+        NotificationType           = "Technical Notification"
+        NotificationEmailScope     = "Tenant"
+        RecipientEmailAddress      = (Get-ObjectProperty $orgInfo 'value' 'technicalNotificationMails')
+        RecipientAlternateEmail    = ""
+        RecipientUserPrincipalName = ""
     } 
-
     Write-Output $result
 
     #Get email addresses of all users with privileged roles
-
     $aadRoles = Invoke-MgGraphQuery -RelativeUri 'directoryRoles?$select=displayName&$expand=members' -ReturnAllResults
+
+    ## ToDo: Resolve group memberships
 
     foreach ($role in $aadRoles.value) {
         foreach ($roleMember in $role.members) {
-            $alternateEmail = ""
-            if($roleMember.otherMails) {$alternateEmail = $roleMember.otherMails -join ";"}
-            
-            $memberObjectType = "ServicePrincipal"
-            if($roleMember.UserType) { $memberObjectType = "User" }
-            
-
             $result = [PSCustomObject]@{
-                RecipientName            = $roleMember.displayName ;
-                RoleMemberObjectType     = $memberObjectType;
-                RoleMemberAlternateEmail = $alternateEmail;
-                NotificationType         = $role.displayName; 
-                NotificationEmailScope   = "Role";
-                EmailAddress             = $roleMember.mail; 
-                RoleMemberUPN            = $roleMember.userPrincipalName
+                RecipientName              = (Get-ObjectProperty $roleMember 'displayName')
+                RecipientObjectType        = (Get-ObjectProperty $roleMember '@odata.type') -replace '#microsoft.graph.', ''
+                NotificationType           = (Get-ObjectProperty $role 'displayName')
+                NotificationEmailScope     = 'Role'
+                RecipientEmailAddress      = (Get-ObjectProperty $roleMember 'mail')
+                RecipientAlternateEmail    = (Get-ObjectProperty $roleMember 'otherMails') -join ';'
+                RecipientUserPrincipalName = (Get-ObjectProperty $roleMember 'userPrincipalName')
             } 
             Write-Output $result
         }

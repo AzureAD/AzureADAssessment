@@ -7,22 +7,17 @@ function Connect-AADAssessModules {
         [Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
         [ValidateSet('Global', 'China', 'Germany', 'USGov', 'USGovDoD')]
         [string] $CloudEnvironment = $script:ConnectState.CloudEnvironment,
+        # Prompt for authentication
+        [Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
+        [ValidateSet('NoPrompt', 'SelectAccount')]
+        [string] $Prompt = 'NoPrompt',
         # Scopes required by AzureAD PowerShell Module for AAD Graph
         [Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
-        [string[]] $AadGraphScopes = 'https://graph.windows.net/Directory.AccessAsUser.All',
+        [string[]] $AadGraphScopes = 'https://graph.windows.net/Directory.Read.All',
         # Scopes required by AzureAD PowerShell Module for MS Graph
         [Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
         [string[]] $MsGraphScopes = @(
-            'https://graph.microsoft.com/AuditLog.Read.All'
-            'https://graph.microsoft.com/Directory.AccessAsUser.All'
-            'https://graph.microsoft.com/Directory.ReadWrite.All'
-            'https://graph.microsoft.com/Group.ReadWrite.All'
-            'https://graph.microsoft.com/IdentityProvider.ReadWrite.All'
-            'https://graph.microsoft.com/Policy.ReadWrite.TrustFramework'
-            'https://graph.microsoft.com/PrivilegedAccess.ReadWrite.AzureAD'
-            'https://graph.microsoft.com/PrivilegedAccess.ReadWrite.AzureResources'
-            'https://graph.microsoft.com/TrustFrameworkKeySet.ReadWrite.All'
-            'https://graph.microsoft.com/User.Invite.All'
+            'https://graph.microsoft.com/Directory.Read.All'
         )
     )
 
@@ -34,8 +29,8 @@ function Connect-AADAssessModules {
     
     ## Get Tokens for Connect-AzureAD command
     if ($ClientApplication -is [Microsoft.Identity.Client.IPublicClientApplication]) {
-        $MsGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes $MsGraphScopes -ExtraScopesToConsent $AadGraphScopes -UseEmbeddedWebView:$false -ErrorAction Stop
-        $AadGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes $AadGraphScopes -UseEmbeddedWebView:$false -ErrorAction Stop
+        $MsGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes $MsGraphScopes -ExtraScopesToConsent $AadGraphScopes -UseEmbeddedWebView:$false -Prompt $Prompt -ErrorAction Stop
+        $AadGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes $AadGraphScopes -UseEmbeddedWebView:$false -Prompt $Prompt -ErrorAction Stop
         if (!$script:ConnectState.MsGraphToken -or ($script:ConnectState.MsGraphToken.AccessToken -ne $MsGraphToken.AccessToken) -or !$script:ConnectState.AadGraphToken -or ($script:ConnectState.AadGraphToken.AccessToken -ne $AadGraphToken.AccessToken)) {
             Write-Verbose 'Connecting Modules...'
             Connect-MgGraph -Environment $CloudEnvironment -TenantId $MsGraphToken.TenantId -AccessToken $MsGraphToken.AccessToken | Out-Null

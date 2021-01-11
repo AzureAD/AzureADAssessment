@@ -88,6 +88,7 @@ NestedModules = @(
     '.\Get-AADAssessmentAzureADReports.ps1'
     '.\Get-AADAssessNotificationEmailAddresses.ps1'
     '.\Get-AADAssessPasswordWritebackAgentLog.ps1'
+    '.\Get-ObjectProperty.ps1'
     '.\Invoke-MgGraphQuery.ps1'
 )
 
