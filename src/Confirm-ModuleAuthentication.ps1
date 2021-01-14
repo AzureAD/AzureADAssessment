@@ -40,7 +40,7 @@ function Confirm-ModuleAuthentication {
         $AadGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes $AadGraphScopes -UseEmbeddedWebView:$false -Prompt $Prompt -ForceRefresh:$ForceRefresh -ErrorAction Stop
         if (!$script:ConnectState.MsGraphToken -or ($script:ConnectState.MsGraphToken.AccessToken -ne $MsGraphToken.AccessToken) -or !$script:ConnectState.AadGraphToken -or ($script:ConnectState.AadGraphToken.AccessToken -ne $AadGraphToken.AccessToken)) {
             Write-Verbose 'Connecting Modules...'
-            Connect-MgGraph -Environment $CloudEnvironment -TenantId $MsGraphToken.TenantId -AccessToken $MsGraphToken.AccessToken | Out-Null
+            #Connect-MgGraph -Environment $CloudEnvironment -TenantId $MsGraphToken.TenantId -AccessToken $MsGraphToken.AccessToken | Out-Null
             Connect-AzureAD -AzureEnvironmentName $mapMgEnvironmentToAzureEnvironment[$CloudEnvironment] -TenantId $AadGraphToken.TenantId -AadAccessToken $AadGraphToken.AccessToken -MsAccessToken $MsGraphToken.AccessToken -AccountId $AadGraphToken.Account.Username | Out-Null
             #Write-Warning ('Because this command obtains an access token for use with other modules such as AzureAD, those external module commands cannot automatically refresh the tokens when they expire or are revoked. To maintain access, this command must be run again when the current token expires at "{0:t}".' -f [System.DateTimeOffset]::FromUnixTimeSeconds((Expand-JsonWebTokenPayload $AadGraphToken.AccessToken).exp).ToLocalTime())
             if ($script:MsGraphSession.Headers.ContainsKey('Authorization')) {
@@ -58,7 +58,7 @@ function Confirm-ModuleAuthentication {
         if (!$script:ConnectState.MsGraphToken -or ($script:ConnectState.MsGraphToken.AccessToken -ne $MsGraphToken.AccessToken) -or !$script:ConnectState.AadGraphToken -or ($script:ConnectState.AadGraphToken.AccessToken -ne $AadGraphToken.AccessToken)) {
             Write-Verbose 'Connecting Modules...'
             $JwtPayload = Expand-JsonWebTokenPayload $AadGraphToken.AccessToken
-            Connect-MgGraph -Environment $CloudEnvironment -TenantId $MsGraphToken.TenantId -AccessToken $MsGraphToken.AccessToken | Out-Null
+            #Connect-MgGraph -Environment $CloudEnvironment -TenantId $MsGraphToken.TenantId -AccessToken $MsGraphToken.AccessToken | Out-Null
             Connect-AzureAD -AzureEnvironmentName $mapMgEnvironmentToAzureEnvironment[$CloudEnvironment] -TenantId $JwtPayload.tid -AadAccessToken $AadGraphToken.AccessToken -MsAccessToken $MsGraphToken.AccessToken -AccountId $JwtPayload.sub | Out-Null
             #Write-Warning ('Because this command obtains an access token for use with other modules such as AzureAD, those external module commands cannot automatically refresh the tokens when they expire or are revoked. To maintain access, this command must be run again when the current token expires at "{0:t}".' -f [System.DateTimeOffset]::FromUnixTimeSeconds((Expand-JsonWebTokenPayload $AadGraphToken.AccessToken).exp).ToLocalTime())
             if ($script:MsGraphSession.Headers.ContainsKey('Authorization')) {
