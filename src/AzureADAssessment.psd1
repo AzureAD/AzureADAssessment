@@ -86,6 +86,7 @@ NestedModules = @(
     '.\Get-AADAssessCAPolicyReports.ps1'
     '.\Get-AADAssessConsentGrantList.ps1'
     '.\Get-AADAssessmentReports.ps1'
+    '.\Get-AADAssessmentSingleReport.ps1'
     '.\Get-AADAssessNotificationEmailAddresses.ps1'
     '.\Get-AADAssessPasswordWritebackAgentLog.ps1'
     '.\Get-ObjectProperty.ps1'

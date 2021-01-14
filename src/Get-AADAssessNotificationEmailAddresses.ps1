@@ -23,7 +23,7 @@ function Get-AADAssessNotificationEmailAddresses {
     Write-Output $result
 
     #Get email addresses of all users with privileged roles
-    $aadRoles = Get-MsGraphResults 'directoryRoles?$select=displayName&$expand=members' }
+    $aadRoles = Get-MsGraphResults 'directoryRoles?$select=displayName&$expand=members'
 
     ## ToDo: Resolve group memberships
 
