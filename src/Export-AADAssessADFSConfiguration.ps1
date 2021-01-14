@@ -20,7 +20,7 @@ Function Export-AADAssessADFSConfiguration {
     $AdfsRelyingPartyTrusts = Get-AdfsRelyingPartyTrust
     foreach ($AdfsRelyingPartyTrust in $AdfsRelyingPartyTrusts) {
         $RPfileName = $AdfsRelyingPartyTrust.Name.ToString()
-        $CleanedRPFileName = Remove-InvalidFileNameChars -Name $RPfileName
+        $CleanedRPFileName = Remove-InvalidFileNameCharacters $RPfileName
         $RPName = "RPT - " + $CleanedRPFileName
         $filePath = $filePathBase + $RPName + '.xml'
         $AdfsRelyingPartyTrust | Export-Clixml $filePath -ErrorAction SilentlyContinue
@@ -30,7 +30,7 @@ Function Export-AADAssessADFSConfiguration {
     foreach ($AdfsClaimsProviderTrust in $AdfsClaimsProviderTrusts) {
  
         $CPfileName = $AdfsClaimsProviderTrust.Name.ToString()
-        $CleanedCPFileName = Remove-InvalidFileNameChars -Name $CPfileName
+        $CleanedCPFileName = Remove-InvalidFileNameCharacters $CPfileName
         $CPTName = "CPT - " + $CleanedCPFileName
         $filePath = $filePathBase + $CPTName + '.xml'
         $AdfsClaimsProviderTrust | Export-Clixml $filePath -ErrorAction SilentlyContinue

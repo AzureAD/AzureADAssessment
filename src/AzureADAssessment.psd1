@@ -72,7 +72,7 @@ RequiredModules = @(
 # Modules to import as nested modules of the module specified in RootModule/ModuleToProcess
 NestedModules = @(
     '.\Connect-AADAssessment.ps1'
-    '.\Connect-AADAssessModules.ps1'
+    '.\Confirm-ModuleAuthentication.ps1'
     '.\ConvertFrom-Base64String.ps1'
     '.\ConvertFrom-QueryString.ps1'
     '.\ConvertTo-QueryString.ps1'
@@ -85,18 +85,21 @@ NestedModules = @(
     '.\Get-AADAssessAppProxyConnectorLog.ps1'
     '.\Get-AADAssessCAPolicyReports.ps1'
     '.\Get-AADAssessConsentGrantList.ps1'
-    '.\Get-AADAssessmentAzureADReports.ps1'
+    '.\Get-AADAssessmentReports.ps1'
     '.\Get-AADAssessNotificationEmailAddresses.ps1'
     '.\Get-AADAssessPasswordWritebackAgentLog.ps1'
     '.\Get-ObjectProperty.ps1'
-    '.\Invoke-MgGraphQuery.ps1'
+    '.\Get-MsGraphResults.ps1'
+    '.\Remove-Diacritics.ps1'
+    '.\Remove-InvalidFileNameCharacters.ps1'
+    '.\Use-Progress.ps1'
 )
 
 # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
 FunctionsToExport = @(
     'Connect-AADAssessment'
-    #'Connect-AADAssessModules'
-    #'Invoke-MgGraphQuery'
+    #'Confirm-ModuleAuthentication'
+    'Get-MsGraphResults'
     'Get-AADAssessAppProxyConnectorLog'
     'Get-AADAssessPasswordWritebackAgentLog'
     'Get-AADAssessNotificationEmailAddresses'
@@ -106,7 +109,7 @@ FunctionsToExport = @(
     'Get-AADAssessADFSEndpoints'
     'Export-AADAssessADFSConfiguration'
     'Get-AADAssessCAPolicyReports'
-    'Get-AADAssessmentAzureADReports'
+    'Get-AADAssessmentReports'
     'Expand-AADAssessAADConnectConfig'
 )
 

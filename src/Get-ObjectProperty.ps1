@@ -10,6 +10,7 @@
     PS C:\>Get-ObjectProperty $object -Property 'lvl1', 'nextLevel'
     Get value of nested object property named nextLevel.
 .INPUTS
+    System.Collections.Hashtable
     System.Management.Automation.PSObject
 #>
 function Get-ObjectProperty {
@@ -26,12 +27,20 @@ function Get-ObjectProperty {
 
     process {
         foreach ($InputObject in $InputObjects) {
-            if ($InputObject -is [hashtable]) { $InputObject = [pscustomobject]$InputObject }
             for ($iProperty = 0; $iProperty -lt $Property.Count; $iProperty++) {
-                $PropertyValue = Select-Object -InputObject $InputObject -ExpandProperty $Property[$iProperty] -ErrorAction SilentlyContinue
+                ## Get property value
+                if ($InputObject -is [hashtable]) {
+                    if ($InputObject.ContainsKey($Property[$iProperty])) {
+                        $PropertyValue = $InputObject[$Property[$iProperty]]
+                    }
+                    else { $PropertyValue = $null}
+                }
+                else {
+                    $PropertyValue = Select-Object -InputObject $InputObject -ExpandProperty $Property[$iProperty] -ErrorAction SilentlyContinue
+                }
+                ## Check for more nested properties
                 if ($iProperty -lt $Property.Count - 1) {
                     $InputObject = $PropertyValue
-                    if ($InputObject -is [hashtable]) { $InputObject = [pscustomobject]$InputObject }
                     if ($null -eq $InputObject) { break }
                 }
                 else {

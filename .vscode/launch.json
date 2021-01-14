@@ -1,0 +1,78 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "PowerShell Launch Module",
+            "type": "PowerShell",
+            "request": "launch",
+            "preLaunchTask": "",
+            "script": "${workspaceRoot}/Launch-PSModule.ps1",
+            "cwd": "${workspaceRoot}",
+            "args":[
+                "-NoNewWindow"
+            ]
+        },
+        {
+            "name": "PowerShell Launch Module and Connect",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${workspaceRoot}/Launch-PSModule.ps1",
+            "cwd": "${workspaceRoot}",
+            "args": [
+                "-PostImportScriptBlock { New-MsalClientApplication -ClientId c62a9fcb-53bf-446e-8063-ea6e2bfcc023 -RedirectUri 'http://localhost' | Enable-MsalTokenCacheOnDisk -PassThru | Connect-AADAssessment }",
+                "-NoNewWindow"
+            ]
+        },
+        {
+            "name": "PowerShell Launch Module, Connect, and Current Function",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${workspaceRoot}/Launch-PSModule.ps1",
+            "cwd": "${workspaceRoot}",
+            "args": [
+                "-PostImportScriptBlock { New-MsalClientApplication -ClientId c62a9fcb-53bf-446e-8063-ea6e2bfcc023 -RedirectUri 'http://localhost' | Enable-MsalTokenCacheOnDisk -PassThru | Connect-AADAssessment; ${fileBasenameNoExtension} }",
+                "-NoNewWindow"
+            ]
+        },
+        {
+            "name": "PowerShell Launch Module and Connect in New External Console",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${workspaceRoot}/Launch-PSModule.ps1",
+            "cwd": "${workspaceRoot}",
+            "args": [
+                "-PostImportScriptBlock { New-MsalClientApplication -ClientId c62a9fcb-53bf-446e-8063-ea6e2bfcc023 -RedirectUri 'http://localhost' | Enable-MsalTokenCacheOnDisk -PassThru | Connect-AADAssessment }",
+                "-PowerShellPaths 'powershell'",
+                "-NoNewWindow:$false"
+            ]
+        },
+        {
+            "name": "PowerShell Launch Module in New External Consoles",
+            "type": "PowerShell",
+            "request": "launch",
+            "preLaunchTask": "",
+            "script": "${workspaceRoot}/Launch-PSModule.ps1",
+            "cwd": "${workspaceRoot}",
+            "args": [
+                "-PowerShellPaths 'pwsh','powershell'",
+                "-NoNewWindow:$false"
+            ]
+        },
+        {
+            "name": "PowerShell Launch Current File",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${file}",
+            "cwd": "${file}"
+        },
+        {
+            "name": "PowerShell Attach to Host Process",
+            "type": "PowerShell",
+            "request": "attach",
+            "runspaceId": 1
+        }
+    ]
+}

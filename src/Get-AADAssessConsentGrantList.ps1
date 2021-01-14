@@ -49,6 +49,7 @@ Function Get-AADAssessConsentGrantList {
     function GetObjectByObjectId($ObjectId) {
         if (-not $script:ObjectByObjectId.ContainsKey($ObjectId)) {
             Write-Verbose ("Querying Azure AD for object '{0}'" -f $ObjectId)
+            Confirm-ModuleAuthentication
             try {
                 $object = Get-AzureADObjectByObjectId -ObjectId $ObjectId
                 CacheObject -Object $object
@@ -61,7 +62,7 @@ Function Get-AADAssessConsentGrantList {
     }
    
     # Step 1: Get all ServicePrincipal objects and add to the cache
-    Reset-MSCloudIdSession	
+    Confirm-ModuleAuthentication -ForceRefresh
     Write-Verbose "Retrieving ServicePrincipal objects..."
     $servicePrincipals = Get-AzureADServicePrincipal -All $true 
 
@@ -73,7 +74,7 @@ Function Get-AADAssessConsentGrantList {
     $Oauth2PermGrants = @()
 
     foreach ($sp in $servicePrincipals) {
-        Reset-MSCloudIdSession
+        Confirm-ModuleAuthentication
         CacheObject -Object $sp
         $spPermGrants = Get-AzureADServicePrincipalOAuth2PermissionGrant -ObjectId $sp.ObjectId -All $true
         $Oauth2PermGrants += $spPermGrants
@@ -81,13 +82,12 @@ Function Get-AADAssessConsentGrantList {
 
     # Get one page of User objects and add to the cache
     Write-Verbose "Retrieving User objects..."
-    Reset-MSCloudIdSession
+    Confirm-ModuleAuthentication
     Get-AzureADUser -Top $PrecacheSize | ForEach-Object { CacheObject -Object $_ }
 
     # Get all existing OAuth2 permission grants, get the client, resource and scope details
     foreach ($grant in $Oauth2PermGrants) {
         if ($grant.Scope) {
-            Reset-MSCloudIdSession
             $grant.Scope.Split(" ") | Where-Object { $_ } | ForEach-Object {               
                 $scope = $_
                 $client = GetObjectByObjectId -ObjectId $grant.ClientId
@@ -123,7 +123,7 @@ Function Get-AADAssessConsentGrantList {
     Write-Verbose "Retrieving AppRoleAssignments..."
     $script:ObjectByObjectClassId['ServicePrincipal'].GetEnumerator() | ForEach-Object {
         $sp = $_.Value
-        Reset-MSCloudIdSession
+        Confirm-ModuleAuthentication
         Get-AzureADServiceAppRoleAssignedTo -ObjectId $sp.ObjectId  -All $true `
         | Where-Object { $_.PrincipalType -eq "ServicePrincipal" } | ForEach-Object {
             $assignment = $_

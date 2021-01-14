@@ -11,7 +11,7 @@
 function Get-AADAssessNotificationEmailAddresses {
  
 
-    $orgInfo = Invoke-MgGraphQuery -RelativeUri 'organization?$select=technicalNotificationMails'
+    $orgInfo = Get-MsGraphResults 'organization' -Select 'technicalNotificationMails'
     $result = [PSCustomObject]@{
         RecipientName              = ""
         RecipientObjectType        = "emailAddress"
@@ -24,11 +24,11 @@ function Get-AADAssessNotificationEmailAddresses {
     Write-Output $result
 
     #Get email addresses of all users with privileged roles
-    $aadRoles = Invoke-MgGraphQuery -RelativeUri 'directoryRoles?$select=displayName&$expand=members' -ReturnAllResults
+    $aadRoles = Get-MsGraphResults 'directoryRoles' -Select 'displayName' -QueryParameters @{ '$expand' = 'members' }
 
     ## ToDo: Resolve group memberships
 
-    foreach ($role in $aadRoles.value) {
+    foreach ($role in $aadRoles) {
         foreach ($roleMember in $role.members) {
             $result = [PSCustomObject]@{
                 RecipientName              = (Get-ObjectProperty $roleMember 'displayName')

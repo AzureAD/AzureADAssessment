@@ -9,18 +9,16 @@
     Full path of the directory where the output files will be generated.
 
 .EXAMPLE
-   .\Get-AADAssessmentAzureADReports -OutputDirectory "c:\temp\contoso" 
+   .\Get-AADAssessmentReports -OutputDirectory "c:\temp\contoso" 
 
 #>
-Function Get-AADAssessmentAzureADReports {
+Function Get-AADAssessmentReports {
     [CmdletBinding()]
     param
     (
         [Parameter(Mandatory = $true)]
         [String]$OutputDirectory
     )
-
-    
 
     $reportsToRun = @{
         "Get-AADAssessNotificationEmailAddresses"     = "NotificationsEmailAddresses.csv"
@@ -33,18 +31,18 @@ Function Get-AADAssessmentAzureADReports {
     $processedReports = 0
 
     foreach ($reportKvP in $reportsToRun.GetEnumerator()) {
-        Connect-AADAssessment
+        #Connect-AADAssessment
         $functionName = $reportKvP.Name
         $outputFileName = $reportKvP.Value
         $percentComplete = 100 * $processedReports / $totalReports
         Write-Progress -Activity "Reading Azure AD Configuration" -CurrentOperation "Running Report $functionName" -PercentComplete $percentComplete
-        Get-MSCloudIdAssessmentSingleReport -FunctionName $functionName -OutputDirectory $OutputDirectory -OutputCSVFileName $outputFileName
+        Get-AADAssessmentSingleReport -FunctionName $functionName -OutputDirectory $OutputDirectory -OutputCSVFileName $outputFileName
         $processedReports++
     }
 
     $percentComplete = 100 * $processedReports / $totalReports
     Write-Progress -Activity "Reading Azure AD Configuration" -CurrentOperation "Running Report Get-AADAssessCAPolicyReports" -PercentComplete $percentComplete
     
-    Connect-AADAssessment
+    #Connect-AADAssessment
     Get-AADAssessCAPolicyReports -OutputDirectory $OutputDirectory
 }

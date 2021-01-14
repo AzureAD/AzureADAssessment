@@ -35,6 +35,9 @@ function Connect-AADAssessment {
         #[switch] $StaySignedIn
     )
 
+    ## Update WebSession User Agent String with Module Info
+    $script:MsGraphSession.UserAgent = $script:MsGraphSession.UserAgent -replace 'AzureADAssessment', ('{0}/{1}' -f $PSCmdlet.MyInvocation.MyCommand.Module.Name, $MyInvocation.MyCommand.Module.Version)
+
     ## Create Client Application
     switch ($PSCmdlet.ParameterSetName) {
         'InputObject' {
@@ -53,7 +56,7 @@ function Connect-AADAssessment {
     #if ($StaySignedIn) { $script:ConnectState.ClientApplication | Enable-MsalTokenCacheOnDisk }
     $script:ConnectState.CloudEnvironment = $CloudEnvironment
 
-    Connect-AADAssessModules $script:ConnectState.ClientApplication -CloudEnvironment $script:ConnectState.CloudEnvironment -ErrorAction Stop
+    Confirm-ModuleAuthentication $script:ConnectState.ClientApplication -CloudEnvironment $script:ConnectState.CloudEnvironment -ErrorAction Stop
     #Get-MgContext
     #Get-AzureADCurrentSessionInfo
 

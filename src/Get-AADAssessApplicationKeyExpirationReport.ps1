@@ -13,13 +13,14 @@
 Function Get-AADAssessApplicationKeyExpirationReport {
     param()
     
+    Confirm-ModuleAuthentication -ForceRefresh
     $apps = Get-AzureADApplication -All $true
 
     foreach ($app in $apps) {
         $appObjectId = $app.ObjectId
         $appName = $app.DisplayName
         
-
+        Confirm-ModuleAuthentication
         $appKeys = Get-AzureADApplicationKeyCredential -ObjectId $appObjectId
 
         foreach ($appKey in $appKeys) {        
@@ -33,6 +34,7 @@ Function Get-AADAssessApplicationKeyExpirationReport {
             Write-Output $result
         }
 
+        Confirm-ModuleAuthentication
         $appKeys = Get-AzureADApplicationPasswordCredential -ObjectId $appObjectId
         
         foreach ($appKey in $app.PasswordCredentials) {        
@@ -46,13 +48,14 @@ Function Get-AADAssessApplicationKeyExpirationReport {
         }
     }
 
-    
+    Confirm-ModuleAuthentication -ForceRefresh
     $servicePrincipals = Get-AzureADServicePrincipal -All $true
 
     foreach ($sp in $servicePrincipals) {
         $spName = $sp.DisplayName
         $spObjectId = $sp.ObjectId
 
+        Confirm-ModuleAuthentication
         $spKeys = Get-AzureADServicePrincipalKeyCredential -ObjectId $spObjectId        
 
         foreach ($spKey in $spKeys) {
@@ -66,6 +69,7 @@ Function Get-AADAssessApplicationKeyExpirationReport {
             Write-Output $result
         }    
         
+        Confirm-ModuleAuthentication
         $spKeys = Get-AzureADServicePrincipalPasswordCredential -ObjectId $spObjectId    
 
         
