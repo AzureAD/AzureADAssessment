@@ -30,120 +30,127 @@ Function Get-AADAssessConsentGrantList {
     param(
         [int] $PrecacheSize = 999
     )
-    # An in-memory cache of objects by {object ID} andy by {object class, object ID} 
-    $script:ObjectByObjectId = @{ }
-    $script:ObjectByObjectClassId = @{ }
 
-    # Function to add an object to the cache
-    function CacheObject($Object) {
-        if ($Object) {
-            if (-not $script:ObjectByObjectClassId.ContainsKey($Object.ObjectType)) {
-                $script:ObjectByObjectClassId[$Object.ObjectType] = @{ }
-            }
-            $script:ObjectByObjectClassId[$Object.ObjectType][$Object.ObjectId] = $Object
-            $script:ObjectByObjectId[$Object.ObjectId] = $Object
-        }
-    }
+    Start-AppInsightsRequest $MyInvocation.MyCommand.Name
+    try {
 
-    # Function to retrieve an object from the cache (if it's there), or from Azure AD (if not).
-    function GetObjectByObjectId($ObjectId) {
-        if (-not $script:ObjectByObjectId.ContainsKey($ObjectId)) {
-            Write-Verbose ("Querying Azure AD for object '{0}'" -f $ObjectId)
-            Confirm-ModuleAuthentication
-            try {
-                $object = Get-AzureADObjectByObjectId -ObjectId $ObjectId
-                CacheObject -Object $object
-            }
-            catch { 
-                Write-Verbose "Object not found."
-            }
-        }
-        return $script:ObjectByObjectId[$ObjectId]
-    }
-   
-    # Step 1: Get all ServicePrincipal objects and add to the cache
-    Confirm-ModuleAuthentication -ForceRefresh
-    Write-Verbose "Retrieving ServicePrincipal objects..."
-    $servicePrincipals = Get-AzureADServicePrincipal -All $true 
+        # An in-memory cache of objects by {object ID} andy by {object class, object ID} 
+        $script:ObjectByObjectId = @{ }
+        $script:ObjectByObjectClassId = @{ }
 
-    #there is a limitation on how Azure AD Graph retrieves the list of OAuth2PermissionGrants
-    #we have to traverse all service principals and gather them separately.
-    # Originally, we could have done this 
-    # $Oauth2PermGrants = Get-AzureADOAuth2PermissionGrant -All $true 
-    
-    $Oauth2PermGrants = @()
-
-    foreach ($sp in $servicePrincipals) {
-        Confirm-ModuleAuthentication
-        CacheObject -Object $sp
-        $spPermGrants = Get-AzureADServicePrincipalOAuth2PermissionGrant -ObjectId $sp.ObjectId -All $true
-        $Oauth2PermGrants += $spPermGrants
-    }  
-
-    # Get one page of User objects and add to the cache
-    Write-Verbose "Retrieving User objects..."
-    Confirm-ModuleAuthentication
-    Get-AzureADUser -Top $PrecacheSize | ForEach-Object { CacheObject -Object $_ }
-
-    # Get all existing OAuth2 permission grants, get the client, resource and scope details
-    foreach ($grant in $Oauth2PermGrants) {
-        if ($grant.Scope) {
-            $grant.Scope.Split(" ") | Where-Object { $_ } | ForEach-Object {               
-                $scope = $_
-                $client = GetObjectByObjectId -ObjectId $grant.ClientId
-                $resource = GetObjectByObjectId -ObjectId $grant.ResourceId
-                $principalDisplayName = ""
-                if ($grant.PrincipalId) {
-                    $principal = GetObjectByObjectId -ObjectId $grant.PrincipalId
-                    $principalDisplayName = $principal.DisplayName
+        # Function to add an object to the cache
+        function CacheObject($Object) {
+            if ($Object) {
+                if (-not $script:ObjectByObjectClassId.ContainsKey($Object.ObjectType)) {
+                    $script:ObjectByObjectClassId[$Object.ObjectType] = @{ }
                 }
+                $script:ObjectByObjectClassId[$Object.ObjectType][$Object.ObjectId] = $Object
+                $script:ObjectByObjectId[$Object.ObjectId] = $Object
+            }
+        }
+
+        # Function to retrieve an object from the cache (if it's there), or from Azure AD (if not).
+        function GetObjectByObjectId($ObjectId) {
+            if (-not $script:ObjectByObjectId.ContainsKey($ObjectId)) {
+                Write-Verbose ("Querying Azure AD for object '{0}'" -f $ObjectId)
+                Confirm-ModuleAuthentication
+                try {
+                    $object = Get-AzureADObjectByObjectId -ObjectId $ObjectId
+                    CacheObject -Object $object
+                }
+                catch { 
+                    Write-Verbose "Object not found."
+                }
+            }
+            return $script:ObjectByObjectId[$ObjectId]
+        }
+    
+        # Step 1: Get all ServicePrincipal objects and add to the cache
+        Confirm-ModuleAuthentication -ForceRefresh
+        Write-Verbose "Retrieving ServicePrincipal objects..."
+        $servicePrincipals = Get-AzureADServicePrincipal -All $true 
+
+        #there is a limitation on how Azure AD Graph retrieves the list of OAuth2PermissionGrants
+        #we have to traverse all service principals and gather them separately.
+        # Originally, we could have done this 
+        # $Oauth2PermGrants = Get-AzureADOAuth2PermissionGrant -All $true 
+        
+        $Oauth2PermGrants = @()
+
+        foreach ($sp in $servicePrincipals) {
+            Confirm-ModuleAuthentication
+            CacheObject -Object $sp
+            $spPermGrants = Get-AzureADServicePrincipalOAuth2PermissionGrant -ObjectId $sp.ObjectId -All $true
+            $Oauth2PermGrants += $spPermGrants
+        }  
+
+        # Get one page of User objects and add to the cache
+        Write-Verbose "Retrieving User objects..."
+        Confirm-ModuleAuthentication
+        Get-AzureADUser -Top $PrecacheSize | ForEach-Object { CacheObject -Object $_ }
+
+        # Get all existing OAuth2 permission grants, get the client, resource and scope details
+        foreach ($grant in $Oauth2PermGrants) {
+            if ($grant.Scope) {
+                $grant.Scope.Split(" ") | Where-Object { $_ } | ForEach-Object {               
+                    $scope = $_
+                    $client = GetObjectByObjectId -ObjectId $grant.ClientId
+                    $resource = GetObjectByObjectId -ObjectId $grant.ResourceId
+                    $principalDisplayName = ""
+                    if ($grant.PrincipalId) {
+                        $principal = GetObjectByObjectId -ObjectId $grant.PrincipalId
+                        $principalDisplayName = $principal.DisplayName
+                    }
+
+                    New-Object PSObject -Property ([ordered]@{
+                            "PermissionType"       = "Delegated"
+                                        
+                            "ClientObjectId"       = $grant.ClientId
+                            "ClientDisplayName"    = $client.DisplayName
+                        
+                            "ResourceObjectId"     = $grant.ResourceId
+                            "ResourceDisplayName"  = $resource.DisplayName
+                            "Permission"           = $scope
+
+                            "ConsentType"          = $grant.ConsentType
+                            "PrincipalObjectId"    = $grant.PrincipalId
+                            "PrincipalDisplayName" = $principalDisplayName
+
+                            "AppOwnerTenantId"     = $client.AppOwnerTenantId
+                        })
+                }
+            }
+        }
+        
+
+        # Iterate over all ServicePrincipal objects and get app permissions
+        Write-Verbose "Retrieving AppRoleAssignments..."
+        $script:ObjectByObjectClassId['ServicePrincipal'].GetEnumerator() | ForEach-Object {
+            $sp = $_.Value
+            Confirm-ModuleAuthentication
+            Get-AzureADServiceAppRoleAssignedTo -ObjectId $sp.ObjectId  -All $true `
+            | Where-Object { $_.PrincipalType -eq "ServicePrincipal" } | ForEach-Object {
+                $assignment = $_
+                
+                $client = GetObjectByObjectId -ObjectId $assignment.PrincipalId
+                $resource = GetObjectByObjectId -ObjectId $assignment.ResourceId            
+                $appRole = $resource.AppRoles | Where-Object { $_.Id -eq $assignment.Id }
 
                 New-Object PSObject -Property ([ordered]@{
-                        "PermissionType"       = "Delegated"
-                                    
-                        "ClientObjectId"       = $grant.ClientId
-                        "ClientDisplayName"    = $client.DisplayName
+                        "PermissionType"      = "Application"
                     
-                        "ResourceObjectId"     = $grant.ResourceId
-                        "ResourceDisplayName"  = $resource.DisplayName
-                        "Permission"           = $scope
+                        "ClientObjectId"      = $assignment.PrincipalId
+                        "ClientDisplayName"   = $client.DisplayName
+                    
+                        "ResourceObjectId"    = $assignment.ResourceId
+                        "ResourceDisplayName" = $resource.DisplayName
+                        "Permission"          = $appRole.Value
 
-                        "ConsentType"          = $grant.ConsentType
-                        "PrincipalObjectId"    = $grant.PrincipalId
-                        "PrincipalDisplayName" = $principalDisplayName
-
-                        "AppOwnerTenantId"     = $client.AppOwnerTenantId
+                        "AppOwnerTenantId"    = $client.AppOwnerTenantId
                     })
             }
         }
     }
-    
-
-    # Iterate over all ServicePrincipal objects and get app permissions
-    Write-Verbose "Retrieving AppRoleAssignments..."
-    $script:ObjectByObjectClassId['ServicePrincipal'].GetEnumerator() | ForEach-Object {
-        $sp = $_.Value
-        Confirm-ModuleAuthentication
-        Get-AzureADServiceAppRoleAssignedTo -ObjectId $sp.ObjectId  -All $true `
-        | Where-Object { $_.PrincipalType -eq "ServicePrincipal" } | ForEach-Object {
-            $assignment = $_
-            
-            $client = GetObjectByObjectId -ObjectId $assignment.PrincipalId
-            $resource = GetObjectByObjectId -ObjectId $assignment.ResourceId            
-            $appRole = $resource.AppRoles | Where-Object { $_.Id -eq $assignment.Id }
-
-            New-Object PSObject -Property ([ordered]@{
-                    "PermissionType"      = "Application"
-                
-                    "ClientObjectId"      = $assignment.PrincipalId
-                    "ClientDisplayName"   = $client.DisplayName
-                
-                    "ResourceObjectId"    = $assignment.ResourceId
-                    "ResourceDisplayName" = $resource.DisplayName
-                    "Permission"          = $appRole.Value
-
-                    "AppOwnerTenantId"    = $client.AppOwnerTenantId
-                })
-        }
-    }
+    catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException $_.Exception }; throw }
+    finally { Complete-AppInsightsRequest $MyInvocation.MyCommand.Name -Success $true }
 }

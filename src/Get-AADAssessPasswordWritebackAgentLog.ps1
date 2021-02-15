@@ -20,7 +20,13 @@ function Get-AADAssessPasswordWritebackAgentLog {
         [int]
         $DaysToRetrieve
     )
-    $TimeFilter = $DaysToRetrieve * 86400000
-    $EventFilterXml = "<QueryList><Query Id='0' Path='Application'><Select Path='Application'>*[System[Provider[@Name='PasswordResetService'] and TimeCreated[timediff(@SystemTime) &lt;= {0}]]]</Select></Query></QueryList>" -f $TimeFilter
-    Get-WinEvent -FilterXml $EventFilterXml
+
+    Start-AppInsightsRequest $MyInvocation.MyCommand.Name
+    try {
+        $TimeFilter = $DaysToRetrieve * 86400000
+        $EventFilterXml = "<QueryList><Query Id='0' Path='Application'><Select Path='Application'>*[System[Provider[@Name='PasswordResetService'] and TimeCreated[timediff(@SystemTime) &lt;= {0}]]]</Select></Query></QueryList>" -f $TimeFilter
+        Get-WinEvent -FilterXml $EventFilterXml
+    }
+    catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException $_.Exception }; throw }
+    finally { Complete-AppInsightsRequest $MyInvocation.MyCommand.Name -Success $true }
 }

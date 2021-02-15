@@ -1,6 +1,3 @@
-## Set Strict Mode for Module. https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/set-strictmode
-Set-StrictMode -Version 3.0
-
 <# 
 .DISCLAIMER
 	THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
@@ -11,6 +8,21 @@ Set-StrictMode -Version 3.0
 	Copyright (c) Microsoft Corporation. All rights reserved.
 #>
 
+param (
+    # Disable Telemetry
+    [Parameter(Mandatory = $false)]
+    [switch] $DisableTelemetry = $false
+)
+
+## Set Strict Mode for Module. https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/set-strictmode
+Set-StrictMode -Version 3.0
+
+## Initialize Module Configuration
+Get-Config
+Set-Config
+if ($PSBoundParameters.ContainsKey('DisableTelemetry')) { Set-Config -AIDisabled $DisableTelemetry }
+
+## Initialize Module Variables
 $script:ConnectState = @{
     ClientApplication = $null
     CloudEnvironment  = $null
@@ -40,6 +52,28 @@ $script:mapMgEnvironmentToAzureEnvironment = @{
     'Germany'  = 'AzureGermanyCloud'
     'USGov'    = 'AzureUSGovernment'
     'USGovDoD' = 'AzureUsGovernment'
+}
+
+## Initialize Application Insights for Anonymous Telemetry
+$script:AppInsightsRuntimeState = [PSCustomObject]@{
+    OperationStack = New-Object System.Collections.Generic.Stack[PSCustomObject]
+    SessionId = New-Guid
+}
+
+if (!$script:ModuleConfig.'ai.disabled') {
+    $AppDataDirectory = Join-Path ([System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::ApplicationData)) 'AzureADAssessment'
+    $AppInsightsStatePath = Join-Path $AppDataDirectory 'AppInsightsState.json'
+
+    if (Test-Path $AppInsightsStatePath) {
+        $script:AppInsightsState = Get-Content $AppInsightsStatePath | ConvertFrom-Json
+    }
+    else {
+        $script:AppInsightsState = [PSCustomObject]@{
+            UserId    = New-Guid
+        }
+        Assert-DirectoryExists $AppDataDirectory
+        ConvertTo-Json $script:AppInsightsState | Set-Content $AppInsightsStatePath
+    }
 }
 
 #Future 

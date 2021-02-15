@@ -38,17 +38,20 @@
 
 #>
 Function Expand-AADAssessAADConnectConfig {
-    param(
-        [Parameter(Mandatory = $true)]
-        [String]$AADConnectProdConfigZipFilePath,
-        [Parameter(Mandatory = $false)]
-        [String]$AADConnectProdStagingZipFilePath,
-        [Parameter(Mandatory = $true)]
-        [String]$OutputRootPath,
-        [Parameter(Mandatory = $true)]
-        [String]$CustomerName
-    )
-    
+  param(
+      [Parameter(Mandatory = $true)]
+      [String]$AADConnectProdConfigZipFilePath,
+      [Parameter(Mandatory = $false)]
+      [String]$AADConnectProdStagingZipFilePath,
+      [Parameter(Mandatory = $true)]
+      [String]$OutputRootPath,
+      [Parameter(Mandatory = $true)]
+      [String]$CustomerName
+  )
+  
+  Start-AppInsightsRequest $MyInvocation.MyCommand.Name
+  try {
+
     #Step 1: Create SubFolder
     $WorkingPath = mkdir -Path $OutputRootPath -Name $CustomerName
 
@@ -85,4 +88,7 @@ Function Expand-AADAssessAADConnectConfig {
     $report = (Get-ChildItem -Path (Join-Path $WorkingPath "Report") | Select-Object -First 1)
 
     Write-Output $report.FullName
+  }
+  catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException $_.Exception }; throw }
+  finally { Complete-AppInsightsRequest $MyInvocation.MyCommand.Name -Success $true }
 }

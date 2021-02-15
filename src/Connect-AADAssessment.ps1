@@ -29,36 +29,46 @@ function Connect-AADAssessment {
         [string] $CloudEnvironment = 'Global',
         # Tenant identifier of the authority to issue token.
         [Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
-        [string] $TenantId = 'organizations'
+        [string] $TenantId = 'organizations',
         # Stay signed in across PowerShell sessions on current device.
         #[Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
-        #[switch] $StaySignedIn
+        #[switch] $StaySignedIn,
+        # Disable Telemetry
+        [Parameter(Mandatory = $false)]
+        [switch] $DisableTelemetry
     )
 
-    ## Update WebSession User Agent String with Module Info
-    $script:MsGraphSession.UserAgent = $script:MsGraphSession.UserAgent -replace 'AzureADAssessment', ('{0}/{1}' -f $PSCmdlet.MyInvocation.MyCommand.Module.Name, $MyInvocation.MyCommand.Module.Version)
+    ## Update Telemetry Setting
+    if ($PSBoundParameters.ContainsKey($DisableTelemetry)) { Set-Config -AIDisabled $DisableTelemetry }
 
-    ## Create Client Application
-    switch ($PSCmdlet.ParameterSetName) {
-        'InputObject' {
-            $script:ConnectState.ClientApplication = $ClientApplication
-            break
+    ## Track Command Execution and Performance
+    Start-AppInsightsRequest $MyInvocation.MyCommand.Name
+    try {
+        ## Update WebSession User Agent String with Module Info
+        $script:MsGraphSession.UserAgent = $script:MsGraphSession.UserAgent -replace 'AzureADAssessment', ('{0}/{1}' -f $PSCmdlet.MyInvocation.MyCommand.Module.Name, $MyInvocation.MyCommand.Module.Version)
+
+        ## Create Client Application
+        switch ($PSCmdlet.ParameterSetName) {
+            'InputObject' {
+                $script:ConnectState.ClientApplication = $ClientApplication
+                break
+            }
+            'PublicClient' {
+                $script:ConnectState.ClientApplication = New-MsalClientApplication -ClientId $ClientId -TenantId $TenantId -AzureCloudInstance $script:mapMgEnvironmentToAzureCloudInstance[$CloudEnvironment] -RedirectUri 'http://localhost'
+                break
+            }
+            'ConfidentialClientCertificate' {
+                $script:ConnectState.ClientApplication = New-MsalClientApplication -ClientId $ClientId -ClientCertificate $ClientCertificate -TenantId $TenantId -AzureCloudInstance $script:mapMgEnvironmentToAzureCloudInstance[$CloudEnvironment]
+                break
+            }
         }
-        'PublicClient' {
-            $script:ConnectState.ClientApplication = New-MsalClientApplication -ClientId $ClientId -TenantId $TenantId -AzureCloudInstance $script:mapMgEnvironmentToAzureCloudInstance[$CloudEnvironment] -RedirectUri 'http://localhost'
-            break
-        }
-        'ConfidentialClientCertificate' {
-            $script:ConnectState.ClientApplication = New-MsalClientApplication -ClientId $ClientId -ClientCertificate $ClientCertificate -TenantId $TenantId -AzureCloudInstance $script:mapMgEnvironmentToAzureCloudInstance[$CloudEnvironment]
-            break
-        }
+        #if ($StaySignedIn) { $script:ConnectState.ClientApplication | Enable-MsalTokenCacheOnDisk }
+        $script:ConnectState.CloudEnvironment = $CloudEnvironment
+
+        Confirm-ModuleAuthentication $script:ConnectState.ClientApplication -CloudEnvironment $script:ConnectState.CloudEnvironment -ErrorAction Stop
+        #Get-MgContext
+        #Get-AzureADCurrentSessionInfo
     }
-    #if ($StaySignedIn) { $script:ConnectState.ClientApplication | Enable-MsalTokenCacheOnDisk }
-    $script:ConnectState.CloudEnvironment = $CloudEnvironment
-
-    Confirm-ModuleAuthentication $script:ConnectState.ClientApplication -CloudEnvironment $script:ConnectState.CloudEnvironment -ErrorAction Stop
-    #Get-MgContext
-    #Get-AzureADCurrentSessionInfo
-
-    Write-Debug "Connect Success!"
+    catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException $_.Exception }; throw }
+    finally { Complete-AppInsightsRequest $MyInvocation.MyCommand.Name -Success $true }
 }

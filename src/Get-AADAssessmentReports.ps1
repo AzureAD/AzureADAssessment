@@ -20,29 +20,36 @@ Function Get-AADAssessmentReports {
         [String]$OutputDirectory
     )
 
-    $reportsToRun = @{
-        "Get-AADAssessNotificationEmailAddresses"     = "NotificationsEmailAddresses.csv"
-        "Get-AADAssessAppAssignmentReport"            = "AppAssignments.csv"
-        "Get-AADAssessApplicationKeyExpirationReport" = "AppKeysReport.csv"
-        "Get-AADAssessConsentGrantList"               = "ConsentGrantList.csv"
-    }
+    Start-AppInsightsRequest $MyInvocation.MyCommand.Name
+    try {
+        $reportsToRun = @{
+            "Get-AADAssessNotificationEmailAddresses"     = "NotificationsEmailAddresses.csv"
+            "Get-AADAssessAppAssignmentReport"            = "AppAssignments.csv"
+            "Get-AADAssessApplicationKeyExpirationReport" = "AppKeysReport.csv"
+            "Get-AADAssessConsentGrantList"               = "ConsentGrantList.csv"
+        }
 
-    $totalReports = $reportsToRun.Count + 1 #to include conditional access
-    $processedReports = 0
+        $totalReports = $reportsToRun.Count + 1 #to include conditional access
+        $processedReports = 0
 
-    foreach ($reportKvP in $reportsToRun.GetEnumerator()) {
-        #Connect-AADAssessment
-        $functionName = $reportKvP.Name
-        $outputFileName = $reportKvP.Value
+        foreach ($reportKvP in $reportsToRun.GetEnumerator()) {
+            #Connect-AADAssessment
+            $functionName = $reportKvP.Name
+            $outputFileName = $reportKvP.Value
+            $percentComplete = 100 * $processedReports / $totalReports
+            Write-Progress -Activity "Reading Azure AD Configuration" -CurrentOperation "Running Report $functionName" -PercentComplete $percentComplete
+            Get-AADAssessmentSingleReport -FunctionName $functionName -OutputDirectory $OutputDirectory -OutputCSVFileName $outputFileName
+            $processedReports++
+        }
+
         $percentComplete = 100 * $processedReports / $totalReports
-        Write-Progress -Activity "Reading Azure AD Configuration" -CurrentOperation "Running Report $functionName" -PercentComplete $percentComplete
-        Get-AADAssessmentSingleReport -FunctionName $functionName -OutputDirectory $OutputDirectory -OutputCSVFileName $outputFileName
-        $processedReports++
-    }
+        Write-Progress -Activity "Reading Azure AD Configuration" -CurrentOperation "Running Report Get-AADAssessCAPolicyReports" -PercentComplete $percentComplete
+        
+        #Connect-AADAssessment
+        Get-AADAssessCAPolicyReports -OutputDirectory $OutputDirectory
 
-    $percentComplete = 100 * $processedReports / $totalReports
-    Write-Progress -Activity "Reading Azure AD Configuration" -CurrentOperation "Running Report Get-AADAssessCAPolicyReports" -PercentComplete $percentComplete
-    
-    #Connect-AADAssessment
-    Get-AADAssessCAPolicyReports -OutputDirectory $OutputDirectory
+        Write-AppInsightsEvent 'Assessment Data Collection Complete'
+    }
+    catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException $_.Exception }; throw }
+    finally { Complete-AppInsightsRequest $MyInvocation.MyCommand.Name -Success $true }
 }
