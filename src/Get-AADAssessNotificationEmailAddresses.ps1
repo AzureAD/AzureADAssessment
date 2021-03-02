@@ -18,7 +18,7 @@ function Get-AADAssessNotificationEmailAddresses {
             RecipientObjectType        = "emailAddress"
             NotificationType           = "Technical Notification"
             NotificationEmailScope     = "Tenant"
-            RecipientEmailAddress      = (Get-ObjectProperty $orgInfo 'value' 'technicalNotificationMails')
+            RecipientEmailAddress      = (Get-ObjectPropertyValue $orgInfo 'value' 'technicalNotificationMails')
             RecipientAlternateEmail    = ""
             RecipientUserPrincipalName = ""
         } 
@@ -32,13 +32,13 @@ function Get-AADAssessNotificationEmailAddresses {
         foreach ($role in $aadRoles) {
             foreach ($roleMember in $role.members) {
                 $result = [PSCustomObject]@{
-                    RecipientName              = (Get-ObjectProperty $roleMember 'displayName')
-                    RecipientObjectType        = (Get-ObjectProperty $roleMember '@odata.type') -replace '#microsoft.graph.', ''
-                    NotificationType           = (Get-ObjectProperty $role 'displayName')
+                    RecipientName              = (Get-ObjectPropertyValue $roleMember 'displayName')
+                    RecipientObjectType        = (Get-ObjectPropertyValue $roleMember '@odata.type') -replace '#microsoft.graph.', ''
+                    NotificationType           = (Get-ObjectPropertyValue $role 'displayName')
                     NotificationEmailScope     = 'Role'
-                    RecipientEmailAddress      = (Get-ObjectProperty $roleMember 'mail')
-                    RecipientAlternateEmail    = (Get-ObjectProperty $roleMember 'otherMails') -join ';'
-                    RecipientUserPrincipalName = (Get-ObjectProperty $roleMember 'userPrincipalName')
+                    RecipientEmailAddress      = (Get-ObjectPropertyValue $roleMember 'mail')
+                    RecipientAlternateEmail    = (Get-ObjectPropertyValue $roleMember 'otherMails') -join ';'
+                    RecipientUserPrincipalName = (Get-ObjectPropertyValue $roleMember 'userPrincipalName')
                 } 
                 Write-Output $result
             }

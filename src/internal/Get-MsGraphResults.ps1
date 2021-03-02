@@ -55,7 +55,7 @@ function Get-MsGraphResults {
         $listRequests = New-Object 'System.Collections.Generic.List[psobject]'
 
         function Format-Result ($results, $RawOutput) {
-            if (!$RawOutput -and (Get-ObjectProperty $results 'value')) {
+            if (!$RawOutput -and (Get-ObjectPropertyValue $results 'value')) {
                 foreach ($result in $results.value) {
                     if ($result -is [hashtable]) {
                         $result.Add('@odata.context', ('{0}/$entity' -f $results.'@odata.context'))
@@ -71,7 +71,7 @@ function Get-MsGraphResults {
 
         function Complete-Result ($results, $DisablePaging) {
             if (!$DisablePaging -and $results) {
-                while (Get-ObjectProperty $results '@odata.nextLink') {
+                while (Get-ObjectPropertyValue $results '@odata.nextLink') {
                     # Confirm-ModuleAuthentication
                     # $results = Invoke-MgGraphRequest -Method GET -Uri $results.'@odata.nextLink' -Headers @{ ConsistencyLevel = $ConsistencyLevel }
                     $MsGraphSession = Confirm-ModuleAuthentication -MsGraphSession

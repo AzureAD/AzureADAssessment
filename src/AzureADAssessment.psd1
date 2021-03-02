@@ -77,9 +77,10 @@ NestedModules = @(
     '.\internal\ConvertFrom-QueryString.ps1'
     '.\internal\ConvertTo-QueryString.ps1'
     '.\internal\Expand-JsonWebTokenPayload.ps1'
-    '.\internal\Get-Config.ps1'
+    '.\internal\Export-Config.ps1'
     '.\internal\Get-MsGraphResults.ps1'
-    '.\internal\Get-ObjectProperty.ps1'
+    '.\internal\Get-ObjectPropertyValue.ps1'
+    '.\internal\Import-Config.ps1'
     '.\internal\New-AppInsightsTelemetry.ps1'
     '.\internal\Remove-Diacritics.ps1'
     '.\internal\Remove-InvalidFileNameCharacters.ps1'
@@ -92,9 +93,8 @@ NestedModules = @(
     '.\internal\Write-AppInsightsException.ps1'
     '.\internal\Write-AppInsightsRequest.ps1'
     '.\internal\Write-AppInsightsTrace.ps1'
+    '.\Complete-AADAssessmentReports.ps1'
     '.\Connect-AADAssessment.ps1'
-    '.\Disable-AADAssessmentTelemetry.ps1'
-    '.\Enable-AADAssessmentTelemetry.ps1'
     '.\Expand-AADAssessAADConnectConfig.ps1'
     '.\Export-AADAssessADFSConfiguration.ps1'
     '.\Get-AADAssessADFSEndpoints.ps1'
@@ -107,13 +107,13 @@ NestedModules = @(
     '.\Get-AADAssessmentSingleReport.ps1'
     '.\Get-AADAssessNotificationEmailAddresses.ps1'
     '.\Get-AADAssessPasswordWritebackAgentLog.ps1'
+    '.\Invoke-AADAssessmentDataCollection.ps1'
 )
 
 # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
 FunctionsToExport = @(
+    'Complete-AADAssessmentReports'
     'Connect-AADAssessment'
-    'Disable-AADAssessmentTelemetry'
-    'Enable-AADAssessmentTelemetry'
     #'Get-MsGraphResults'
     'Get-AADAssessAppProxyConnectorLog'
     'Get-AADAssessPasswordWritebackAgentLog'
@@ -123,9 +123,10 @@ FunctionsToExport = @(
     'Get-AADAssessApplicationKeyExpirationReport'
     'Get-AADAssessADFSEndpoints'
     'Export-AADAssessADFSConfiguration'
-    'Get-AADAssessCAPolicyReports'
-    'Get-AADAssessmentReports'
+    #'Get-AADAssessCAPolicyReports'
+    #'Get-AADAssessmentReports'
     'Expand-AADAssessAADConnectConfig'
+    'Invoke-AADAssessmentDataCollection'
 )
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.

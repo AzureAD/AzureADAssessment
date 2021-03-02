@@ -9,18 +9,25 @@
 #>
 
 param (
-    # Disable Telemetry
+    # Provide module configuration
     [Parameter(Mandatory = $false)]
-    [switch] $DisableTelemetry = $false
+    [object] $ModuleConfiguration
 )
 
 ## Set Strict Mode for Module. https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/set-strictmode
 Set-StrictMode -Version 3.0
 
 ## Initialize Module Configuration
-Get-Config
-Set-Config
-if ($PSBoundParameters.ContainsKey('DisableTelemetry')) { Set-Config -AIDisabled $DisableTelemetry }
+$script:ModuleConfigDefault = [PSCustomObject]@{
+    'ai.disabled'           = $false
+    'ai.instrumentationKey' = 'da85df16-64ea-4a62-8856-8bbb9ca86615'
+    'ai.ingestionEndpoint'  = 'https://dc.services.visualstudio.com/v2/track'
+}
+$script:ModuleConfig = $script:ModuleConfigDefault.psobject.Copy()
+
+Import-Config
+if ($PSBoundParameters.ContainsKey('ModuleConfiguration')) { Set-Config $ModuleConfiguration }
+Export-Config
 
 ## Initialize Module Variables
 $script:ConnectState = @{
@@ -61,19 +68,11 @@ $script:AppInsightsRuntimeState = [PSCustomObject]@{
 }
 
 if (!$script:ModuleConfig.'ai.disabled') {
-    $AppDataDirectory = Join-Path ([System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::ApplicationData)) 'AzureADAssessment'
-    $AppInsightsStatePath = Join-Path $AppDataDirectory 'AppInsightsState.json'
-
-    if (Test-Path $AppInsightsStatePath) {
-        $script:AppInsightsState = Get-Content $AppInsightsStatePath | ConvertFrom-Json
+    $script:AppInsightsState = [PSCustomObject]@{
+        UserId = New-Guid
     }
-    else {
-        $script:AppInsightsState = [PSCustomObject]@{
-            UserId    = New-Guid
-        }
-        Assert-DirectoryExists $AppDataDirectory
-        ConvertTo-Json $script:AppInsightsState | Set-Content $AppInsightsStatePath
-    }
+    Import-Config -Path 'AppInsightsState.json' -OutConfig ([ref]$script:AppInsightsState)
+    Export-Config -Path 'AppInsightsState.json' -InputObject $script:AppInsightsState -IgnoreDefaultValues $null
 }
 
 #Future 

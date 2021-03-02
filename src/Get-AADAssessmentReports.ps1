@@ -22,7 +22,7 @@ Function Get-AADAssessmentReports {
 
     Start-AppInsightsRequest $MyInvocation.MyCommand.Name
     try {
-        $reportsToRun = @{
+        $reportsToRun = [ordered]@{
             "Get-AADAssessNotificationEmailAddresses"     = "NotificationsEmailAddresses.csv"
             "Get-AADAssessAppAssignmentReport"            = "AppAssignments.csv"
             "Get-AADAssessApplicationKeyExpirationReport" = "AppKeysReport.csv"
@@ -33,7 +33,6 @@ Function Get-AADAssessmentReports {
         $processedReports = 0
 
         foreach ($reportKvP in $reportsToRun.GetEnumerator()) {
-            #Connect-AADAssessment
             $functionName = $reportKvP.Name
             $outputFileName = $reportKvP.Value
             $percentComplete = 100 * $processedReports / $totalReports
@@ -45,10 +44,7 @@ Function Get-AADAssessmentReports {
         $percentComplete = 100 * $processedReports / $totalReports
         Write-Progress -Activity "Reading Azure AD Configuration" -CurrentOperation "Running Report Get-AADAssessCAPolicyReports" -PercentComplete $percentComplete
         
-        #Connect-AADAssessment
         Get-AADAssessCAPolicyReports -OutputDirectory $OutputDirectory
-
-        Write-AppInsightsEvent 'Assessment Data Collection Complete'
     }
     catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException $_.Exception }; throw }
     finally { Complete-AppInsightsRequest $MyInvocation.MyCommand.Name -Success $true }

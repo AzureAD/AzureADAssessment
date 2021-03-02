@@ -28,7 +28,16 @@ function New-AppInsightsTelemetry {
         'AppTraces'       = 'MessageData'
     }
 
-    $Operation = $script:AppInsightsRuntimeState.OperationStack.Peek()
+    if ($script:AppInsightsRuntimeState.OperationStack.Count -gt 0) {
+        $Operation = $script:AppInsightsRuntimeState.OperationStack.Peek()
+    }
+    else {
+        $Operation = @{
+            Id        = New-Guid
+            Name      = $MyInvocation.MyCommand.Name
+            ParentId  = $null
+        }
+    }
 
     $AppInsightsTelemetry = [ordered]@{
         name = $Name
@@ -77,6 +86,7 @@ function New-AppInsightsTelemetry {
     }
     if ($script:ConnectState.MsGraphToken) {
         $AppInsightsTelemetry.data.baseData['properties']['TenantId'] = $script:ConnectState.MsGraphToken.Account.HomeAccountId.TenantId
+        $AppInsightsTelemetry.data.baseData['properties']['CloudEnvironment'] = $script:ConnectState.CloudEnvironment
     }
 
     return $AppInsightsTelemetry

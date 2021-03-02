@@ -8,27 +8,22 @@ Function Get-AADAssessmentSingleReport {
         [String]$OutputCSVFileName
     )
 
-    Start-AppInsightsRequest $MyInvocation.MyCommand.Name
+    #$OriginalThreadUICulture = [System.Threading.Thread]::CurrentThread.CurrentUICulture
+    $OriginalThreadCulture = [System.Threading.Thread]::CurrentThread.CurrentCulture
+
     try {
-        #$OriginalThreadUICulture = [System.Threading.Thread]::CurrentThread.CurrentUICulture
-        $OriginalThreadCulture = [System.Threading.Thread]::CurrentThread.CurrentCulture
+        #reports need to be created in en-US for backend processing of datetime
+        $culture = [System.Globalization.CultureInfo]::GetCultureInfo("en-US")
+        #[System.Threading.Thread]::CurrentThread.CurrentUICulture = $culture
+        [System.Threading.Thread]::CurrentThread.CurrentCulture = $culture
 
-        try {
-            #reports need to be created in en-US for backend processing of datetime
-            $culture = [System.Globalization.CultureInfo]::GetCultureInfo("en-US")
-            #[System.Threading.Thread]::CurrentThread.CurrentUICulture = $culture
-            [System.Threading.Thread]::CurrentThread.CurrentCulture = $culture
-
-            $OutputFilePath = Join-Path $OutputDirectory $OutputCSVFileName
-            #$Report = Invoke-Expression -Command $FunctionName
-            #$Report | Export-Csv -Path $OutputFilePath
-            Invoke-Expression -Command $FunctionName | Export-Csv -Path $OutputFilePath
-        }
-        finally {
-            #[System.Threading.Thread]::CurrentThread.CurrentUICulture = $OriginalThreadUICulture
-            [System.Threading.Thread]::CurrentThread.CurrentCulture = $OriginalThreadCulture
-        }
+        $OutputFilePath = Join-Path $OutputDirectory $OutputCSVFileName
+        #$Report = Invoke-Expression -Command $FunctionName
+        #$Report | Export-Csv -Path $OutputFilePath
+        Invoke-Expression -Command $FunctionName | Export-Csv -Path $OutputFilePath
     }
-    catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException $_.Exception }; throw }
-    finally { Complete-AppInsightsRequest $MyInvocation.MyCommand.Name -Success $true }
+    finally {
+        #[System.Threading.Thread]::CurrentThread.CurrentUICulture = $OriginalThreadUICulture
+        [System.Threading.Thread]::CurrentThread.CurrentCulture = $OriginalThreadCulture
+    }
 }

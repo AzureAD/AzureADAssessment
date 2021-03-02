@@ -11,6 +11,9 @@ function Set-Config {
     [CmdletBinding()]
     #[OutputType([object])]
     param (
+        # Configuration Object
+        [Parameter(Mandatory = $false, Position = 0, ValueFromPipeline = $true)]
+        [object] $InputObject,
         # Application Insights Telemetry Disabled
         [Parameter(Mandatory = $false)]
         [bool] $AIDisabled,
@@ -20,22 +23,27 @@ function Set-Config {
         # Application Insights Ingestion Endpoint
         [Parameter(Mandatory = $false)]
         [string] $AIIngestionEndpoint,
-        # Configuration File Path
+        # Variable to output config
         [Parameter(Mandatory = $false)]
-        [string] $Path = 'Config.json'
+        [ref] $OutConfig = ([ref]$script:ModuleConfig)
     )
 
-    if (![IO.Path]::IsPathRooted($Path)) {
-        $AppDataDirectory = Join-Path ([System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::ApplicationData)) 'AzureADAssessment'
-        $Path = Join-Path $AppDataDirectory $Path
+    ## Update local configuration
+    if ($InputObject) {
+        if ($InputObject -is [hashtable]) { $InputObject = [PSCustomObject]$InputObject }
+        foreach ($Property in $InputObject.psobject.Properties) {
+            if ($OutConfig.Value.psobject.Properties.Name -contains $Property.Name) {
+                $OutConfig.Value.($Property.Name) = $Property.Value
+            }
+            else {
+                Write-Warning ('Ignoring invalid configuration property [{0}].' -f $Property.Name)
+            }
+        }
     }
+    if ($PSBoundParameters.ContainsKey('AIDisabled')) { $OutConfig.Value.'ai.disabled' = $AIDisabled }
+    if ($PSBoundParameters.ContainsKey('AIInstrumentationKey')) { $OutConfig.Value.'ai.instrumentationKey' = $AIInstrumentationKey }
+    if ($PSBoundParameters.ContainsKey('AIIngestionEndpoint')) { $OutConfig.Value.'ai.ingestionEndpoint' = $AIIngestionEndpoint }
 
-    if ($PSBoundParameters.ContainsKey('AIDisabled')) { $script:ModuleConfig.'ai.disabled' = $AIDisabled }
-    if ($PSBoundParameters.ContainsKey('AIInstrumentationKey')) { $script:ModuleConfig.'ai.instrumentationKey' = $AIInstrumentationKey }
-    if ($PSBoundParameters.ContainsKey('AIIngestionEndpoint')) { $script:ModuleConfig.'ai.ingestionEndpoint' = $AIIngestionEndpoint }
-    
-    Assert-DirectoryExists $AppDataDirectory
-    ConvertTo-Json $script:ModuleConfig | Set-Content $Path
-
-    #return $script:ModuleConfig
+    ## Return updated local configuration
+    #return $OutConfig.Value
 }

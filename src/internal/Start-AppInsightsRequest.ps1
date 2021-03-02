@@ -27,6 +27,7 @@ function Start-AppInsightsRequest {
 
     if ($script:AppInsightsRuntimeState.OperationStack.Count -gt 0) {
         $Operation['ParentId'] = $script:AppInsightsRuntimeState.OperationStack.Peek().Id
+        $Operation['Id'] = $script:AppInsightsRuntimeState.OperationStack.Peek().Id
     }
 
     $script:AppInsightsRuntimeState.OperationStack.Push($Operation)

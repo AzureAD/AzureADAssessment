@@ -16,6 +16,9 @@ function Write-AppInsightsEvent {
         # Custom Properties
         [Parameter(Mandatory = $false)]
         [hashtable] $Properties,
+        # Override Default Custom Properties
+        [Parameter(Mandatory = $false)]
+        [switch] $OverrideProperties,
         # Instrumentation Key
         [Parameter(Mandatory = $false)]
         [string] $InstrumentationKey = $script:ModuleConfig.'ai.instrumentationKey',
@@ -32,6 +35,7 @@ function Write-AppInsightsEvent {
 
     ## Update Telemetry Data
     $AppInsightsTelemetry.data.baseData['name'] = $Name
+    if ($OverrideProperties) { $AppInsightsTelemetry.data.baseData['properties'] = @{} }
     if ($Properties) { $AppInsightsTelemetry.data.baseData['properties'] += $Properties }
     
     ## Write Data to Application Insights

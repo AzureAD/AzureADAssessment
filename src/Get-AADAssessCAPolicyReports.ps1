@@ -27,9 +27,9 @@ function Get-AADAssessCAPolicyReports {
         $namedLocations = Get-MsGraphResults "identity/conditionalAccess/namedLocations"
 
         Write-Progress -Activity "Reading Azure AD Conditional Access Policies" -CurrentOperation "Consolidating object references"
-        $userIds = [array](Get-ObjectProperty $policies 'conditions' 'users' 'includeUsers') + (Get-ObjectProperty $policies 'conditions' 'users' 'excludeUsers') | Sort-Object | Get-Unique | Where-Object { $_ -notin 'All', 'GuestsOrExternalUsers' }
-        $groupIds = [array](Get-ObjectProperty $policies 'conditions' 'users' 'includeGroups') + (Get-ObjectProperty $policies 'conditions' 'users' 'excludeGroups') | Sort-Object | Get-Unique
-        $appIds = [array](Get-ObjectProperty $policies 'conditions' 'applications' 'includeApplications') + (Get-ObjectProperty $policies 'conditions' 'applications' 'excludeApplications') | Sort-Object | Get-Unique | Where-Object { $_ -notin 'All', 'None', 'Office365' }
+        $userIds = [array](Get-ObjectPropertyValue $policies 'conditions' 'users' 'includeUsers') + (Get-ObjectPropertyValue $policies 'conditions' 'users' 'excludeUsers') | Sort-Object | Get-Unique | Where-Object { $_ -notin 'All', 'GuestsOrExternalUsers' }
+        $groupIds = [array](Get-ObjectPropertyValue $policies 'conditions' 'users' 'includeGroups') + (Get-ObjectPropertyValue $policies 'conditions' 'users' 'excludeGroups') | Sort-Object | Get-Unique
+        $appIds = [array](Get-ObjectPropertyValue $policies 'conditions' 'applications' 'includeApplications') + (Get-ObjectPropertyValue $policies 'conditions' 'applications' 'excludeApplications') | Sort-Object | Get-Unique | Where-Object { $_ -notin 'All', 'None', 'Office365' }
         
         Write-Progress -Activity "Reading Azure AD Conditional Access Policies" -CurrentOperation "Querying referenced objects" 
         $referencedUsers = Get-MsGraphResults 'users' -UniqueId $userIds -Select 'id,userPrincipalName,displayName'

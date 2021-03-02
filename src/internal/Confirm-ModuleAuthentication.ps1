@@ -17,6 +17,9 @@ function Confirm-ModuleAuthentication {
         # Return MsGraph WebSession object for use with Invoke-RestMethod command
         [Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
         [switch] $MsGraphSession,
+        # CorrelationId
+        [Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
+        [guid] $CorrelationId = (New-Guid),
         # Scopes for AAD Graph
         [Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
         [string[]] $AadGraphScopes = 'https://graph.windows.net/Directory.Read.All',
@@ -34,13 +37,21 @@ function Confirm-ModuleAuthentication {
         Write-Error -Exception $Exception -Category ([System.Management.Automation.ErrorCategory]::AuthenticationError) -CategoryActivity $MyInvocation.MyCommand -ErrorId 'ConnectAADAssessmentRequired' -ErrorAction Stop
     }
 
+    ## Initialize
+    if ($script:AppInsightsRuntimeState.OperationStack.Count -gt 0) {
+        $CorrelationId = $script:AppInsightsRuntimeState.OperationStack.Peek().Id
+    }
+
     ## Get Tokens
     if ($ClientApplication -is [Microsoft.Identity.Client.IPublicClientApplication]) {
         $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
         try {
-            $MsGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes $MsGraphScopes -ExtraScopesToConsent $AadGraphScopes -UseEmbeddedWebView:$false -Prompt $Prompt -ForceRefresh:$ForceRefresh -Verbose:$false -ErrorAction Stop
-            $AadGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes $AadGraphScopes -UseEmbeddedWebView:$false -Prompt $Prompt -ForceRefresh:$ForceRefresh -Verbose:$false -ErrorAction Stop
+            $MsGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes $MsGraphScopes -ExtraScopesToConsent $AadGraphScopes -UseEmbeddedWebView:$false -Prompt $Prompt -ForceRefresh:$ForceRefresh -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
+            $AadGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes $AadGraphScopes -UseEmbeddedWebView:$false -Prompt $Prompt -ForceRefresh:$ForceRefresh -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
+            #$MsGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes 'https://graph.microsoft.com/.default' -UseEmbeddedWebView:$true -Prompt $Prompt -ForceRefresh:$ForceRefresh -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
+            #$AadGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes 'https://graph.windows.net/.default' -UseEmbeddedWebView:$true -Prompt $Prompt -ForceRefresh:$ForceRefresh -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
         }
+        catch { throw }
         finally {
             $Stopwatch.Stop()
             if (!$script:ConnectState.MsGraphToken -or ($script:ConnectState.MsGraphToken.AccessToken -ne $MsGraphToken.AccessToken) -or !$script:ConnectState.AadGraphToken -or ($script:ConnectState.AadGraphToken.AccessToken -ne $AadGraphToken.AccessToken)) {
@@ -64,8 +75,8 @@ function Confirm-ModuleAuthentication {
         Write-Warning 'Using a confidential client is non-interactive and requires that the necessary scopes/permissions be added to the application or have permissions on-behalf-of a user.'
         $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
         try {
-            $MsGraphToken = Get-MsalToken -ConfidentialClientApplication $ClientApplication -Scopes 'https://graph.microsoft.com/.default' -Verbose:$false -ErrorAction Stop
-            $AadGraphToken = Get-MsalToken -ConfidentialClientApplication $ClientApplication -Scopes 'https://graph.windows.net/.default' -Verbose:$false -ErrorAction Stop
+            $MsGraphToken = Get-MsalToken -ConfidentialClientApplication $ClientApplication -Scopes 'https://graph.microsoft.com/.default' -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
+            $AadGraphToken = Get-MsalToken -ConfidentialClientApplication $ClientApplication -Scopes 'https://graph.windows.net/.default' -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
         }
         finally {
             $Stopwatch.Stop()
