@@ -26,6 +26,7 @@ function Confirm-ModuleAuthentication {
         # Scopes for MS Graph
         [Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
         [string[]] $MsGraphScopes = @(
+            'https://graph.microsoft.com/User.Read'
             'https://graph.microsoft.com/Directory.Read.All'
             'https://graph.microsoft.com/Policy.Read.All'
         )
@@ -48,8 +49,8 @@ function Confirm-ModuleAuthentication {
         try {
             $MsGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes $MsGraphScopes -ExtraScopesToConsent $AadGraphScopes -UseEmbeddedWebView:$false -Prompt $Prompt -ForceRefresh:$ForceRefresh -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
             $AadGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes $AadGraphScopes -UseEmbeddedWebView:$false -Prompt $Prompt -ForceRefresh:$ForceRefresh -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
-            #$MsGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes 'https://graph.microsoft.com/.default' -UseEmbeddedWebView:$true -Prompt $Prompt -ForceRefresh:$ForceRefresh -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
-            #$AadGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes 'https://graph.windows.net/.default' -UseEmbeddedWebView:$true -Prompt $Prompt -ForceRefresh:$ForceRefresh -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
+            #$MsGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -RedirectUri 'urn:ietf:wg:oauth:2.0:oob' -Scopes 'https://graph.microsoft.com/.default' -UseEmbeddedWebView:$true -Prompt $Prompt -ForceRefresh:$ForceRefresh -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
+            #$AadGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -RedirectUri 'urn:ietf:wg:oauth:2.0:oob' -Scopes 'https://graph.windows.net/.default' -UseEmbeddedWebView:$true -Prompt $Prompt -ForceRefresh:$ForceRefresh -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
         }
         catch { throw }
         finally {

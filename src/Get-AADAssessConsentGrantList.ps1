@@ -25,7 +25,7 @@
     PS C:\> .\Get-AzureADPSPermissions.ps1 -ApplicationPermissions -ShowProgress | Where-Object { $_.Permission -eq "Directory.Read.All" }
     Get all apps which have application permissions for Directory.Read.All.
 #>
-Function Get-AADAssessConsentGrantList {
+function Get-AADAssessConsentGrantList {
     [CmdletBinding()]
     param(
         [int] $PrecacheSize = 999
@@ -38,7 +38,7 @@ Function Get-AADAssessConsentGrantList {
         $script:ObjectByObjectId = @{ }
         $script:ObjectByObjectClassId = @{ }
 
-        # Function to add an object to the cache
+        # function to add an object to the cache
         function CacheObject($Object) {
             if ($Object) {
                 if (-not $script:ObjectByObjectClassId.ContainsKey($Object.ObjectType)) {
@@ -49,7 +49,7 @@ Function Get-AADAssessConsentGrantList {
             }
         }
 
-        # Function to retrieve an object from the cache (if it's there), or from Azure AD (if not).
+        # function to retrieve an object from the cache (if it's there), or from Azure AD (if not).
         function GetObjectByObjectId($ObjectId) {
             if (-not $script:ObjectByObjectId.ContainsKey($ObjectId)) {
                 Write-Verbose ("Querying Azure AD for object '{0}'" -f $ObjectId)

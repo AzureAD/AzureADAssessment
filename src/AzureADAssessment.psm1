@@ -19,6 +19,7 @@ Set-StrictMode -Version 3.0
 
 ## Initialize Module Configuration
 $script:ModuleConfigDefault = [PSCustomObject]@{
+    'aad.clientId'         = 'c62a9fcb-53bf-446e-8063-ea6e2bfcc023' # 'f7c43a96-9493-41e3-ad62-4320f5835ce2'
     'ai.disabled'           = $false
     'ai.instrumentationKey' = 'da85df16-64ea-4a62-8856-8bbb9ca86615'
     'ai.ingestionEndpoint'  = 'https://dc.services.visualstudio.com/v2/track'

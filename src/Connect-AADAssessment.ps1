@@ -19,7 +19,7 @@ function Connect-AADAssessment {
         # Identifier of the client requesting the token.
         [Parameter(Mandatory = $false, ParameterSetName = 'PublicClient', Position = 0, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
         [Parameter(Mandatory = $true, ParameterSetName = 'ConfidentialClientCertificate', Position = 0, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
-        [string] $ClientId = 'c62a9fcb-53bf-446e-8063-ea6e2bfcc023',
+        [string] $ClientId = $script:ModuleConfig.'aad.clientId',
         # Client assertion certificate of the client requesting the token.
         [Parameter(Mandatory = $true, ParameterSetName = 'ConfidentialClientCertificate', ValueFromPipelineByPropertyName = $true)]
         [System.Security.Cryptography.X509Certificates.X509Certificate2] $ClientCertificate,
@@ -55,7 +55,6 @@ function Connect-AADAssessment {
             }
             'PublicClient' {
                 $script:ConnectState.ClientApplication = New-MsalClientApplication -ClientId $ClientId -TenantId $TenantId -AzureCloudInstance $script:mapMgEnvironmentToAzureCloudInstance[$CloudEnvironment] -RedirectUri 'http://localhost'
-                #$script:ConnectState.ClientApplication = New-MsalClientApplication -ClientId $ClientId -TenantId $TenantId -AzureCloudInstance $script:mapMgEnvironmentToAzureCloudInstance[$CloudEnvironment] -RedirectUri 'urn:ietf:wg:oauth:2.0:oob'
                 break
             }
             'ConfidentialClientCertificate' {

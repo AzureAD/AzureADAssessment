@@ -23,8 +23,8 @@ function Get-AADAssessCAPolicyReports {
     Start-AppInsightsRequest $MyInvocation.MyCommand.Name
     try {
         Write-Progress -Activity "Reading Azure AD Conditional Access Policies" -CurrentOperation "Reading policies and named locations" 
-        $policies = Get-MsGraphResults "identity/conditionalAccess/policies"
-        $namedLocations = Get-MsGraphResults "identity/conditionalAccess/namedLocations"
+        [array]$policies = Get-MsGraphResults "identity/conditionalAccess/policies"
+        [array]$namedLocations = Get-MsGraphResults "identity/conditionalAccess/namedLocations"
 
         Write-Progress -Activity "Reading Azure AD Conditional Access Policies" -CurrentOperation "Consolidating object references"
         $userIds = [array](Get-ObjectPropertyValue $policies 'conditions' 'users' 'includeUsers') + (Get-ObjectPropertyValue $policies 'conditions' 'users' 'excludeUsers') | Sort-Object | Get-Unique | Where-Object { $_ -notin 'All', 'GuestsOrExternalUsers' }
@@ -37,12 +37,12 @@ function Get-AADAssessCAPolicyReports {
         $referencedApps = Get-MsGraphResults ($appIds | ForEach-Object { "servicePrincipals?`$filter=appId eq '$_'" }) -Select 'id,appId,displayName'
 
         Write-Progress -Activity "Reading Azure AD Conditional Access Policies" -CurrentOperation "Saving Reports"
-        $policies | Sort-Object id | ConvertTo-Json -Depth 100 | Out-File "$OutputDirectory\CAPolicies.json" -Force
-        $namedLocations | Sort-Object id | ConvertTo-Json -Depth 100 | Out-File "$OutputDirectory\NamedLocations.json" -Force
+        ConvertTo-Json $policies -Depth 10 | Out-File "$OutputDirectory\CAPolicies.json" -Force
+        ConvertTo-Json $namedLocations -Depth 10 | Out-File "$OutputDirectory\NamedLocations.json" -Force
 
-        $referencedUsers | Sort-Object id | ConvertTo-Json -Depth 100 | Out-File "$OutputDirectory\CARefUsers.json" -Force
-        $referencedGroups | Sort-Object id | ConvertTo-Json -Depth 100 | Out-File "$OutputDirectory\CARefGroups.json" -Force
-        $referencedApps | Sort-Object appId | ConvertTo-Json -Depth 100 | Out-File "$OutputDirectory\CARefApps.json" -Force
+        $referencedUsers | Sort-Object id | ConvertTo-Json -Depth 10 | Out-File "$OutputDirectory\CARefUsers.json" -Force
+        $referencedGroups | Sort-Object id | ConvertTo-Json -Depth 10 | Out-File "$OutputDirectory\CARefGroups.json" -Force
+        $referencedApps | Sort-Object appId | ConvertTo-Json -Depth 10 | Out-File "$OutputDirectory\CARefApps.json" -Force
     }
     catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException $_.Exception }; throw }
     finally { Complete-AppInsightsRequest $MyInvocation.MyCommand.Name -Success $true }

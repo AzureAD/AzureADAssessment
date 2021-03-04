@@ -1,5 +1,5 @@
 
-Function Get-AADAssessmentSingleReport {
+function Get-AADAssessmentSingleReport {
     [CmdletBinding()]
     param
     (

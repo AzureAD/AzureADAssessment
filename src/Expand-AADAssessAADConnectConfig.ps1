@@ -37,7 +37,7 @@
 
 
 #>
-Function Expand-AADAssessAADConnectConfig {
+function Expand-AADAssessAADConnectConfig {
   param(
       [Parameter(Mandatory = $true)]
       [String]$AADConnectProdConfigZipFilePath,

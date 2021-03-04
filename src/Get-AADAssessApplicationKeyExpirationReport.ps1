@@ -10,7 +10,7 @@
   Get-AADAssessApplicationKeyExpirationReport
   
 #>
-Function Get-AADAssessApplicationKeyExpirationReport {
+function Get-AADAssessApplicationKeyExpirationReport {
     Start-AppInsightsRequest $MyInvocation.MyCommand.Name
     try {
         Confirm-ModuleAuthentication -ForceRefresh

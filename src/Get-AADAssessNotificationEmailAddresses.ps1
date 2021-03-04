@@ -14,14 +14,23 @@ function Get-AADAssessNotificationEmailAddresses {
     try {
         $orgInfo = Get-MsGraphResults 'organization?$select=technicalNotificationMails'
         $result = [PSCustomObject]@{
-            RecipientName              = ""
-            RecipientObjectType        = "emailAddress"
-            NotificationType           = "Technical Notification"
-            NotificationEmailScope     = "Tenant"
-            RecipientEmailAddress      = (Get-ObjectPropertyValue $orgInfo 'value' 'technicalNotificationMails')
-            RecipientAlternateEmail    = ""
-            RecipientUserPrincipalName = ""
-        } 
+            RecipientName            = "N/A"
+            RoleMemberObjectType     = "email address"
+            RoleMemberAlternateEmail = "N/A"
+            NotificationType         = "Technical Notification"
+            NotificationEmailScope   = "Tenant"
+            EmailAddress             = (Get-ObjectPropertyValue $orgInfo 'value' 'technicalNotificationMails')
+            RoleMemberUPN            = "N/A"
+        }
+        # $result = [PSCustomObject]@{
+        #     RecipientName              = ""
+        #     RecipientObjectType        = "emailAddress"
+        #     NotificationType           = "Technical Notification"
+        #     NotificationEmailScope     = "Tenant"
+        #     RecipientEmailAddress      = (Get-ObjectPropertyValue $orgInfo 'value' 'technicalNotificationMails')
+        #     RecipientAlternateEmail    = ""
+        #     RecipientUserPrincipalName = ""
+        # } 
         Write-Output $result
 
         #Get email addresses of all users with privileged roles
@@ -32,14 +41,23 @@ function Get-AADAssessNotificationEmailAddresses {
         foreach ($role in $aadRoles) {
             foreach ($roleMember in $role.members) {
                 $result = [PSCustomObject]@{
-                    RecipientName              = (Get-ObjectPropertyValue $roleMember 'displayName')
-                    RecipientObjectType        = (Get-ObjectPropertyValue $roleMember '@odata.type') -replace '#microsoft.graph.', ''
-                    NotificationType           = (Get-ObjectPropertyValue $role 'displayName')
-                    NotificationEmailScope     = 'Role'
-                    RecipientEmailAddress      = (Get-ObjectPropertyValue $roleMember 'mail')
-                    RecipientAlternateEmail    = (Get-ObjectPropertyValue $roleMember 'otherMails') -join ';'
-                    RecipientUserPrincipalName = (Get-ObjectPropertyValue $roleMember 'userPrincipalName')
-                } 
+                    RecipientName            = (Get-ObjectPropertyValue $roleMember 'displayName')
+                    RoleMemberObjectType     = (Get-ObjectPropertyValue $roleMember '@odata.type') -replace '#microsoft.graph.', ''
+                    RoleMemberAlternateEmail = (Get-ObjectPropertyValue $roleMember 'otherMails') -join ';'
+                    NotificationType         = (Get-ObjectPropertyValue $role 'displayName')
+                    NotificationEmailScope   = 'Role'
+                    EmailAddress             = (Get-ObjectPropertyValue $roleMember 'mail')
+                    RoleMemberUPN            = (Get-ObjectPropertyValue $roleMember 'userPrincipalName')
+                }
+                # $result = [PSCustomObject]@{
+                #     RecipientName              = (Get-ObjectPropertyValue $roleMember 'displayName')
+                #     RecipientObjectType        = (Get-ObjectPropertyValue $roleMember '@odata.type') -replace '#microsoft.graph.', ''
+                #     NotificationType           = (Get-ObjectPropertyValue $role 'displayName')
+                #     NotificationEmailScope     = 'Role'
+                #     RecipientEmailAddress      = (Get-ObjectPropertyValue $roleMember 'mail')
+                #     RecipientAlternateEmail    = (Get-ObjectPropertyValue $roleMember 'otherMails') -join ';'
+                #     RecipientUserPrincipalName = (Get-ObjectPropertyValue $roleMember 'userPrincipalName')
+                # } 
                 Write-Output $result
             }
         }

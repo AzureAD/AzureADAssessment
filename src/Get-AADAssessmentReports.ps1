@@ -12,7 +12,7 @@
    .\Get-AADAssessmentReports -OutputDirectory "c:\temp\contoso" 
 
 #>
-Function Get-AADAssessmentReports {
+function Get-AADAssessmentReports {
     [CmdletBinding()]
     param
     (
