@@ -15,7 +15,7 @@ function Expand-JsonWebTokenPayload {
     [OutputType([PSCustomObject])]
     param (
         # JSON Web Signature (JWS)
-        [Parameter(Mandatory=$true, Position=0, ValueFromPipeline=$true)]
+        [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
         [string[]] $InputObjects
     )
 

@@ -9,6 +9,7 @@
 #>
 function Write-AppInsightsEvent {
     [CmdletBinding()]
+    [Alias('Write-AIEvent')]
     param (
         # Event Name
         [Parameter(Mandatory = $true)]
@@ -37,8 +38,9 @@ function Write-AppInsightsEvent {
     $AppInsightsTelemetry.data.baseData['name'] = $Name
     if ($OverrideProperties) { $AppInsightsTelemetry.data.baseData['properties'] = @{} }
     if ($Properties) { $AppInsightsTelemetry.data.baseData['properties'] += $Properties }
-    
+
     ## Write Data to Application Insights
     Write-Debug ($AppInsightsTelemetry | ConvertTo-Json -Depth 3)
-    $result = Invoke-RestMethod -UseBasicParsing -Method Post -Uri $IngestionEndpoint -ContentType 'application/json' -Body ($AppInsightsTelemetry | ConvertTo-Json -Depth 3) -Verbose:$false
+    try { $result = Invoke-RestMethod -UseBasicParsing -Method Post -Uri $IngestionEndpoint -ContentType 'application/json' -Body ($AppInsightsTelemetry | ConvertTo-Json -Depth 3 -Compress) -Verbose:$false -ErrorVariable SilentlyContinue }
+    catch {}
 }

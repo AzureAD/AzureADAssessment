@@ -54,7 +54,7 @@ PowerShellVersion = '5.1'
 RequiredModules = @(
     @{ ModuleName = 'MSAL.PS'; Guid = 'c765c957-c730-4520-9c36-6a522e35d60b'; ModuleVersion = '4.10.0.1' }
     #@{ ModuleName = 'Microsoft.Graph.Authentication'; Guid = '883916f2-9184-46ee-b1f8-b6a2fb784cee'; ModuleVersion = '1.1.0' }
-    @{ ModuleName = 'AzureAD'; Guid = 'd60c0004-962d-4dfb-8d28-5707572ffd00'; ModuleVersion = '2.0.0.55' }
+    #@{ ModuleName = 'AzureAD'; Guid = 'd60c0004-962d-4dfb-8d28-5707572ffd00'; ModuleVersion = '2.0.0.55' }
 )
 
 # Assemblies that must be loaded prior to importing this module
@@ -80,6 +80,7 @@ NestedModules = @(
     '.\internal\Expand-JsonWebTokenPayload.ps1'
     '.\internal\Export-Config.ps1'
     '.\internal\Export-EventLog.ps1'
+    '.\internal\Get-AADAssessmentSingleReport.ps1'
     '.\internal\Get-MsGraphResults.ps1'
     '.\internal\Get-ObjectPropertyValue.ps1'
     '.\internal\Import-Config.ps1'
@@ -103,8 +104,6 @@ NestedModules = @(
     '.\Get-AADAssessApplicationKeyExpirationReport.ps1'
     '.\Get-AADAssessCAPolicyReports.ps1'
     '.\Get-AADAssessConsentGrantList.ps1'
-    '.\Get-AADAssessmentReports.ps1'
-    '.\Get-AADAssessmentSingleReport.ps1'
     '.\Get-AADAssessNotificationEmailAddresses.ps1'
     '.\Invoke-AADAssessmentDataCollection.ps1'
 )
@@ -119,7 +118,6 @@ FunctionsToExport = @(
     'Get-AADAssessApplicationKeyExpirationReport'
     'Get-AADAssessCAPolicyReports'
     'Get-AADAssessConsentGrantList'
-    #'Get-AADAssessmentReports'
     'Get-AADAssessNotificationEmailAddresses'
     'Invoke-AADAssessmentDataCollection'
     'Invoke-AADAssessmentHybridDataCollection'
@@ -128,7 +126,6 @@ FunctionsToExport = @(
     'Export-AADAssessADFSConfiguration'
     'Get-AADAssessAppProxyConnectorLog'
     'Get-AADAssessPasswordWritebackAgentLog'
-    #'Get-MsGraphResults'
 )
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
@@ -155,7 +152,7 @@ PrivateData = @{
     PSData = @{
 
         # Tags applied to this module. These help with module discovery in online galleries.
-        Tags = 'Microsoft', 'Identity', 'Azure', 'AzureActiveDirectory', 'AzureAD', 'AAD', 'PSEdition_Desktop', 'Windows'
+        Tags = 'Microsoft', 'Identity', 'Azure', 'AzureActiveDirectory', 'AzureAD', 'AAD', 'PSEdition_Desktop', 'PSEdition_Core', 'Windows'
 
         # A URL to the license for this module.
         LicenseUri = 'https://raw.githubusercontent.com/AzureAD/AzureADAssessment/master/LICENSE'

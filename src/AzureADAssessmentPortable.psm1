@@ -24,7 +24,7 @@ function Invoke-AADAssessmentHybridDataCollection {
         Get-AdfsProperties | ConvertTo-Json | Set-Content (Join-Path $OutputDirectoryADFS 'ADFSProperties.json')
 
         ## Get ADFS Endpoints
-        Get-AADAssessADFSEndpoints | Export-Csv -Path (Join-Path $OutputDirectoryADFS 'ADFSEnabledEndpoints.csv')
+        Get-AADAssessADFSEndpoints | Export-Csv -Path (Join-Path $OutputDirectoryADFS 'ADFSEnabledEndpoints.csv') -NoTypeInformation:$false
 
         ## Get ADFS Configuration
         Export-AADAssessADFSConfiguration -OutputDirectory $OutputDirectoryADFS
@@ -55,7 +55,7 @@ function Invoke-AADAssessmentHybridDataCollection {
         Get-ADSyncServerConfiguration -Path (Join-Path $OutputDirectoryAADC 'AzureADConnectSyncConfig')
 
         ## Event Data
-        Get-AADAssessPasswordWritebackAgentLog -DaysToRetrieve 7 | Export-Csv -Path (Join-Path $OutputDirectoryAADC "AADPasswriteback-$env:COMPUTERNAME.csv")
+        Get-AADAssessPasswordWritebackAgentLog -DaysToRetrieve 7 | Export-Csv -Path (Join-Path $OutputDirectoryAADC "AADPasswriteback-$env:COMPUTERNAME.csv") -NoTypeInformation:$false
 
         ## Package Output
         if ($PSVersionTable.PSVersion -ge [version]'5.0') {
@@ -76,7 +76,7 @@ function Invoke-AADAssessmentHybridDataCollection {
         if (!(Test-Path $OutputDirectoryAADAP)) { New-Item $OutputDirectoryAADAP -ItemType Container -ErrorAction Stop }
 
         ## Event Data
-        Get-AADAssessAppProxyConnectorLog -DaysToRetrieve 7 | Export-Csv -Path (Join-Path $OutputDirectoryAADAP "AzureADAppProxyConnectorLog-$env:COMPUTERNAME.csv")
+        Get-AADAssessAppProxyConnectorLog -DaysToRetrieve 7 | Export-Csv -Path (Join-Path $OutputDirectoryAADAP "AzureADAppProxyConnectorLog-$env:COMPUTERNAME.csv") -NoTypeInformation:$false
 
         ## Package Output
         if ($PSVersionTable.PSVersion -ge [version]'5.0') {

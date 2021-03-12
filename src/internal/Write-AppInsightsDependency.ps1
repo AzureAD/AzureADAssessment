@@ -9,6 +9,7 @@
 #>
 function Write-AppInsightsDependency {
     [CmdletBinding()]
+    [Alias('Write-AIDependency')]
     param (
         # Dependency Name
         [Parameter(Mandatory = $true)]
@@ -44,6 +45,7 @@ function Write-AppInsightsDependency {
 
     ## Initialize Parameters
     if (!$StartTime) { $StartTime = (Get-Date).Subtract($Duration) }
+    Set-Variable 'MaxDataLength' -Value (8 * 1024) -Option Constant
 
     ## Get New Telemetry Entry
     $AppInsightsTelemetry = New-AppInsightsTelemetry 'AppDependencies' -InstrumentationKey $InstrumentationKey
@@ -56,8 +58,11 @@ function Write-AppInsightsDependency {
     $AppInsightsTelemetry.data.baseData['duration'] = $Duration.ToString()
     $AppInsightsTelemetry.data.baseData['success'] = $Success
     if ($Properties) { $AppInsightsTelemetry.data.baseData['properties'] += $Properties }
-    
+
+    if ($AppInsightsTelemetry.data.baseData['data'].Length -gt $MaxDataLength) { $AppInsightsTelemetry.data.baseData['data'].Substring(0, $MaxDataLength) }
+
     ## Write Data to Application Insights
     Write-Debug ($AppInsightsTelemetry | ConvertTo-Json -Depth 3)
-    $result = Invoke-RestMethod -UseBasicParsing -Method Post -Uri $IngestionEndpoint -ContentType 'application/json' -Body ($AppInsightsTelemetry | ConvertTo-Json -Depth 3) -Verbose:$false -ErrorAction SilentlyContinue
+    try { $result = Invoke-RestMethod -UseBasicParsing -Method Post -Uri $IngestionEndpoint -ContentType 'application/json' -Body ($AppInsightsTelemetry | ConvertTo-Json -Depth 3 -Compress) -Verbose:$false -ErrorAction SilentlyContinue }
+    catch {}
 }

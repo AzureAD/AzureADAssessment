@@ -34,10 +34,10 @@ function Get-ObjectPropertyValue {
                     if ($InputObject.ContainsKey($Property[$iProperty])) {
                         $PropertyValue = $InputObject[$Property[$iProperty]]
                     }
-                    else { $PropertyValue = $null}
+                    else { $PropertyValue = $null }
                 }
                 else {
-                    $PropertyValue = Select-Object -InputObject $InputObject -ExpandProperty $Property[$iProperty] -ErrorAction SilentlyContinue
+                    $PropertyValue = Select-Object -InputObject $InputObject -ExpandProperty $Property[$iProperty] -ErrorAction Ignore
                 }
                 ## Check for more nested properties
                 if ($iProperty -lt $Property.Count - 1) {

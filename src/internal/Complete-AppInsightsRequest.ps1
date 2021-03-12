@@ -9,6 +9,7 @@
 #>
 function Complete-AppInsightsRequest {
     [CmdletBinding()]
+    [Alias('Complete-AIRequest')]
     param (
         # Request Name
         [Parameter(Mandatory = $false)]

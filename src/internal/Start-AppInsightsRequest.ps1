@@ -9,6 +9,7 @@
 #>
 function Start-AppInsightsRequest {
     [CmdletBinding()]
+    [Alias('Start-AIRequest')]
     param (
         # Operation Name
         [Parameter(Mandatory = $true)]
@@ -27,7 +28,7 @@ function Start-AppInsightsRequest {
 
     if ($script:AppInsightsRuntimeState.OperationStack.Count -gt 0) {
         $Operation['ParentId'] = $script:AppInsightsRuntimeState.OperationStack.Peek().Id
-        $Operation['Id'] = $script:AppInsightsRuntimeState.OperationStack.Peek().Id
+        $Operation['Id'] = $script:AppInsightsRuntimeState.OperationStack.Peek().Id  # Use the same id as parent
     }
 
     $script:AppInsightsRuntimeState.OperationStack.Push($Operation)
@@ -35,4 +36,5 @@ function Start-AppInsightsRequest {
     Write-AppInsightsTrace "Invoking Command: $Name" -SeverityLevel Information
 
     #return $Operation
+    #return New-Object System.Collections.ArrayList
 }

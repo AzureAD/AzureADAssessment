@@ -1,15 +1,15 @@
-<# 
+<#
  .Synopsis
-  Gets a report of all members of roles 
+  Gets a report of all members of roles
 
  .Description
   This functions returns a list of consent grants in the directory
 
  .Example
-  Get-AADAssessConsentGrantList | Export-Csv -Path ".\ConsentGrantList.csv" 
+  Get-AADAssessConsentGrantList | Export-Csv -Path ".\ConsentGrantList.csv"
 #>
 
-<# 
+<#
 .SYNOPSIS
     Lists delegated permissions (OAuth2PermissionGrants) and application permissions (AppRoleAssignments).
 
@@ -34,7 +34,7 @@ function Get-AADAssessConsentGrantList {
     Start-AppInsightsRequest $MyInvocation.MyCommand.Name
     try {
 
-        # An in-memory cache of objects by {object ID} andy by {object class, object ID} 
+        # An in-memory cache of objects by {object ID} andy by {object class, object ID}
         $script:ObjectByObjectId = @{ }
         $script:ObjectByObjectClassId = @{ }
 
@@ -58,23 +58,23 @@ function Get-AADAssessConsentGrantList {
                     $object = Get-AzureADObjectByObjectId -ObjectId $ObjectId
                     CacheObject -Object $object
                 }
-                catch { 
+                catch {
                     Write-Verbose "Object not found."
                 }
             }
             return $script:ObjectByObjectId[$ObjectId]
         }
-    
+
         # Step 1: Get all ServicePrincipal objects and add to the cache
         Confirm-ModuleAuthentication -ForceRefresh
         Write-Verbose "Retrieving ServicePrincipal objects..."
-        $servicePrincipals = Get-AzureADServicePrincipal -All $true 
+        $servicePrincipals = Get-AzureADServicePrincipal -All $true
 
         #there is a limitation on how Azure AD Graph retrieves the list of OAuth2PermissionGrants
         #we have to traverse all service principals and gather them separately.
-        # Originally, we could have done this 
-        # $Oauth2PermGrants = Get-AzureADOAuth2PermissionGrant -All $true 
-        
+        # Originally, we could have done this
+        # $Oauth2PermGrants = Get-AzureADOAuth2PermissionGrant -All $true
+
         $Oauth2PermGrants = @()
 
         foreach ($sp in $servicePrincipals) {
@@ -82,7 +82,7 @@ function Get-AADAssessConsentGrantList {
             CacheObject -Object $sp
             $spPermGrants = Get-AzureADServicePrincipalOAuth2PermissionGrant -ObjectId $sp.ObjectId -All $true
             $Oauth2PermGrants += $spPermGrants
-        }  
+        }
 
         # Get one page of User objects and add to the cache
         Write-Verbose "Retrieving User objects..."
@@ -92,7 +92,7 @@ function Get-AADAssessConsentGrantList {
         # Get all existing OAuth2 permission grants, get the client, resource and scope details
         foreach ($grant in $Oauth2PermGrants) {
             if ($grant.Scope) {
-                $grant.Scope.Split(" ") | Where-Object { $_ } | ForEach-Object {               
+                $grant.Scope.Split(" ") | Where-Object { $_ } | ForEach-Object {
                     $scope = $_
                     $client = GetObjectByObjectId -ObjectId $grant.ClientId
                     $resource = GetObjectByObjectId -ObjectId $grant.ResourceId
@@ -104,10 +104,10 @@ function Get-AADAssessConsentGrantList {
 
                     New-Object PSObject -Property ([ordered]@{
                             "PermissionType"       = "Delegated"
-                                        
+
                             "ClientObjectId"       = $grant.ClientId
                             "ClientDisplayName"    = $client.DisplayName
-                        
+
                             "ResourceObjectId"     = $grant.ResourceId
                             "ResourceDisplayName"  = $resource.DisplayName
                             "Permission"           = $scope
@@ -121,7 +121,7 @@ function Get-AADAssessConsentGrantList {
                 }
             }
         }
-        
+
 
         # Iterate over all ServicePrincipal objects and get app permissions
         Write-Verbose "Retrieving AppRoleAssignments..."
@@ -131,17 +131,17 @@ function Get-AADAssessConsentGrantList {
             Get-AzureADServiceAppRoleAssignedTo -ObjectId $sp.ObjectId  -All $true `
             | Where-Object { $_.PrincipalType -eq "ServicePrincipal" } | ForEach-Object {
                 $assignment = $_
-                
+
                 $client = GetObjectByObjectId -ObjectId $assignment.PrincipalId
-                $resource = GetObjectByObjectId -ObjectId $assignment.ResourceId            
+                $resource = GetObjectByObjectId -ObjectId $assignment.ResourceId
                 $appRole = $resource.AppRoles | Where-Object { $_.Id -eq $assignment.Id }
 
                 New-Object PSObject -Property ([ordered]@{
                         "PermissionType"      = "Application"
-                    
+
                         "ClientObjectId"      = $assignment.PrincipalId
                         "ClientDisplayName"   = $client.DisplayName
-                    
+
                         "ResourceObjectId"    = $assignment.ResourceId
                         "ResourceDisplayName" = $resource.DisplayName
                         "Permission"          = $appRole.Value
@@ -150,7 +150,8 @@ function Get-AADAssessConsentGrantList {
                     })
             }
         }
+
     }
     catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException $_.Exception }; throw }
-    finally { Complete-AppInsightsRequest $MyInvocation.MyCommand.Name -Success $true }
+    finally { Complete-AppInsightsRequest $MyInvocation.MyCommand.Name -Success $? }
 }

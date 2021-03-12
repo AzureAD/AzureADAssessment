@@ -17,9 +17,9 @@ function Get-MsGraphResults {
     param (
         # Graph endpoint such as "users".
         [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
-        [string[]] $RelativeUri,
+        [uri[]] $RelativeUri,
         # Specifies unique Id(s) for the URI endpoint. For example, users endpoint accepts Id or UPN.
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, Position = 1, ValueFromPipeline = $false)]
         [string[]] $UniqueId,
         # Filters properties (columns).
         [Parameter(Mandatory = $false)]
@@ -27,7 +27,10 @@ function Get-MsGraphResults {
         # Filters results (rows). https://docs.microsoft.com/en-us/graph/query-parameters#filter-parameter
         [Parameter(Mandatory = $false)]
         [string] $Filter,
-        # Parameters such as "$top".
+        # Specifies the page size of the result set.
+        [Parameter(Mandatory = $false)]
+        [int] $Top,
+        # Parameters such as "$orderby".
         [Parameter(Mandatory = $false)]
         [hashtable] $QueryParameters,
         # API Version.
@@ -54,8 +57,37 @@ function Get-MsGraphResults {
     begin {
         $listRequests = New-Object 'System.Collections.Generic.List[psobject]'
 
+        function Catch-MsGraphError ($ErrorRecord) {
+            $StreamReader = New-Object System.IO.StreamReader -ArgumentList $_.Exception.Response.GetResponseStream()
+            try { $responseBody = ConvertFrom-Json $StreamReader.ReadToEnd() }
+            finally { $StreamReader.Close() }
+
+            if ($responseBody.error.code -eq 'Authentication_ExpiredToken') {
+                #Write-AppInsightsException $_.Exception
+                Write-Error -Exception $_.Exception -Message $responseBody.error.message -ErrorId $responseBody.error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorAction Stop
+            }
+            else {
+                Write-Error -Exception $_.Exception -Message $responseBody.error.message -ErrorId $responseBody.error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorVariable cmdError
+                Write-AppInsightsException $cmdError.Exception
+            }
+        }
+
+        function Test-MsGraphBatchError ($BatchResponse) {
+            if ($BatchResponse.status -ne '200') {
+                if ($BatchResponse.body.error.code -eq 'Authentication_ExpiredToken') {
+                    Write-Error -Message $BatchResponse.body.error.message -ErrorId $BatchResponse.body.error.code -ErrorAction Stop
+                }
+                else {
+                    Write-Error -Message $BatchResponse.body.error.message -ErrorId $BatchResponse.body.error.code #-ErrorVariable cmdError
+                    #Write-AppInsightsException $cmdError.Exception
+                }
+                return $true
+            }
+            return $false
+        }
+
         function Format-Result ($results, $RawOutput) {
-            if (!$RawOutput -and (Get-ObjectPropertyValue $results 'value')) {
+            if (!$RawOutput -and $results.psobject.Properties.Name -contains 'value') {
                 foreach ($result in $results.value) {
                     if ($result -is [hashtable]) {
                         $result.Add('@odata.context', ('{0}/$entity' -f $results.'@odata.context'))
@@ -72,17 +104,13 @@ function Get-MsGraphResults {
         function Complete-Result ($results, $DisablePaging) {
             if (!$DisablePaging -and $results) {
                 while (Get-ObjectPropertyValue $results '@odata.nextLink') {
-                    # Confirm-ModuleAuthentication
+                    # Confirm-ModuleAuthentication -ErrorAction Stop
                     # $results = Invoke-MgGraphRequest -Method GET -Uri $results.'@odata.nextLink' -Headers @{ ConsistencyLevel = $ConsistencyLevel }
-                    $MsGraphSession = Confirm-ModuleAuthentication -MsGraphSession
-                    $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+                    $MsGraphSession = Confirm-ModuleAuthentication -MsGraphSession -ErrorAction Stop
                     try {
-                        $results = Invoke-RestMethod -WebSession $MsGraphSession -UseBasicParsing -Method GET -Uri $results.'@odata.nextLink' -Headers @{ ConsistencyLevel = $ConsistencyLevel }
+                        $results = Invoke-RestMethod -WebSession $MsGraphSession -UseBasicParsing -Method GET -Uri $results.'@odata.nextLink' -Headers @{ ConsistencyLevel = $ConsistencyLevel } -ErrorAction Stop
                     }
-                    finally {
-                        $Stopwatch.Stop()
-                        Write-AppInsightsDependency ('{0} {1}' -f 'GET', ([uri]$results.'@odata.nextLink').AbsolutePath) -Type 'MS Graph' -Data ('{0} {1}' -f 'GET', ([uri]$results.'@odata.nextLink').AbsoluteUri) -Duration $Stopwatch.Elapsed -Success ($null -ne $results)
-                    }
+                    catch { Catch-MsGraphError $_ }
                     Format-Result $results $DisablePaging
                 }
             }
@@ -98,7 +126,8 @@ function Get-MsGraphResults {
 
         ## Process Each RelativeUri
         foreach ($uri in $RelativeUri) {
-            $uriQueryEndpoint = New-Object System.UriBuilder -ArgumentList ([IO.Path]::Combine($GraphBaseUri.AbsoluteUri, $ApiVersion, $uri))
+            if ($uri.IsAbsoluteUri) { $uriQueryEndpoint = New-Object System.UriBuilder -ArgumentList $uri }
+            else { $uriQueryEndpoint = New-Object System.UriBuilder -ArgumentList ([IO.Path]::Combine($GraphBaseUri.AbsoluteUri, $ApiVersion, $uri)) }
 
             ## Combine query parameters from URI and cmdlet parameters
             if ($uriQueryEndpoint.Query) {
@@ -113,12 +142,19 @@ function Get-MsGraphResults {
             else { [hashtable] $finalQueryParameters = @{ } }
             if ($Select) { $finalQueryParameters['$select'] = $Select -join ',' }
             if ($Filter) { $finalQueryParameters['$filter'] = $Filter }
+            if ($Top) { $finalQueryParameters['$top'] = $Top }
             $uriQueryEndpoint.Query = ConvertTo-QueryString $finalQueryParameters
 
             ## Invoke graph requests individually or save for single batch request
             foreach ($id in $UniqueId) {
-                $uriQueryEndpointFinal = New-Object System.UriBuilder -ArgumentList $uriQueryEndpoint.Uri
-                $uriQueryEndpointFinal.Path = ([IO.Path]::Combine($uriQueryEndpointFinal.Path, $id))
+                ## If the URI contains '{0}', then replace it with Unique Id.
+                if ($uriQueryEndpoint.Uri.AbsoluteUri.Contains('%7B0%7D')) {
+                    $uriQueryEndpointFinal = New-Object System.UriBuilder -ArgumentList ([System.Net.WebUtility]::UrlDecode($uriQueryEndpoint.Uri.AbsoluteUri) -f $id)
+                }
+                else {
+                    $uriQueryEndpointFinal = New-Object System.UriBuilder -ArgumentList $uriQueryEndpoint.Uri
+                    $uriQueryEndpointFinal.Path = ([IO.Path]::Combine($uriQueryEndpointFinal.Path, $id))
+                }
 
                 if (!$DisableBatching -and ($RelativeUri.Count -gt 1 -or $UniqueId.Count -gt 1)) {
                     ## Create batch request entry
@@ -132,22 +168,21 @@ function Get-MsGraphResults {
                 }
                 else {
                     ## Get results
+                    # Confirm-ModuleAuthentication -ErrorAction Stop
+                    # [hashtable] $results = Invoke-MgGraphRequest -Method GET -Uri $uriQueryEndpointFinal.Uri.AbsoluteUri -Headers @{ ConsistencyLevel = $ConsistencyLevel }
+                    $MsGraphSession = Confirm-ModuleAuthentication -MsGraphSession -ErrorAction Stop
+                    $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+                    $results = $null
                     try {
-                        # Confirm-ModuleAuthentication
-                        # [hashtable] $results = Invoke-MgGraphRequest -Method GET -Uri $uriQueryEndpointFinal.Uri.AbsoluteUri -Headers @{ ConsistencyLevel = $ConsistencyLevel }
-                        $MsGraphSession = Confirm-ModuleAuthentication -MsGraphSession
-                        $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-                        try {
-                            $results = Invoke-RestMethod -WebSession $MsGraphSession -UseBasicParsing -Method GET -Uri $uriQueryEndpointFinal.Uri.AbsoluteUri -Headers @{ ConsistencyLevel = $ConsistencyLevel }
-                        }
-                        finally {
-                            $Stopwatch.Stop()
-                            Write-AppInsightsDependency ('{0} {1}' -f 'GET', $uriQueryEndpointFinal.Uri.AbsolutePath) -Type 'MS Graph' -Data ('{0} {1}' -f 'GET', $uriQueryEndpointFinal.Uri.AbsoluteUri) -Duration $Stopwatch.Elapsed -Success ($null -ne $results)
-                        }
+                        $results = Invoke-RestMethod -WebSession $MsGraphSession -UseBasicParsing -Method GET -Uri $uriQueryEndpointFinal.Uri.AbsoluteUri -Headers @{ ConsistencyLevel = $ConsistencyLevel } -ErrorAction Stop
                         Format-Result $results $DisablePaging
                         Complete-Result $results $DisablePaging
                     }
-                    catch { throw }
+                    catch { Catch-MsGraphError $_ }
+                    finally {
+                        $Stopwatch.Stop()
+                        Write-AppInsightsDependency ('{0} {1}' -f 'GET', $uriQueryEndpointFinal.Uri.AbsolutePath) -Type 'MS Graph' -Data ('{0} {1}' -f 'GET', $uriQueryEndpointFinal.Uri.AbsoluteUri) -Duration $Stopwatch.Elapsed -Success ($null -ne $results)
+                    }
                 }
             }
         }
@@ -156,34 +191,32 @@ function Get-MsGraphResults {
     end {
         if ($listRequests.Count -gt 0) {
             $uriQueryEndpoint = New-Object System.UriBuilder -ArgumentList ([IO.Path]::Combine($GraphBaseUri.AbsoluteUri, $ApiVersion, '$batch'))
+            $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
             for ($iRequest = 0; $iRequest -lt $listRequests.Count; $iRequest += $BatchSize) {
                 # foreach ($request in $listRequests[$iRequest..$indexEnd]) {
                 #     $request.url = $request.url.Substring($uriQueryEndpoint.Uri.AbsoluteUri.Length - 6)
                 #     $request.url
                 # }
                 $indexEnd = [System.Math]::Min($iRequest + $BatchSize - 1, $listRequests.Count - 1)
-                $jsonRequests = New-Object psobject -Property @{ requests = $listRequests[$iRequest..$indexEnd] } | ConvertTo-Json -Depth 5
+                $jsonRequests = New-Object psobject -Property @{ requests = $listRequests[$iRequest..$indexEnd] } | ConvertTo-Json -Depth 5 -Compress
                 Write-Debug $jsonRequests
-                
-                # Confirm-ModuleAuthentication
+
+                # Confirm-ModuleAuthentication -ErrorAction Stop
                 # [hashtable] $resultsBatch = Invoke-MgGraphRequest -Method POST -Uri $uriQueryEndpoint.Uri.AbsoluteUri -Body $jsonRequests
                 # [hashtable[]] $resultsBatch = $resultsBatch.responses | Sort-Object -Property id
-                $MsGraphSession = Confirm-ModuleAuthentication -MsGraphSession
-                $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-                try {
-                    $resultsBatch = Invoke-RestMethod -WebSession $MsGraphSession -UseBasicParsing -Method POST -Uri $uriQueryEndpoint.Uri.AbsoluteUri -ContentType 'application/json' -Body $jsonRequests
-                }
-                finally {
-                    $Stopwatch.Stop()
-                    Write-AppInsightsDependency ('{0} {1}' -f 'POST', $uriQueryEndpoint.Uri.AbsolutePath) -Type 'MS Graph' -Data ('{0} {1}' -f 'POST', $uriQueryEndpoint.Uri.AbsoluteUri) -Duration $Stopwatch.Elapsed -Success ($null -ne $resultsBatch)
-                }
+                $MsGraphSession = Confirm-ModuleAuthentication -MsGraphSession -ErrorAction Stop
+                $resultsBatch = Invoke-RestMethod -WebSession $MsGraphSession -UseBasicParsing -Method POST -Uri $uriQueryEndpoint.Uri.AbsoluteUri -ContentType 'application/json' -Body $jsonRequests -ErrorAction Stop
                 [array] $resultsBatch = $resultsBatch.responses | Sort-Object -Property { [int]$_.id }
 
-                foreach ($results in ($resultsBatch.body)) {
-                    Format-Result $results $DisablePaging
-                    Complete-Result $results $DisablePaging
+                foreach ($results in ($resultsBatch)) {
+                    if (!(Test-MsGraphBatchError $results)) {
+                        Format-Result $results.body $DisablePaging
+                        Complete-Result $results.body $DisablePaging
+                    }
                 }
             }
+            $Stopwatch.Stop()
+            Write-AppInsightsDependency ('{0} {1}' -f 'POST', $uriQueryEndpoint.Uri.AbsolutePath) -Type 'MS Graph' -Data ("{0} {1}`r`n`r`n{2}" -f 'POST', $uriQueryEndpoint.Uri.AbsoluteUri, ('{{"requests":[...{0}...]}}' -f $listRequests.Count)) -Duration $Stopwatch.Elapsed -Success ($null -ne $resultsBatch)
         }
     }
 }

@@ -2,7 +2,7 @@
 .SYNOPSIS
     Exports events from an event log.
 .DESCRIPTION
-    
+
 .EXAMPLE
     PS C:\>Export-EventLog 'C:\ADFS-Admin.evtx' -LogName 'AD FS/Admin'
     Export all logs from "AD FS/Admin" event log.

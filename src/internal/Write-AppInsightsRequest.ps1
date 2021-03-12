@@ -9,6 +9,7 @@
 #>
 function Write-AppInsightsRequest {
     [CmdletBinding()]
+    [Alias('Write-AIRequest')]
     param (
         # Request Name
         [Parameter(Mandatory = $true)]
@@ -53,8 +54,9 @@ function Write-AppInsightsRequest {
     $AppInsightsTelemetry.data.baseData['duration'] = $Duration.ToString()
     $AppInsightsTelemetry.data.baseData['success'] = $Success
     if ($Properties) { $AppInsightsTelemetry.data.baseData['properties'] += $Properties }
-    
+
     ## Write Data to Application Insights
     Write-Debug ($AppInsightsTelemetry | ConvertTo-Json -Depth 3)
-    $result = Invoke-RestMethod -UseBasicParsing -Method Post -Uri $IngestionEndpoint -ContentType 'application/json' -Body ($AppInsightsTelemetry | ConvertTo-Json -Depth 3) -Verbose:$false -ErrorAction SilentlyContinue
+    try { $result = Invoke-RestMethod -UseBasicParsing -Method Post -Uri $IngestionEndpoint -ContentType 'application/json' -Body ($AppInsightsTelemetry | ConvertTo-Json -Depth 3 -Compress) -Verbose:$false -ErrorAction SilentlyContinue }
+    catch {}
 }

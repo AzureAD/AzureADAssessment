@@ -34,7 +34,7 @@ function Use-Progress {
         [string] $Property,
         # Minimum timespan between each progress update.
         [Parameter(Mandatory = $false)]
-        [timespan] $MinimumUpdateFrequency = (New-Timespan -Seconds 1)
+        [timespan] $MinimumUpdateFrequency = (New-TimeSpan -Seconds 1)
     )
 
     begin {

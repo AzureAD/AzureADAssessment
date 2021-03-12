@@ -44,6 +44,7 @@ function Connect-AADAssessment {
     ## Track Command Execution and Performance
     Start-AppInsightsRequest $MyInvocation.MyCommand.Name
     try {
+
         ## Update WebSession User Agent String with Module Info
         $script:MsGraphSession.UserAgent = $script:MsGraphSession.UserAgent -replace 'AzureADAssessment', ('{0}/{1}' -f $PSCmdlet.MyInvocation.MyCommand.Module.Name, $MyInvocation.MyCommand.Module.Version)
 
@@ -54,7 +55,8 @@ function Connect-AADAssessment {
                 break
             }
             'PublicClient' {
-                $script:ConnectState.ClientApplication = New-MsalClientApplication -ClientId $ClientId -TenantId $TenantId -AzureCloudInstance $script:mapMgEnvironmentToAzureCloudInstance[$CloudEnvironment] -RedirectUri 'http://localhost'
+                #$script:ConnectState.ClientApplication = New-MsalClientApplication -ClientId $ClientId -TenantId $TenantId -AzureCloudInstance $script:mapMgEnvironmentToAzureCloudInstance[$CloudEnvironment] -RedirectUri 'http://localhost'
+                $script:ConnectState.ClientApplication = New-MsalClientApplication -ClientId $ClientId -TenantId $TenantId -AzureCloudInstance $script:mapMgEnvironmentToAzureCloudInstance[$CloudEnvironment] #-RedirectUri 'urn:ietf:wg:oauth:2.0:oob'
                 break
             }
             'ConfidentialClientCertificate' {
@@ -68,7 +70,8 @@ function Connect-AADAssessment {
         Confirm-ModuleAuthentication $script:ConnectState.ClientApplication -CloudEnvironment $script:ConnectState.CloudEnvironment -ErrorAction Stop
         #Get-MgContext
         #Get-AzureADCurrentSessionInfo
+
     }
     catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException $_.Exception }; throw }
-    finally { Complete-AppInsightsRequest $MyInvocation.MyCommand.Name -Success $true }
+    finally { Complete-AppInsightsRequest $MyInvocation.MyCommand.Name -Success $? }
 }

@@ -9,6 +9,7 @@
 #>
 function Write-AppInsightsTrace {
     [CmdletBinding()]
+    [Alias('Write-AITrace')]
     param (
         # Event Name
         [Parameter(Mandatory = $true)]
@@ -38,8 +39,9 @@ function Write-AppInsightsTrace {
     $AppInsightsTelemetry.data.baseData['message'] = $Message
     if ($SeverityLevel) { $AppInsightsTelemetry.data.baseData['severityLevel'] = $SeverityLevel }
     if ($Properties) { $AppInsightsTelemetry.data.baseData['properties'] += $Properties }
-    
+
     ## Write Data to Application Insights
     Write-Debug ($AppInsightsTelemetry | ConvertTo-Json -Depth 3)
-    $result = Invoke-RestMethod -UseBasicParsing -Method Post -Uri $IngestionEndpoint -ContentType 'application/json' -Body ($AppInsightsTelemetry | ConvertTo-Json -Depth 3) -Verbose:$false -ErrorAction SilentlyContinue
+    try { $result = Invoke-RestMethod -UseBasicParsing -Method Post -Uri $IngestionEndpoint -ContentType 'application/json' -Body ($AppInsightsTelemetry | ConvertTo-Json -Depth 3 -Compress) -Verbose:$false -ErrorAction SilentlyContinue }
+    catch {}
 }

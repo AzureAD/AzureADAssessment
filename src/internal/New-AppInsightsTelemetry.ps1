@@ -9,6 +9,7 @@
 #>
 function New-AppInsightsTelemetry {
     [CmdletBinding()]
+    [Alias('New-AITelemetry')]
     [OutputType([hashtable])]
     param (
         # Telemetry Type Name
@@ -33,9 +34,9 @@ function New-AppInsightsTelemetry {
     }
     else {
         $Operation = @{
-            Id        = New-Guid
-            Name      = $MyInvocation.MyCommand.Name
-            ParentId  = $null
+            Id       = New-Guid
+            Name     = $MyInvocation.MyCommand.Name
+            ParentId = $null
         }
     }
 
@@ -44,12 +45,12 @@ function New-AppInsightsTelemetry {
         time = $null
         iKey = $InstrumentationKey
         tags = [ordered]@{
-            "ai.application.ver"    = $MyInvocation.MyCommand.Module.Version.ToString()
-            "ai.operation.id"       = $Operation.Id
-            "ai.operation.name"     = $Operation.Name
-            "ai.operation.parentId" = $Operation.ParentId
-            "ai.session.id"         = $script:AppInsightsRuntimeState.SessionId
-            "ai.user.id"            = $script:AppInsightsState.UserId
+            "ai.application.ver"    = [string]$MyInvocation.MyCommand.Module.Version
+            "ai.operation.id"       = [string]$Operation.Id
+            "ai.operation.name"     = [string]$Operation.Name
+            "ai.operation.parentId" = [string]$Operation.ParentId
+            "ai.session.id"         = [string]$script:AppInsightsRuntimeState.SessionId
+            "ai.user.id"            = [string]$script:AppInsightsState.UserId
         }
         data = [ordered]@{
             baseType = $mapNameToBaseType[$Name]
