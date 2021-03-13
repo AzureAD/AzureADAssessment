@@ -2,7 +2,7 @@
 
 [![PSGallery Version](https://img.shields.io/powershellgallery/v/AzureADAssessment.svg?style=flat&logo=powershell&label=PSGallery%20Version)](https://www.powershellgallery.com/packages/AzureADAssessment) [![PSGallery Downloads](https://img.shields.io/powershellgallery/dt/AzureADAssessment.svg?style=flat&logo=powershell&label=PSGallery%20Downloads)](https://www.powershellgallery.com/packages/AzureADAssessment) [![PSGallery Platform](https://img.shields.io/powershellgallery/p/AzureADAssessment.svg?style=flat&logo=powershell&label=PSGallery%20Platform)](https://www.powershellgallery.com/packages/AzureADAssessment)
 
-## Install from the PowerShell
+## Install from the PowerShell Gallery
 ```PowerShell
 Install-Module AzureADAssessment -Force -AcceptLicense
 ## If you have already installed the module, run the following instead to ensure you have the latest version.
@@ -23,10 +23,36 @@ Import-Module MSAL.PS
 
 ## Run the Data Collection
 ```PowerShell
+## Authenticate
+Connect-AADAssessment
 ## Export Data to 'C:\AzureADAssessment'.
 Invoke-AADAssessmentDataCollection
 ## If you would like to specify a different directory, use the OutputDirectory parameter.
 Invoke-AADAssessmentDataCollection 'C:\Temp'
+
+```
+
+Run the following to collect data from hybrid components such as AAD Connect, AD FS, AAD App Proxy.
+```PowerShell
+## Export Portable Module to 'C:\AzureADAssessment'.
+Export-AADAssessmentPortableModule -OutputDirectory 'C:\AzureADAssessment'
+## Copy the module file "AzureADAssessmentPortable.psm1" to the servers running each component and import the module.
+Import-Module 'C:\AzureADAssessment\AzureADAssessmentPortable.psm1'
+
+## Export Data to 'C:\AzureADAssessment'.
+Invoke-AADAssessmentHybridDataCollection
+## If you would like to specify a different directory, use the OutputDirectory parameter.
+Invoke-AADAssessmentHybridDataCollection 'C:\Temp'
+
+```
+
+
+## Complete Reports
+```PowerShell
+## Export Data to 'C:\AzureADAssessment'.
+Complete-AADAssessmentReports
+## If you would like to specify a different directory, use the OutputDirectory parameter.
+Complete-AADAssessmentReports 'C:\Temp'
 ```
 
 

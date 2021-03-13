@@ -9,7 +9,7 @@ function Complete-AADAssessmentReports {
         [string] $Path,
         # Full path of the directory where the output files will be copied.
         [Parameter(Mandatory = $false)]
-        [string] $OutputDirectory = $env:SystemDrive
+        [string] $OutputDirectory = (Join-Path $env:SystemDrive 'AzureADAssessment')
     )
 
     Start-AppInsightsRequest $MyInvocation.MyCommand.Name
@@ -31,7 +31,7 @@ function Complete-AADAssessmentReports {
 
         ## Initalize Directory Paths
         #$OutputDirectory = Join-Path (Split-Path $Path) ([IO.Path]::GetFileNameWithoutExtension($Path))
-        $OutputDirectory = Join-Path $OutputDirectory "AzureADAssessment"
+        #$OutputDirectory = Join-Path $OutputDirectory "AzureADAssessment"
         $OutputDirectoryData = Join-Path $OutputDirectory ([IO.Path]::GetFileNameWithoutExtension($Path))
         $AssessmentDetailPath = Join-Path $OutputDirectoryData "AzureADAssessment.json"
 

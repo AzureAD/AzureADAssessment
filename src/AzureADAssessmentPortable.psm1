@@ -5,11 +5,11 @@ function Invoke-AADAssessmentHybridDataCollection {
     (
         # Specify directory to output data. A subdirectory will automatically be created called "AzureADAssessment".
         [Parameter(Mandatory = $false)]
-        [string] $OutputDirectory = $env:SystemDrive
+        [string] $OutputDirectory = (Join-Path $env:SystemDrive 'AzureADAssessment')
     )
 
-    $OutputDirectory = Join-Path $OutputDirectory "AzureADAssessment"
-    $OutputDirectoryData = Join-Path $OutputDirectory "Data"
+    #$OutputDirectory = Join-Path $OutputDirectory "AzureADAssessment"
+    $OutputDirectoryData = Join-Path $OutputDirectory "AzureADAssessmentData"
 
     ## ADFS Data Collection
     $ADFSService = Get-Service adfssrv -ErrorAction SilentlyContinue
@@ -34,12 +34,15 @@ function Invoke-AADAssessmentHybridDataCollection {
 
         ## Package Output
         if ($PSVersionTable.PSVersion -ge [version]'5.0') {
-            Compress-Archive (Join-Path $OutputDirectoryADFS '\*') -DestinationPath $PackagePath -Force
+            Compress-Archive (Join-Path $OutputDirectoryADFS '\*') -DestinationPath $PackagePath -Force -ErrorAction Stop
         }
         else {
             Add-Type -AssemblyName "System.IO.Compression.FileSystem"
             [System.IO.Compression.ZipFile]::CreateFromDirectory($OutputDirectoryADFS, $PackagePath)
         }
+
+        ## Clean-Up Data Files
+        Remove-Item $OutputDirectoryADFS -Recurse -Force
     }
 
     ## Azure AD Connect Data Collection
@@ -59,12 +62,15 @@ function Invoke-AADAssessmentHybridDataCollection {
 
         ## Package Output
         if ($PSVersionTable.PSVersion -ge [version]'5.0') {
-            Compress-Archive (Join-Path $OutputDirectoryAADC '\*') -DestinationPath $PackagePath -Force
+            Compress-Archive (Join-Path $OutputDirectoryAADC '\*') -DestinationPath $PackagePath -Force -ErrorAction Stop
         }
         else {
             Add-Type -AssemblyName "System.IO.Compression.FileSystem"
             [System.IO.Compression.ZipFile]::CreateFromDirectory($OutputDirectoryAADC, $PackagePath)
         }
+
+        ## Clean-Up Data Files
+        Remove-Item $OutputDirectoryAADC -Recurse -Force
     }
 
     ## Azure AD App Proxy Connector Data Collection
@@ -80,31 +86,34 @@ function Invoke-AADAssessmentHybridDataCollection {
 
         ## Package Output
         if ($PSVersionTable.PSVersion -ge [version]'5.0') {
-            Compress-Archive (Join-Path $OutputDirectoryAADAP '\*') -DestinationPath $PackagePath -Force
+            Compress-Archive (Join-Path $OutputDirectoryAADAP '\*') -DestinationPath $PackagePath -Force -ErrorAction Stop
         }
         else {
             Add-Type -AssemblyName "System.IO.Compression.FileSystem"
             [System.IO.Compression.ZipFile]::CreateFromDirectory($OutputDirectoryAADAP, $PackagePath)
         }
+
+        ## Clean-Up Data Files
+        Remove-Item $OutputDirectoryAADAP -Recurse -Force
     }
 }
 
 
-<# 
+<#
  .Synopsis
   Exports the configuration of Relying Party Trusts and Claims Provider Trusts
 
  .Description
   Creates and zips a set of files that hold the configuration of AD FS claim providers and relying parties.
   The output files are created under a directory called "ADFS" in the system drive.
- 
+
  .Example
   Export-AADAssessADFSConfiguration
 #>
 function Export-AADAssessADFSConfiguration {
     [CmdletBinding()]
     param (
-        # 
+        #
         [Parameter(Mandatory = $true)]
         [string] $OutputDirectory
     )
@@ -131,7 +140,7 @@ function Export-AADAssessADFSConfiguration {
         $CPTName = "CPT - " + $CleanedCPFileName
         $filePath = Join-Path $filePathBase ($CPTName + '.xml')
         $AdfsClaimsProviderTrust | Export-Clixml -LiteralPath $filePath -ErrorAction SilentlyContinue
-    } 
+    }
 
     #If (Test-Path $zipfileName) {
     #    Remove-Item $zipfileName
@@ -139,12 +148,12 @@ function Export-AADAssessADFSConfiguration {
 
     #Add-Type -assembly "system.io.compression.filesystem"
     #[io.compression.zipfile]::CreateFromDirectory($filePathBase, $zipfileName)
-    
+
     #Invoke-Item $zipfileBase
 }
 
 
-<# 
+<#
  .Synopsis
   Gets the list of all enabled endpoints in ADFS
 
@@ -152,14 +161,14 @@ function Export-AADAssessADFSConfiguration {
   Gets the list of all enabled endpoints in ADFS
 
  .Example
-  Get-AADAssessADFSEndpoints | Export-Csv -Path ".\ADFSEnabledEndpoints.csv" 
+  Get-AADAssessADFSEndpoints | Export-Csv -Path ".\ADFSEnabledEndpoints.csv"
 #>
 function Get-AADAssessADFSEndpoints {
     Get-AdfsEndpoint | Where-Object { $_.Enabled -eq "True" }
 }
 
 
-<# 
+<#
  .Synopsis
   Gets the AD FS Admin Log
 
@@ -167,14 +176,14 @@ function Get-AADAssessADFSEndpoints {
   This function exports the events from the AD FS Admin log
 
  .Example
-  Get the last seven days of logs  
+  Get the last seven days of logs
   Export-AADAssessADFSAdminLog -DaysToRetrieve 7
 #>
 function Export-AADAssessADFSAdminLog {
     [CmdletBinding()]
     param
     (
-        # 
+        #
         [Parameter(Mandatory = $true)]
         [string] $OutputDirectory,
         # Specify how far back in the past will the events be retrieved
@@ -190,7 +199,7 @@ function Export-AADAssessADFSAdminLog {
 }
 
 
-<# 
+<#
  .Synopsis
   Gets Azure AD Application Proxy Connector Logs
 
@@ -233,7 +242,7 @@ function Get-AADAssessAppProxyConnectorLog {
 }
 
 
-<# 
+<#
  .Synopsis
   Gets the Azure AD Password Writeback Agent Log
 
@@ -244,8 +253,8 @@ function Get-AADAssessAppProxyConnectorLog {
   Indicates how far back in the past will the events be retrieved
 
  .Example
-  Get the last seven days of logs and saves them on a CSV file   
-  Get-AADAssessPasswordWritebackAgentLog -DaysToRetrieve 7 | Export-Csv -Path ".\AzureADAppProxyLogs-$env:ComputerName.csv" 
+  Get the last seven days of logs and saves them on a CSV file
+  Get-AADAssessPasswordWritebackAgentLog -DaysToRetrieve 7 | Export-Csv -Path ".\AzureADAppProxyLogs-$env:ComputerName.csv"
 #>
 function Get-AADAssessPasswordWritebackAgentLog {
     [CmdletBinding()]

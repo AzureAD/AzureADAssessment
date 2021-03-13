@@ -14,15 +14,15 @@ function Invoke-AADAssessmentDataCollection {
     param(
         # Full path of the directory where the output files will be generated.
         [Parameter(Mandatory = $false)]
-        [string] $OutputDirectory = $env:SystemDrive
+        [string] $OutputDirectory = (Join-Path $env:SystemDrive 'AzureADAssessment')
     )
 
     Start-AppInsightsRequest $MyInvocation.MyCommand.Name
     try {
 
         ## Initalize Directory Paths
-        $OutputDirectory = Join-Path $OutputDirectory "AzureADAssessment"
-        $OutputDirectoryData = Join-Path $OutputDirectory "Data"
+        #$OutputDirectory = Join-Path $OutputDirectory "AzureADAssessment"
+        $OutputDirectoryData = Join-Path $OutputDirectory "AzureADAssessmentData"
         $AssessmentDetailPath = Join-Path $OutputDirectoryData "AzureADAssessment.json"
         $PackagePath = Join-Path $OutputDirectory "AzureADAssessmentData.zip"
 

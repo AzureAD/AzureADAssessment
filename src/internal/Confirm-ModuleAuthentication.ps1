@@ -35,10 +35,7 @@ function Confirm-ModuleAuthentication {
     ## Throw error if no client application exists
     if (!$script:ConnectState.ClientApplication) {
         $Exception = New-Object System.Security.Authentication.AuthenticationException -ArgumentList ('You must call the Connect-AADAssessment cmdlet before calling any other cmdlets.')
-        #try {
         Write-Error -Exception $Exception -Category ([System.Management.Automation.ErrorCategory]::AuthenticationError) -CategoryActivity $MyInvocation.MyCommand -ErrorId 'ConnectAADAssessmentRequired' -ErrorAction Stop
-        #}
-        #catch { Write-AppInsightsException $_.Exception; throw }
     }
 
     ## Initialize
@@ -57,7 +54,7 @@ function Confirm-ModuleAuthentication {
             $MsGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes 'https://graph.microsoft.com/.default' -UseEmbeddedWebView:$true -Prompt $Prompt -ForceRefresh:$ForceRefresh -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
             $AadGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes 'https://graph.windows.net/.default' -UseEmbeddedWebView:$true -Prompt $Prompt -ForceRefresh:$ForceRefresh -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
         }
-        #catch { Write-AppInsightsException $_.Exception; throw }
+        catch { throw }
         finally {
             $Stopwatch.Stop()
             if (!$script:ConnectState.MsGraphToken -or ($script:ConnectState.MsGraphToken.AccessToken -ne $MsGraphToken.AccessToken) -or !$script:ConnectState.AadGraphToken -or ($script:ConnectState.AadGraphToken.AccessToken -ne $AadGraphToken.AccessToken)) {
@@ -84,7 +81,7 @@ function Confirm-ModuleAuthentication {
             $MsGraphToken = Get-MsalToken -ConfidentialClientApplication $ClientApplication -Scopes 'https://graph.microsoft.com/.default' -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
             $AadGraphToken = Get-MsalToken -ConfidentialClientApplication $ClientApplication -Scopes 'https://graph.windows.net/.default' -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
         }
-        #catch { Write-AppInsightsException $_.Exception; throw }
+        catch { throw }
         finally {
             $Stopwatch.Stop()
             if (!$script:ConnectState.MsGraphToken -or ($script:ConnectState.MsGraphToken.AccessToken -ne $MsGraphToken.AccessToken) -or !$script:ConnectState.AadGraphToken -or ($script:ConnectState.AadGraphToken.AccessToken -ne $AadGraphToken.AccessToken)) {
