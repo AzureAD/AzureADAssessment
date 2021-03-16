@@ -6,7 +6,7 @@
 ```PowerShell
 Install-Module AzureADAssessment -Force -AcceptLicense
 ## If you have already installed the module, run the following instead to ensure you have the latest version.
-Update-Module AzureADAssessment
+Update-Module AzureADAssessment -Force
 ```
 
 If you encounter the error, `WARNING: The specified module 'MSAL.PS' with PowerShellGetFormatVersion '2.0' is not supported by the current version of PowerShellGet. Get the latest version of the PowerShellGet module to install this module, 'MSAL.PS'` then run the following commands to proceed with the installation.
@@ -22,37 +22,36 @@ Import-Module MSAL.PS
 ```
 
 ## Run the Data Collection
+Run following commands to produce a package of all the data necessary to complete the assessment.
 ```PowerShell
 ## Authenticate
 Connect-AADAssessment
-## Export Data to 'C:\AzureADAssessment'.
+## Export Data to "C:\AzureADAssessment".
 Invoke-AADAssessmentDataCollection
 ## If you would like to specify a different directory, use the OutputDirectory parameter.
-Invoke-AADAssessmentDataCollection 'C:\Temp'
-
+Invoke-AADAssessmentDataCollection "C:\Temp"
 ```
 
 Run the following to collect data from hybrid components such as AAD Connect, AD FS, AAD App Proxy.
 ```PowerShell
-## Export Portable Module to 'C:\AzureADAssessment'.
-Export-AADAssessmentPortableModule -OutputDirectory 'C:\AzureADAssessment'
-## Copy the module file "AzureADAssessmentPortable.psm1" to the servers running each component and import the module.
-Import-Module 'C:\AzureADAssessment\AzureADAssessmentPortable.psm1'
+## Export Portable Module to "C:\AzureADAssessment".
+Export-AADAssessmentPortableModule "C:\AzureADAssessment"
+## Copy the module file "AzureADAssessmentPortable.psm1" to the servers running each component and import the module there.
+Import-Module "C:\AzureADAssessment\AzureADAssessmentPortable.psm1"
 
-## Export Data to 'C:\AzureADAssessment'.
+## Export Data to "C:\AzureADAssessment".
 Invoke-AADAssessmentHybridDataCollection
 ## If you would like to specify a different directory, use the OutputDirectory parameter.
-Invoke-AADAssessmentHybridDataCollection 'C:\Temp'
-
+Invoke-AADAssessmentHybridDataCollection "C:\Temp"
 ```
 
+Provide the output packages to whoever is completing the assessment.
 
-## Complete Reports
+## Complete Assessment Reports
+Run the following commands to complete generation of the assessment reports.
 ```PowerShell
-## Export Data to 'C:\AzureADAssessment'.
-Complete-AADAssessmentReports
-## If you would like to specify a different directory, use the OutputDirectory parameter.
-Complete-AADAssessmentReports 'C:\Temp'
+## Complete Assessment Reports.
+Complete-AADAssessmentReports "C:\AzureADAssessment\AzureADAssessmentData-<TenantName>.onmicrosoft.com.zip"
 ```
 
 
