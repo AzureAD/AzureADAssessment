@@ -30,9 +30,9 @@ function Connect-AADAssessment {
         # Tenant identifier of the authority to issue token.
         [Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
         [string] $TenantId = 'organizations',
-        # Stay signed in across PowerShell sessions on current device.
-        #[Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
-        #[switch] $StaySignedIn,
+        # User account to authenticate.
+        [Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
+        [string] $User,
         # Disable Telemetry
         [Parameter(Mandatory = $false)]
         [switch] $DisableTelemetry
@@ -64,10 +64,9 @@ function Connect-AADAssessment {
                 break
             }
         }
-        #if ($StaySignedIn) { $script:ConnectState.ClientApplication | Enable-MsalTokenCacheOnDisk }
         $script:ConnectState.CloudEnvironment = $CloudEnvironment
 
-        Confirm-ModuleAuthentication $script:ConnectState.ClientApplication -CloudEnvironment $script:ConnectState.CloudEnvironment -ErrorAction Stop
+        Confirm-ModuleAuthentication $script:ConnectState.ClientApplication -CloudEnvironment $script:ConnectState.CloudEnvironment -User $User -ErrorAction Stop
         #Get-MgContext
         #Get-AzureADCurrentSessionInfo
 

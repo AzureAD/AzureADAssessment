@@ -10,19 +10,30 @@
 #>
 function Get-AADAssessAppAssignmentReport {
     [CmdletBinding()]
-    param ()
+    param (
+        # Service Principal Data
+        [Parameter(Mandatory = $false)]
+        [object] $ServicePrincipalData,
+        # App Role Assignment Data
+        [Parameter(Mandatory = $false)]
+        [object] $AppRoleAssignmentData
+    )
 
     Start-AppInsightsRequest $MyInvocation.MyCommand.Name
     try {
 
-        #Get all app assignemnts using "all users" group
-        #Get all app assignments to users directly
+        ## Load Data
+        if (!$AppRoleAssignmentData -and !$ServicePrincipalData) {
+            $ServicePrincipalData = Get-MsGraphResults 'serviceprincipals' -Select 'id' -Top 999
+        }
 
-        ## Get all service principals
-        $servicePrincipals = Get-MsGraphResults 'serviceprincipals' -Select 'id' -Top 999
-
-        ## Get all assignments to each service principal
-        Get-MsGraphResults 'serviceprincipals/{0}/appRoleAssignedTo' -UniqueId $servicePrincipals.id -Top 999
+        ## Get App Role Assignments
+        if (!$AppRoleAssignmentData) {
+            Get-MsGraphResults 'serviceprincipals/{0}/appRoleAssignedTo' -UniqueId $ServicePrincipalData.id -Top 999 -OutVariable AppRoleAssignmentData
+        }
+        else {
+            $AppRoleAssignmentData
+        }
 
     }
     catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException $_.Exception }; throw }

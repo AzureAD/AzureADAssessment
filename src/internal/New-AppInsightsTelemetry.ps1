@@ -86,7 +86,7 @@ function New-AppInsightsTelemetry {
         DebugPreference = $DebugPreference
     }
     if ($script:ConnectState.MsGraphToken) {
-        $AppInsightsTelemetry.data.baseData['properties']['TenantId'] = $script:ConnectState.MsGraphToken.Account.HomeAccountId.TenantId
+        $AppInsightsTelemetry.data.baseData['properties']['TenantId'] = $script:ConnectState.MsGraphToken.TenantId
         $AppInsightsTelemetry.data.baseData['properties']['CloudEnvironment'] = $script:ConnectState.CloudEnvironment
     }
 

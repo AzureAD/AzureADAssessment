@@ -6,15 +6,18 @@
   in a target directory
 
 .EXAMPLE
-   .\Invoke-AADAssessmentDataCollection -OutputDirectory "C:\"
+   .\Invoke-AADAssessmentDataCollection -OutputDirectory "C:\Temp"
 
 #>
 function Invoke-AADAssessmentDataCollection {
     [CmdletBinding()]
-    param(
+    param (
         # Full path of the directory where the output files will be generated.
         [Parameter(Mandatory = $false)]
-        [string] $OutputDirectory = (Join-Path $env:SystemDrive 'AzureADAssessment')
+        [string] $OutputDirectory = (Join-Path $env:SystemDrive 'AzureADAssessment'),
+        # Generate Reports
+        [Parameter(Mandatory = $false)]
+        [switch] $GenerateReports
     )
 
     Start-AppInsightsRequest $MyInvocation.MyCommand.Name
@@ -26,9 +29,15 @@ function Invoke-AADAssessmentDataCollection {
         $AssessmentDetailPath = Join-Path $OutputDirectoryData "AzureADAssessment.json"
         $PackagePath = Join-Path $OutputDirectory "AzureADAssessmentData.zip"
 
-        $OrganizationData = Get-MsGraphResults 'organization' -Select 'id', 'verifiedDomains'
+        ## Organization Data
+        Write-Progress -Id 0 -Activity 'Microsoft Azure AD Assessment Data Collection' -Status 'Organization Details' -PercentComplete 0
+        $OrganizationData = Get-MsGraphResults 'organization?$select=id,verifiedDomains,technicalNotificationMails' -ErrorAction Stop
         $InitialTenantDomain = $OrganizationData.verifiedDomains | Where-Object isInitial -EQ $true | Select-Object -ExpandProperty name -First 1
         $PackagePath = $PackagePath.Replace("AzureADAssessmentData.zip", "AzureADAssessmentData-$InitialTenantDomain.zip")
+        $OutputDirectoryAAD = Join-Path $OutputDirectoryData "AAD-$InitialTenantDomain"
+        Assert-DirectoryExists $OutputDirectoryAAD
+
+        ConvertTo-Json -InputObject $OrganizationData -Depth 10 | Set-Content (Join-Path $OutputDirectoryAAD "OrganizationData.json") -Force
 
         ## Generate Assessment Data
         Assert-DirectoryExists $OutputDirectoryData
@@ -39,34 +48,68 @@ function Invoke-AADAssessmentDataCollection {
             AssessmentTenantDomain = $InitialTenantDomain
         } | Set-Content $AssessmentDetailPath
 
-        ## Azure AD Data Collection
-        $OutputDirectoryAAD = Join-Path $OutputDirectoryData "AAD-$InitialTenantDomain"
-        Assert-DirectoryExists $OutputDirectoryAAD
+        ## Directory Role Data
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Directory Roles' -PercentComplete 10
+        [array] $DirectoryRoleData = Get-MsGraphResults 'directoryRoles?$select=id,displayName&$expand=members'
+        ConvertTo-Json -InputObject $DirectoryRoleData -Depth 10 | Set-Content (Join-Path $OutputDirectoryAAD "DirectoryRoleData.json") -Force
 
-        $reportsToRun = [ordered]@{
-            "Get-AADAssessNotificationEmailAddresses"     = "NotificationsEmailAddresses.csv"
-            "Get-AADAssessAppAssignmentReport"            = "AppAssignments.csv"
-            "Get-AADAssessApplicationKeyExpirationReport" = "AppKeysReport.csv"
-            #"Get-AADAssessConsentGrantList"               = "ConsentGrantList.csv"
+        ## Application Data
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Applications' -PercentComplete 20
+        [array] $ApplicationData = Get-MsGraphResults 'applications?$select=id,appId,displayName,appRoles,keyCredentials,passwordCredentials' -Top 999
+        ConvertTo-Json -InputObject $ApplicationData -Depth 10 | Set-Content (Join-Path $OutputDirectoryAAD "ApplicationData.json") -Force
+
+        ## Service Principal Data
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Service Principals' -PercentComplete 30
+        [array] $ServicePrincipalData = Get-MsGraphResults 'serviceprincipals?$select=id,servicePrincipalType,appId,displayName,accountEnabled,appOwnerOrganizationId,appRoles,oauth2PermissionScopes,keyCredentials,passwordCredentials' -Top 999
+        ConvertTo-Json -InputObject $ServicePrincipalData -Depth 10 | Set-Content (Join-Path $OutputDirectoryAAD "ServicePrincipalData.json") -Force
+
+        ## App Role Assignments Data
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'App Role Assignments' -PercentComplete 40
+        [array] $AppRoleAssignmentData = Get-MsGraphResults 'serviceprincipals/{0}/appRoleAssignedTo' -UniqueId $ServicePrincipalData.id -Top 999
+        ConvertTo-Json -InputObject $AppRoleAssignmentData -Depth 10 | Set-Content (Join-Path $OutputDirectoryAAD "AppRoleAssignmentData.json") -Force
+
+        ## OAuth2 Permission Grants Data
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'OAuth2 Permission Grants' -PercentComplete 50
+        [array] $OAuth2PermissionGrantData = Get-MsGraphResults 'oauth2PermissionGrants' -Top 999
+        ConvertTo-Json -InputObject $OAuth2PermissionGrantData -Depth 10 | Set-Content (Join-Path $OutputDirectoryAAD "OAuth2PermissionGrantData.json") -Force
+
+        ## User Data
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Users' -PercentComplete 60
+        [array] $UserData = Get-MsGraphResults 'users?$select=id,userPrincipalName,displayName,mail,otherMails,proxyAddresses' -UniqueId $OAuth2PermissionGrantData.principalId -Top 999
+        if ($OrganizationData) {
+            foreach ($technicalNotificationMail in $OrganizationData.technicalNotificationMails) {
+                $user = Get-MsGraphResults 'users?$select=id,userPrincipalName,displayName,mail,otherMails,proxyAddresses' -Filter "proxyAddresses/any(c:c eq 'smtp:$technicalNotificationMail') or otherMails/any(c:c eq '$technicalNotificationMail')" | Select-Object -First 1
+                if ($user -and !($UserData | Where-Object id -EQ $user.id)) { $UserData += $user }
+            }
+        }
+        ConvertTo-Json -InputObject $UserData -Depth 10 | Set-Content (Join-Path $OutputDirectoryAAD "UserData.json") -Force
+
+        ## Group Data
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Groups' -PercentComplete 70
+        [array] $GroupData = @()
+        if ($OrganizationData) {
+            foreach ($technicalNotificationMail in $OrganizationData.technicalNotificationMails) {
+                $group = Get-MsGraphResults 'groups?$select=id,displayName,mail,proxyAddresses' -Filter "proxyAddresses/any(c:c eq 'smtp:$technicalNotificationMail')" | Select-Object -First 1
+                if ($group -and !($GroupData | Where-Object id -EQ $group.id)) { $GroupData += $group }
+            }
+        }
+        ConvertTo-Json -InputObject $GroupData -Depth 10 | Set-Content (Join-Path $OutputDirectoryAAD "GroupData.json") -Force
+
+        ## Conditional Access Data
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Groups' -PercentComplete 80
+        Export-AADAssessConditionalAccessData -OutputDirectory $OutputDirectoryAAD
+
+        ## Generate Reports
+        if ($GenerateReports) {
+            Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Generating Reports' -PercentComplete 90
+            Get-AADAssessNotificationEmailsReport -OrganizationData $OrganizationData -UserData $UserData -GroupData $GroupData -DirectoryRoleData $DirectoryRoleData | Export-Csv -Path (Join-Path $OutputDirectoryAAD "NotificationsEmailsReport.csv") -NoTypeInformation
+            Get-AADAssessAppAssignmentReport -ServicePrincipalData $ServicePrincipalData -AppRoleAssignmentData $AppRoleAssignmentData | Export-Csv -Path (Join-Path $OutputDirectoryAAD "AppAssignmentsReport.csv") -NoTypeInformation
+            Get-AADAssessApplicationKeyExpirationReport -ApplicationData $ApplicationData -ServicePrincipalData $ServicePrincipalData | Export-Csv -Path (Join-Path $OutputDirectoryAAD "AppCredentialsReport.csv") -NoTypeInformation
+            Get-AADAssessConsentGrantReport -UserData $UserData -ServicePrincipalData $ServicePrincipalData -OAuth2PermissionGrantData $OAuth2PermissionGrantData -AppRoleAssignmentData $AppRoleAssignmentData | Export-Csv -Path (Join-Path $OutputDirectoryAAD "ConsentGrantReport.csv") -NoTypeInformation
         }
 
-        $totalReports = $reportsToRun.Count + 1 #to include conditional access
-        $processedReports = 0
-
-        foreach ($reportKvP in $reportsToRun.GetEnumerator()) {
-            $functionName = $reportKvP.Name
-            $outputFileName = $reportKvP.Value
-            $percentComplete = 100 * $processedReports / $totalReports
-            Write-Progress -Activity "Reading Azure AD Configuration" -CurrentOperation "Running Report $functionName" -PercentComplete $percentComplete
-            Get-AADAssessmentSingleReport -FunctionName $functionName -OutputDirectory $OutputDirectoryAAD -OutputCSVFileName $outputFileName
-            $processedReports++
-        }
-
-        $percentComplete = 100 * $processedReports / $totalReports
-        Write-Progress -Activity "Reading Azure AD Configuration" -CurrentOperation "Running Report Get-AADAssessCAPolicyReports" -PercentComplete $percentComplete
-
-        Get-AADAssessCAPolicyReports -OutputDirectory $OutputDirectoryAAD
-
+        ## Complete
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Completed
 
         ## Write Custom Event
         Write-AppInsightsEvent 'AAD Assessment Data Collection Complete' -OverrideProperties -Properties @{
@@ -80,6 +123,9 @@ function Invoke-AADAssessmentDataCollection {
 
         ## Clean-Up Data Files
         Remove-Item $OutputDirectoryData -Recurse -Force
+
+        ## Open Directory
+        Invoke-Item $OutputDirectory
 
     }
     catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException $_.Exception }; throw }

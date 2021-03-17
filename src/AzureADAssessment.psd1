@@ -100,11 +100,11 @@ NestedModules = @(
     '.\Connect-AADAssessment.ps1'
     '.\Expand-AADAssessAADConnectConfig.ps1'
     '.\Export-AADAssessmentPortableModule.ps1'
+    '.\Export-AADAssessConditionalAccessData.ps1'
     '.\Get-AADAssessAppAssignmentReport.ps1'
     '.\Get-AADAssessApplicationKeyExpirationReport.ps1'
-    '.\Get-AADAssessCAPolicyReports.ps1'
-    '.\Get-AADAssessConsentGrantList.ps1'
-    '.\Get-AADAssessNotificationEmailAddresses.ps1'
+    '.\Get-AADAssessConsentGrantReport.ps1'
+    '.\Get-AADAssessNotificationEmailsReport.ps1'
     '.\Invoke-AADAssessmentDataCollection.ps1'
 )
 
@@ -116,9 +116,9 @@ FunctionsToExport = @(
     'Export-AADAssessmentPortableModule'
     'Get-AADAssessAppAssignmentReport'
     'Get-AADAssessApplicationKeyExpirationReport'
-    'Get-AADAssessCAPolicyReports'
-    'Get-AADAssessConsentGrantList'
-    'Get-AADAssessNotificationEmailAddresses'
+    'Export-AADAssessConditionalAccessData'
+    'Get-AADAssessConsentGrantReport'
+    'Get-AADAssessNotificationEmailsReport'
     'Invoke-AADAssessmentDataCollection'
     'Invoke-AADAssessmentHybridDataCollection'
     'Get-AADAssessADFSEndpoints'
@@ -126,6 +126,7 @@ FunctionsToExport = @(
     'Export-AADAssessADFSConfiguration'
     'Get-AADAssessAppProxyConnectorLog'
     'Get-AADAssessPasswordWritebackAgentLog'
+    'Get-MsGraphResults'
 )
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.

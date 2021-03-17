@@ -12,79 +12,72 @@
 #>
 function Get-AADAssessApplicationKeyExpirationReport {
     [CmdletBinding()]
-    param ()
+    param (
+        # Application Data
+        [Parameter(Mandatory = $false)]
+        [object] $ApplicationData,
+        # Service Principal Data
+        [Parameter(Mandatory = $false)]
+        [object] $ServicePrincipalData
+    )
 
     Start-AppInsightsRequest $MyInvocation.MyCommand.Name
     try {
 
-        Confirm-ModuleAuthentication -ForceRefresh
-        $apps = Get-AzureADApplication -All $true
+        ## Load Data
+        if (!$ApplicationData) {
+            $ApplicationData = Get-MsGraphResults 'applications?$select=id,displayName,keyCredentials,passwordCredentials' -Top 999
+        }
 
-        foreach ($app in $apps) {
-            $appObjectId = $app.ObjectId
-            $appName = $app.DisplayName
-
-            Confirm-ModuleAuthentication
-            $appKeys = Get-AzureADApplicationKeyCredential -ObjectId $appObjectId
-
-            foreach ($appKey in $appKeys) {
-                $result = New-Object PSObject
-                $result | Add-Member -MemberType NoteProperty -Name "Display Name" -Value $appName
-                $result | Add-Member -MemberType NoteProperty -Name "Object Type" -Value "Application"
-                $result | Add-Member -MemberType NoteProperty -Name "KeyType" -Value $appKey.Type
-                $result | Add-Member -MemberType NoteProperty -Name "Start Date" -Value $appKey.StartDate
-                $result | Add-Member -MemberType NoteProperty -Name "End Date" -Value $appKey.EndDate
-                $result | Add-Member -MemberType NoteProperty -Name "Usage" -Value $appKey.Usage
-                Write-Output $result
+        ## Get Application Credentials
+        foreach ($app in $ApplicationData) {
+            foreach ($credential in $app.keyCredentials) {
+                [PSCustomObject]@{
+                    displayName             = $app.displayName
+                    objectType              = "Application"
+                    credentialType          = $credential.type
+                    credentialStartDateTime = $credential.startDateTime
+                    credentialEndDateTime   = $credential.endDateTime
+                    credentialUsage         = $credential.usage
+                }
             }
 
-            Confirm-ModuleAuthentication
-            $appKeys = Get-AzureADApplicationPasswordCredential -ObjectId $appObjectId
-
-            foreach ($appKey in $app.PasswordCredentials) {
-                $result = New-Object PSObject
-                $result | Add-Member -MemberType NoteProperty -Name "Display Name" -Value $appName
-                $result | Add-Member -MemberType NoteProperty -Name "Object Type" -Value "Application"
-                $result | Add-Member -MemberType NoteProperty -Name "KeyType" -Value "Password"
-                $result | Add-Member -MemberType NoteProperty -Name "Start Date" -Value $appKey.StartDate
-                $result | Add-Member -MemberType NoteProperty -Name "End Date" -Value $appKey.EndDate
-                Write-Output $result
+            foreach ($credential in $app.passwordCredentials) {
+                [PSCustomObject]@{
+                    displayName             = $app.displayName
+                    objectType              = "Application"
+                    credentialType          = "Password"
+                    credentialStartDateTime = $credential.startDateTime
+                    credentialEndDateTime   = $credential.endDateTime
+                }
             }
         }
 
-        Confirm-ModuleAuthentication -ForceRefresh
-        $servicePrincipals = Get-AzureADServicePrincipal -All $true
+        ## Get Service Principal Credentials
+        if (!$ServicePrincipalData) {
+            $ServicePrincipalData = Get-MsGraphResults 'serviceprincipals?$select=id,displayName,keyCredentials,passwordCredentials' -Top 999
+        }
 
-        foreach ($sp in $servicePrincipals) {
-            $spName = $sp.DisplayName
-            $spObjectId = $sp.ObjectId
-
-            Confirm-ModuleAuthentication
-            $spKeys = Get-AzureADServicePrincipalKeyCredential -ObjectId $spObjectId
-
-            foreach ($spKey in $spKeys) {
-                $result = New-Object PSObject
-                $result | Add-Member -MemberType NoteProperty -Name "Display Name" -Value $spName
-                $result | Add-Member -MemberType NoteProperty -Name "Object Type" -Value "Service Principal"
-                $result | Add-Member -MemberType NoteProperty -Name "KeyType" -Value $spKey.Type
-                $result | Add-Member -MemberType NoteProperty -Name "Start Date" -Value $spKey.StartDate
-                $result | Add-Member -MemberType NoteProperty -Name "End Date" -Value $spKey.EndDate
-                $result | Add-Member -MemberType NoteProperty -Name "Usage" -Value $spKey.Usage
-                Write-Output $result
+        foreach ($sp in $ServicePrincipalData) {
+            foreach ($credential in $sp.keyCredentials) {
+                [PSCustomObject]@{
+                    displayName             = $sp.displayName
+                    objectType              = "Service Principal"
+                    credentialType          = $credential.type
+                    credentialStartDateTime = $credential.startDateTime
+                    credentialEndDateTime   = $credential.endDateTime
+                    credentialUsage         = $credential.usage
+                }
             }
 
-            Confirm-ModuleAuthentication
-            $spKeys = Get-AzureADServicePrincipalPasswordCredential -ObjectId $spObjectId
-
-
-            foreach ($spKey in $spKeys) {
-                $result = New-Object PSObject
-                $result | Add-Member -MemberType NoteProperty -Name "Display Name" -Value $spName
-                $result | Add-Member -MemberType NoteProperty -Name "Object Type" -Value "Service Principal"
-                $result | Add-Member -MemberType NoteProperty -Name "KeyType" -Value "Password"
-                $result | Add-Member -MemberType NoteProperty -Name "Start Date" -Value $spKey.StartDate
-                $result | Add-Member -MemberType NoteProperty -Name "End Date" -Value $spKey.EndDate
-                Write-Output $result
+            foreach ($credential in $sp.passwordCredentials) {
+                [PSCustomObject]@{
+                    displayName             = $sp.displayName
+                    objectType              = "Service Principal"
+                    credentialType          = "Password"
+                    credentialStartDateTime = $credential.startDateTime
+                    credentialEndDateTime   = $credential.endDateTime
+                }
             }
         }
 

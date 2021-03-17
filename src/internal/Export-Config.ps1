@@ -21,7 +21,7 @@ function Export-Config {
         [object] $IgnoreDefaultValues = $script:ModuleConfigDefault,
         # Configuration File Path
         [Parameter(Mandatory = $false)]
-        [string] $Path = 'Config.json'
+        [string] $Path = 'config.json'
     )
 
     ## Initialize

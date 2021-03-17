@@ -26,6 +26,7 @@ Run following commands to produce a package of all the data necessary to complet
 ```PowerShell
 ## Authenticate
 Connect-AADAssessment
+
 ## Export Data to "C:\AzureADAssessment".
 Invoke-AADAssessmentDataCollection
 ## If you would like to specify a different directory, use the OutputDirectory parameter.
@@ -36,21 +37,20 @@ Run the following to collect data from hybrid components such as AAD Connect, AD
 ```PowerShell
 ## Export Portable Module to "C:\AzureADAssessment".
 Export-AADAssessmentPortableModule "C:\AzureADAssessment"
-## Copy the module file "AzureADAssessmentPortable.psm1" to the servers running each component and import the module there.
-Import-Module "C:\AzureADAssessment\AzureADAssessmentPortable.psm1"
 
+## On each server running hybrid components, copy the module file "AzureADAssessmentPortable.psm1" and import it there.
+Import-Module "C:\AzureADAssessment\AzureADAssessmentPortable.psm1"
 ## Export Data to "C:\AzureADAssessment".
 Invoke-AADAssessmentHybridDataCollection
 ## If you would like to specify a different directory, use the OutputDirectory parameter.
 Invoke-AADAssessmentHybridDataCollection "C:\Temp"
 ```
 
-Provide the output packages to whoever is completing the assessment.
+Data collection is complete so provide the output packages to whoever is completing the assessment.
 
-## Complete Assessment Reports
-Run the following commands to complete generation of the assessment reports.
+As the assessor, run the following command using the output package from data collection to complete generation of the assessment reports.
 ```PowerShell
-## Complete Assessment Reports.
+## Output Assessment Reports to "C:\AzureADAssessment".
 Complete-AADAssessmentReports "C:\AzureADAssessment\AzureADAssessmentData-<TenantName>.onmicrosoft.com.zip"
 ```
 

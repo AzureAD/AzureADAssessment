@@ -3,7 +3,7 @@ function Invoke-AADAssessmentHybridDataCollection {
     [CmdletBinding()]
     param
     (
-        # Specify directory to output data. A subdirectory will automatically be created called "AzureADAssessment".
+        # Specify directory to output data.
         [Parameter(Mandatory = $false)]
         [string] $OutputDirectory = (Join-Path $env:SystemDrive 'AzureADAssessment')
     )

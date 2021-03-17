@@ -13,10 +13,7 @@ function Import-Config {
     param (
         # Configuration File Path
         [Parameter(Mandatory = $false)]
-        [string] $Path = 'Config.json',
-        # Variable to output config
-        [Parameter(Mandatory = $false)]
-        [ref] $OutConfig = ([ref]$script:ModuleConfig)
+        [string] $Path = 'config.json'
     )
 
     ## Initialize
@@ -29,7 +26,7 @@ function Import-Config {
         ## Load from File
         $ModuleConfigPersistent = Get-Content $Path -Raw | ConvertFrom-Json
 
-        ## Update local configuration
-        Set-Config $ModuleConfigPersistent -OutConfig $OutConfig
+        ## Return Config
+        return $ModuleConfigPersistent
     }
 }

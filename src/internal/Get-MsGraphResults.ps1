@@ -40,6 +40,9 @@ function Get-MsGraphResults {
         # Specifies consistency level.
         [Parameter(Mandatory = $false)]
         [string] $ConsistencyLevel = "eventual",
+        # Disable deduplication of UniqueId values.
+        [Parameter(Mandatory = $false)]
+        [switch] $DisableUniqueIdDeduplication,
         # Only return first page of results.
         [Parameter(Mandatory = $false)]
         [switch] $DisablePaging,
@@ -120,6 +123,7 @@ function Get-MsGraphResults {
     process {
         ## Initialize
         if (!$UniqueId) { [string[]] $UniqueId = '' }
+        elseif (!$DisableUniqueIdDeduplication) { [string[]] $UniqueId = $UniqueId | Sort-Object | Get-Unique | Where-Object { ![string]::IsNullOrEmpty($_) } }
         if ($DisableBatching -and ($RelativeUri.Count -gt 1 -or $UniqueId.Count -gt 1)) {
             Write-Warning ('This command is invoking {0} individual Graph requests. For better performance, remove the -DisableBatching parameter.' -f ($RelativeUri.Count * $UniqueId.Count))
         }
