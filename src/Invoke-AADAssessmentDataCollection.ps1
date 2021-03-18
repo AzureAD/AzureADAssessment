@@ -51,27 +51,27 @@ function Invoke-AADAssessmentDataCollection {
         ## Directory Role Data
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Directory Roles' -PercentComplete 10
         [array] $DirectoryRoleData = Get-MsGraphResults 'directoryRoles?$select=id,displayName&$expand=members'
-        ConvertTo-Json -InputObject $DirectoryRoleData -Depth 10 | Set-Content (Join-Path $OutputDirectoryAAD "DirectoryRoleData.json") -Force
+        ConvertTo-Json -InputObject $DirectoryRoleData -Depth 10 -Compress | Set-Content (Join-Path $OutputDirectoryAAD "DirectoryRoleData.json") -Force
 
         ## Application Data
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Applications' -PercentComplete 20
         [array] $ApplicationData = Get-MsGraphResults 'applications?$select=id,appId,displayName,appRoles,keyCredentials,passwordCredentials' -Top 999
-        ConvertTo-Json -InputObject $ApplicationData -Depth 10 | Set-Content (Join-Path $OutputDirectoryAAD "ApplicationData.json") -Force
+        ConvertTo-Json -InputObject $ApplicationData -Depth 10 -Compress | Set-Content (Join-Path $OutputDirectoryAAD "ApplicationData.json") -Force
 
         ## Service Principal Data
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Service Principals' -PercentComplete 30
         [array] $ServicePrincipalData = Get-MsGraphResults 'serviceprincipals?$select=id,servicePrincipalType,appId,displayName,accountEnabled,appOwnerOrganizationId,appRoles,oauth2PermissionScopes,keyCredentials,passwordCredentials' -Top 999
-        ConvertTo-Json -InputObject $ServicePrincipalData -Depth 10 | Set-Content (Join-Path $OutputDirectoryAAD "ServicePrincipalData.json") -Force
+        ConvertTo-Json -InputObject $ServicePrincipalData -Depth 10 -Compress | Set-Content (Join-Path $OutputDirectoryAAD "ServicePrincipalData.json") -Force
 
         ## App Role Assignments Data
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'App Role Assignments' -PercentComplete 40
         [array] $AppRoleAssignmentData = Get-MsGraphResults 'serviceprincipals/{0}/appRoleAssignedTo' -UniqueId $ServicePrincipalData.id -Top 999
-        ConvertTo-Json -InputObject $AppRoleAssignmentData -Depth 10 | Set-Content (Join-Path $OutputDirectoryAAD "AppRoleAssignmentData.json") -Force
+        ConvertTo-Json -InputObject $AppRoleAssignmentData -Depth 10 -Compress | Set-Content (Join-Path $OutputDirectoryAAD "AppRoleAssignmentData.json") -Force
 
         ## OAuth2 Permission Grants Data
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'OAuth2 Permission Grants' -PercentComplete 50
         [array] $OAuth2PermissionGrantData = Get-MsGraphResults 'oauth2PermissionGrants' -Top 999
-        ConvertTo-Json -InputObject $OAuth2PermissionGrantData -Depth 10 | Set-Content (Join-Path $OutputDirectoryAAD "OAuth2PermissionGrantData.json") -Force
+        ConvertTo-Json -InputObject $OAuth2PermissionGrantData -Depth 10 -Compress | Set-Content (Join-Path $OutputDirectoryAAD "OAuth2PermissionGrantData.json") -Force
 
         ## User Data
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Users' -PercentComplete 60
@@ -82,7 +82,7 @@ function Invoke-AADAssessmentDataCollection {
                 if ($user -and !($UserData | Where-Object id -EQ $user.id)) { $UserData += $user }
             }
         }
-        ConvertTo-Json -InputObject $UserData -Depth 10 | Set-Content (Join-Path $OutputDirectoryAAD "UserData.json") -Force
+        ConvertTo-Json -InputObject $UserData -Depth 10 -Compress | Set-Content (Join-Path $OutputDirectoryAAD "UserData.json") -Force
 
         ## Group Data
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Groups' -PercentComplete 70
@@ -93,7 +93,7 @@ function Invoke-AADAssessmentDataCollection {
                 if ($group -and !($GroupData | Where-Object id -EQ $group.id)) { $GroupData += $group }
             }
         }
-        ConvertTo-Json -InputObject $GroupData -Depth 10 | Set-Content (Join-Path $OutputDirectoryAAD "GroupData.json") -Force
+        ConvertTo-Json -InputObject $GroupData -Depth 10 -Compress | Set-Content (Join-Path $OutputDirectoryAAD "GroupData.json") -Force
 
         ## Conditional Access Data
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Groups' -PercentComplete 80

@@ -35,7 +35,7 @@ function Export-AADAssessConditionalAccessData {
         Write-Progress -Activity "Reading Azure AD Conditional Access Policies" -CurrentOperation "Querying referenced objects"
         $referencedUsers = Get-MsGraphResults 'users' -UniqueId $userIds -Select 'id,userPrincipalName,displayName'
         $referencedGroups = Get-MsGraphResults 'groups' -UniqueId $groupIds -Select 'id,displayName'
-        $referencedApps = Get-MsGraphResults ($appIds | ForEach-Object { "servicePrincipals?`$filter=appId eq '$_'" }) -Select 'id,appId,displayName'
+        $referencedApps = Get-MsGraphResults 'servicePrincipals' -Select 'id,appId,displayName' -Filter "appId eq '{0}'" -UniqueId $appIds
 
         Write-Progress -Activity "Reading Azure AD Conditional Access Policies" -CurrentOperation "Saving Reports"
         ConvertTo-Json $policies -Depth 10 | Out-File "$OutputDirectory\CAPolicies.json" -Force

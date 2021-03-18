@@ -26,6 +26,8 @@ Run following commands to produce a package of all the data necessary to complet
 ```PowerShell
 ## Authenticate
 Connect-AADAssessment
+## If you prefer to use your own app registration for automation purposes, you may connect using your own ClientId and Certificate like the example below. Your app registration should include Directory.Read.All and Policy.Read.All permissions to MS Graph for a complete assessment. Once added, ensure you have completed admin consent on the service principal for those application permissions.
+Connect-AADAssessment -ClientId <ClientId> -ClientCertificate (Get-Item 'Cert:\CurrentUser\My\<Thumbprint>') -TenantId <TenantId>
 
 ## Export Data to "C:\AzureADAssessment".
 Invoke-AADAssessmentDataCollection

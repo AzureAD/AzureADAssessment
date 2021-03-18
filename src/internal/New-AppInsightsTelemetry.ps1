@@ -74,7 +74,7 @@ function New-AppInsightsTelemetry {
     }
 
     ## Add Authenticated MSFT User
-    if ($script:ConnectState.MsGraphToken -and $script:ConnectState.MsGraphToken.Account.HomeAccountId.TenantId -in ('72f988bf-86f1-41af-91ab-2d7cd011db47', 'cc7d0b33-84c6-4368-a879-2e47139b7b1f')) {
+    if ((Get-ObjectPropertyValue $script:ConnectState.MsGraphToken 'Account' 'HomeAccountId' 'TenantId') -in ('72f988bf-86f1-41af-91ab-2d7cd011db47', 'cc7d0b33-84c6-4368-a879-2e47139b7b1f')) {
         $AppInsightsTelemetry.tags['ai.user.authUserId'] = $script:ConnectState.MsGraphToken.Account.HomeAccountId.Identifier
     }
 
@@ -86,7 +86,12 @@ function New-AppInsightsTelemetry {
         DebugPreference = $DebugPreference
     }
     if ($script:ConnectState.MsGraphToken) {
-        $AppInsightsTelemetry.data.baseData['properties']['TenantId'] = $script:ConnectState.MsGraphToken.TenantId
+        if ($script:ConnectState.MsGraphToken.TenantId) {
+            $AppInsightsTelemetry.data.baseData['properties']['TenantId'] = $script:ConnectState.MsGraphToken.TenantId
+        }
+        else {
+            $AppInsightsTelemetry.data.baseData['properties']['TenantId'] = Expand-JsonWebTokenPayload $script:ConnectState.MsGraphToken.AccessToken | Select-Object -ExpandProperty tid
+        }
         $AppInsightsTelemetry.data.baseData['properties']['CloudEnvironment'] = $script:ConnectState.CloudEnvironment
     }
 

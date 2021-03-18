@@ -41,26 +41,33 @@ function Confirm-ModuleAuthentication {
     if ($script:AppInsightsRuntimeState.OperationStack.Count -gt 0) {
         $CorrelationId = $script:AppInsightsRuntimeState.OperationStack.Peek().Id
     }
+    [hashtable] $paramMsalToken = @{
+        #CorrelationId = $CorrelationId
+    }
+    if (!$User -and !(Get-MsalAccount $ClientApplication)) { $paramMsalToken.Add('Interactive',$true) }
 
     ## Get Tokens
     $MsGraphToken = $null
-    $AadGraphToken = $null
+    #$AadGraphToken = $null
     if ($ClientApplication -is [Microsoft.Identity.Client.IPublicClientApplication]) {
         $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
         try {
             #$MsGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes $MsGraphScopes -ExtraScopesToConsent $AadGraphScopes -UseEmbeddedWebView:$false -ForceRefresh:$ForceRefresh -CorrelationId $CorrelationId -Interactive:$Interactive -Verbose:$false -ErrorAction Stop
             #$AadGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes $AadGraphScopes -UseEmbeddedWebView:$false -ForceRefresh:$ForceRefresh -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
-            $MsGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes 'https://graph.microsoft.com/.default' -UseEmbeddedWebView:$true -ForceRefresh:$ForceRefresh -CorrelationId $CorrelationId -Interactive:$(!$User -and !(Get-MsalAccount $ClientApplication)) -LoginHint $User -Verbose:$false -ErrorAction Stop
-            $AadGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes 'https://graph.windows.net/.default' -UseEmbeddedWebView:$true -ForceRefresh:$ForceRefresh -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
+            $MsGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes 'https://graph.microsoft.com/.default' -UseEmbeddedWebView:$true -ForceRefresh:$ForceRefresh -CorrelationId $CorrelationId -LoginHint $User @paramMsalToken -Verbose:$false -ErrorAction Stop
+            #$AadGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes 'https://graph.windows.net/.default' -UseEmbeddedWebView:$true -ForceRefresh:$ForceRefresh -CorrelationId $CorrelationId -LoginHint $User -Verbose:$false -ErrorAction Stop
         }
         catch { throw }
         finally {
             $Stopwatch.Stop()
-            if (!$script:ConnectState.MsGraphToken -or ($script:ConnectState.MsGraphToken.AccessToken -ne $MsGraphToken.AccessToken) -or !$script:ConnectState.AadGraphToken -or ($script:ConnectState.AadGraphToken.AccessToken -ne $AadGraphToken.AccessToken)) {
-                Write-AppInsightsDependency 'GET Access Tokens' -Type 'Azure AD' -Data 'GET Access Tokens' -Duration $Stopwatch.Elapsed -Success ($null -ne $MsGraphToken)
+            if (!$script:ConnectState.MsGraphToken -or $paramMsalToken.ContainsKey('Interactive')) {
+                Write-AppInsightsDependency 'GET Access Token (Interactive)' -Type 'Azure AD' -Data 'GET Access Token (Interactive)' -Duration $Stopwatch.Elapsed -Success ($null -ne $MsGraphToken)
+            }
+            elseif ($script:ConnectState.MsGraphToken.AccessToken -ne $MsGraphToken.AccessToken) {
+                Write-AppInsightsDependency 'GET Access Token' -Type 'Azure AD' -Data 'GET Access Token' -Duration $Stopwatch.Elapsed -Success ($null -ne $MsGraphToken)
             }
         }
-        if (!$script:ConnectState.MsGraphToken -or ($script:ConnectState.MsGraphToken.AccessToken -ne $MsGraphToken.AccessToken) -or !$script:ConnectState.AadGraphToken -or ($script:ConnectState.AadGraphToken.AccessToken -ne $AadGraphToken.AccessToken)) {
+        if (!$script:ConnectState.MsGraphToken -or ($script:ConnectState.MsGraphToken.AccessToken -ne $MsGraphToken.AccessToken)) {
             Write-Verbose 'Connecting Modules...'
             #Connect-MgGraph -Environment $CloudEnvironment -TenantId $MsGraphToken.TenantId -AccessToken $MsGraphToken.AccessToken | Out-Null
             #Connect-AzureAD -AzureEnvironmentName $mapMgEnvironmentToAzureEnvironment[$CloudEnvironment] -TenantId $AadGraphToken.TenantId -AadAccessToken $AadGraphToken.AccessToken -MsAccessToken $MsGraphToken.AccessToken -AccountId $AadGraphToken.Account.Username | Out-Null
@@ -78,16 +85,16 @@ function Confirm-ModuleAuthentication {
         $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
         try {
             $MsGraphToken = Get-MsalToken -ConfidentialClientApplication $ClientApplication -Scopes 'https://graph.microsoft.com/.default' -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
-            $AadGraphToken = Get-MsalToken -ConfidentialClientApplication $ClientApplication -Scopes 'https://graph.windows.net/.default' -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
+            #$AadGraphToken = Get-MsalToken -ConfidentialClientApplication $ClientApplication -Scopes 'https://graph.windows.net/.default' -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
         }
         catch { throw }
         finally {
             $Stopwatch.Stop()
-            if (!$script:ConnectState.MsGraphToken -or ($script:ConnectState.MsGraphToken.AccessToken -ne $MsGraphToken.AccessToken) -or !$script:ConnectState.AadGraphToken -or ($script:ConnectState.AadGraphToken.AccessToken -ne $AadGraphToken.AccessToken)) {
-                Write-AppInsightsDependency 'GET Access Tokens' -Type 'Azure AD' -Data 'GET Access Tokens' -Duration $Stopwatch.Elapsed -Success ($null -ne $MsGraphToken)
+            if (!$script:ConnectState.MsGraphToken -or ($script:ConnectState.MsGraphToken.AccessToken -ne $MsGraphToken.AccessToken)) {
+                Write-AppInsightsDependency 'GET Access Token (Confidential Client)' -Type 'Azure AD' -Data 'GET Access Token (Confidential Client)' -Duration $Stopwatch.Elapsed -Success ($null -ne $MsGraphToken)
             }
         }
-        if (!$script:ConnectState.MsGraphToken -or ($script:ConnectState.MsGraphToken.AccessToken -ne $MsGraphToken.AccessToken) -or !$script:ConnectState.AadGraphToken -or ($script:ConnectState.AadGraphToken.AccessToken -ne $AadGraphToken.AccessToken)) {
+        if (!$script:ConnectState.MsGraphToken -or ($script:ConnectState.MsGraphToken.AccessToken -ne $MsGraphToken.AccessToken)) {
             Write-Verbose 'Connecting Modules...'
             #$JwtPayload = Expand-JsonWebTokenPayload $AadGraphToken.AccessToken
             #Connect-MgGraph -Environment $CloudEnvironment -TenantId $MsGraphToken.TenantId -AccessToken $MsGraphToken.AccessToken | Out-Null
@@ -102,7 +109,7 @@ function Confirm-ModuleAuthentication {
         }
     }
     $script:ConnectState.MsGraphToken = $MsGraphToken
-    $script:ConnectState.AadGraphToken = $AadGraphToken
+    #$script:ConnectState.AadGraphToken = $AadGraphToken
 
     if ($MsGraphSession) {
         Write-Output $script:MsGraphSession
