@@ -50,6 +50,7 @@ Invoke-AADAssessmentHybridDataCollection "C:\Temp"
 
 Data collection is complete so provide the output packages to whoever is completing the assessment.
 
+## Complete Assessment Reports
 As the assessor, run the following command using the output package from data collection to complete generation of the assessment reports.
 ```PowerShell
 ## Output Assessment Reports to "C:\AzureADAssessment".
