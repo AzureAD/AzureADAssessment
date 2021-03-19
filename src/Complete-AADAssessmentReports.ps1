@@ -45,22 +45,32 @@ function Complete-AADAssessmentReports {
         ## Load Data
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Complete Reports - {0}' -f $AssessmentDetail.AssessmentTenantDomain) -Status 'Load Data' -PercentComplete 10
         $OutputDirectoryAAD = Join-Path $OutputDirectoryData 'AAD-*' -Resolve -ErrorAction Stop
-        [array] $OrganizationData = Get-Content (Join-Path $OutputDirectoryAAD "OrganizationData.json") -Raw | ConvertFrom-Json
-        [array] $DirectoryRoleData = Get-Content (Join-Path $OutputDirectoryAAD "DirectoryRoleData.json") -Raw | ConvertFrom-Json
-        [array] $ApplicationData = Get-Content (Join-Path $OutputDirectoryAAD "ApplicationData.json") -Raw | ConvertFrom-Json
-        [array] $ServicePrincipalData = Get-Content (Join-Path $OutputDirectoryAAD "ServicePrincipalData.json") -Raw | ConvertFrom-Json
-        [array] $AppRoleAssignmentData = Get-Content (Join-Path $OutputDirectoryAAD "AppRoleAssignmentData.json") -Raw | ConvertFrom-Json
-        [array] $OAuth2PermissionGrantData = Get-Content (Join-Path $OutputDirectoryAAD "OAuth2PermissionGrantData.json") -Raw | ConvertFrom-Json
-        [array] $UserData = Get-Content (Join-Path $OutputDirectoryAAD "UserData.json") -Raw | ConvertFrom-Json
-        [array] $GroupData = Get-Content (Join-Path $OutputDirectoryAAD "GroupData.json") -Raw | ConvertFrom-Json
-        Remove-Item -Path (Join-Path $OutputDirectoryAAD "*") -Include "OrganizationData.json", "DirectoryRoleData.json", "ApplicationData.json", "ServicePrincipalData.json", "AppRoleAssignmentData.json", "OAuth2PermissionGrantData.json", "UserData.json", "GroupData.json"
+        # [array] $OrganizationData = Get-Content (Join-Path $OutputDirectoryAAD "OrganizationData.json") -Raw | ConvertFrom-Json
+        # [array] $DirectoryRoleData = Get-Content (Join-Path $OutputDirectoryAAD "DirectoryRoleData.json") -Raw | ConvertFrom-Json
+        # [array] $ApplicationData = Get-Content (Join-Path $OutputDirectoryAAD "ApplicationData.json") -Raw | ConvertFrom-Json
+        # [array] $ServicePrincipalData = Get-Content (Join-Path $OutputDirectoryAAD "ServicePrincipalData.json") -Raw | ConvertFrom-Json
+        # [array] $AppRoleAssignmentData = Get-Content (Join-Path $OutputDirectoryAAD "AppRoleAssignmentData.json") -Raw | ConvertFrom-Json
+        # [array] $OAuth2PermissionGrantData = Get-Content (Join-Path $OutputDirectoryAAD "OAuth2PermissionGrantData.json") -Raw | ConvertFrom-Json
+        # [array] $UserData = Get-Content (Join-Path $OutputDirectoryAAD "UserData.json") -Raw | ConvertFrom-Json
+        # [array] $GroupData = Get-Content (Join-Path $OutputDirectoryAAD "GroupData.json") -Raw | ConvertFrom-Json
+        #Remove-Item -Path (Join-Path $OutputDirectoryAAD "*") -Include "OrganizationData.json", "DirectoryRoleData.json", "ApplicationData.json", "ServicePrincipalData.json", "AppRoleAssignmentData.json", "OAuth2PermissionGrantData.json", "UserData.json", "GroupData.json"
+
+        #[array] $OrganizationData = Import-Clixml (Join-Path $OutputDirectoryAAD "OrganizationData.xml")
+        #[array] $DirectoryRoleData = Import-Clixml (Join-Path $OutputDirectoryAAD "DirectoryRoleData.xml")
+        #[array] $ApplicationData = Import-Clixml (Join-Path $OutputDirectoryAAD "ApplicationData.xml")
+        #[array] $ServicePrincipalData = Import-Clixml (Join-Path $OutputDirectoryAAD "ServicePrincipalData.xml")
+        #[array] $AppRoleAssignmentData = Import-Clixml (Join-Path $OutputDirectoryAAD "AppRoleAssignmentData.xml")
+        #[array] $OAuth2PermissionGrantData = Import-Clixml (Join-Path $OutputDirectoryAAD "OAuth2PermissionGrantData.xml")
+        #[array] $UserData = Import-Clixml (Join-Path $OutputDirectoryAAD "UserData.xml")
+        #[array] $GroupData = Import-Clixml (Join-Path $OutputDirectoryAAD "GroupData.xml")
+        #Remove-Item -Path (Join-Path $OutputDirectoryAAD "*") -Include "OrganizationData.xml", "DirectoryRoleData.xml", "ApplicationData.xml", "ServicePrincipalData.xml", "AppRoleAssignmentData.xml", "OAuth2PermissionGrantData.xml", "UserData.xml", "GroupData.xml"
 
         ## Generate Reports
-        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Complete Reports - {0}' -f $AssessmentDetail.AssessmentTenantDomain) -Status 'Complete Reports' -PercentComplete 30
-        Get-AADAssessNotificationEmailsReport -OrganizationData $OrganizationData -UserData $UserData -GroupData $GroupData -DirectoryRoleData $DirectoryRoleData | Export-Csv -Path (Join-Path $OutputDirectoryAAD "NotificationsEmailsReport.csv") -NoTypeInformation
-        Get-AADAssessAppAssignmentReport -ServicePrincipalData $ServicePrincipalData -AppRoleAssignmentData $AppRoleAssignmentData | Export-Csv -Path (Join-Path $OutputDirectoryAAD "AppAssignmentsReport.csv") -NoTypeInformation
-        Get-AADAssessApplicationKeyExpirationReport -ApplicationData $ApplicationData -ServicePrincipalData $ServicePrincipalData | Export-Csv -Path (Join-Path $OutputDirectoryAAD "AppCredentialsReport.csv") -NoTypeInformation
-        Get-AADAssessConsentGrantReport -UserData $UserData -ServicePrincipalData $ServicePrincipalData -OAuth2PermissionGrantData $OAuth2PermissionGrantData -AppRoleAssignmentData $AppRoleAssignmentData | Export-Csv -Path (Join-Path $OutputDirectoryAAD "ConsentGrantReport.csv") -NoTypeInformation
+        #Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Complete Reports - {0}' -f $AssessmentDetail.AssessmentTenantDomain) -Status 'Complete Reports' -PercentComplete 30
+        #Get-AADAssessNotificationEmailsReport -OrganizationData $OrganizationData -UserData $UserData -GroupData $GroupData -DirectoryRoleData $DirectoryRoleData | Export-Csv -Path (Join-Path $OutputDirectoryAAD "NotificationsEmailsReport.csv") -NoTypeInformation
+        #Get-AADAssessAppAssignmentReport -ServicePrincipalData $ServicePrincipalData -AppRoleAssignmentData $AppRoleAssignmentData | Export-Csv -Path (Join-Path $OutputDirectoryAAD "AppAssignmentsReport.csv") -NoTypeInformation
+        #Get-AADAssessApplicationKeyExpirationReport -ApplicationData $ApplicationData -ServicePrincipalData $ServicePrincipalData | Export-Csv -Path (Join-Path $OutputDirectoryAAD "AppCredentialsReport.csv") -NoTypeInformation
+        #Get-AADAssessConsentGrantReport -UserData $UserData -ServicePrincipalData $ServicePrincipalData -OAuth2PermissionGrantData $OAuth2PermissionGrantData -AppRoleAssignmentData $AppRoleAssignmentData | Export-Csv -Path (Join-Path $OutputDirectoryAAD "ConsentGrantReport.csv") -NoTypeInformation
 
         ## Report Complete
         Write-AppInsightsEvent 'AAD Assessment Report Generation Complete' -OverrideProperties -Properties @{

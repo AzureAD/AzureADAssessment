@@ -20,14 +20,19 @@ function Confirm-ModuleAuthentication {
         [Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
         [guid] $CorrelationId = (New-Guid),
         # Scopes for AAD Graph
-        [Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
-        [string[]] $AadGraphScopes = 'https://graph.windows.net/Directory.Read.All',
+        #[Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
+        #[string[]] $AadGraphScopes = 'https://graph.windows.net/Directory.Read.All',
         # Scopes for MS Graph
         [Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
         [string[]] $MsGraphScopes = @(
             'https://graph.microsoft.com/User.Read'
-            'https://graph.microsoft.com/Directory.Read.All'
+            'https://graph.microsoft.com/Organization.Read.All'
+            'https://graph.microsoft.com/RoleManagement.Read.Directory'
+            'https://graph.microsoft.com/Application.Read.All'
+            'https://graph.microsoft.com/User.Read.All'
+            'https://graph.microsoft.com/Group.Read.All'
             'https://graph.microsoft.com/Policy.Read.All'
+            'https://graph.microsoft.com/Directory.Read.All'
         )
     )
 
