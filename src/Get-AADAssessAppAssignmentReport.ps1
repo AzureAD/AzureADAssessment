@@ -13,26 +13,28 @@ function Get-AADAssessAppAssignmentReport {
     param (
         # Service Principal Data
         [Parameter(Mandatory = $false)]
-        [object] $ServicePrincipalData,
+        [object] $ServicePrincipalData
         # App Role Assignment Data
-        [Parameter(Mandatory = $false)]
-        [object] $AppRoleAssignmentData
+        #[Parameter(Mandatory = $false)]
+        #[object] $AppRoleAssignmentData
     )
 
     Start-AppInsightsRequest $MyInvocation.MyCommand.Name
     try {
 
-        ## Load Data
-        if (!$AppRoleAssignmentData -and !$ServicePrincipalData) {
-            $ServicePrincipalData = Get-MsGraphResults 'serviceprincipals' -Select 'id' -Top 999
-        }
-
-        ## Get App Role Assignments
-        if (!$AppRoleAssignmentData) {
-            Get-MsGraphResults 'serviceprincipals/{0}/appRoleAssignedTo' -UniqueId $ServicePrincipalData.id -Top 999 -OutVariable AppRoleAssignmentData
+        ## Get Application Assignments
+        if ($ServicePrincipalData) {
+            if ($ServicePrincipalData -is [System.Collections.Generic.Dictionary[guid, pscustomobject]]) {
+                $ServicePrincipalData.Values | Select-Object -ExpandProperty appRoleAssignedTo
+            }
+            else {
+                $ServicePrincipalData | Select-Object -ExpandProperty appRoleAssignedTo
+            }
         }
         else {
-            $AppRoleAssignmentData
+            Write-Verbose "Getting serviceprincipals..."
+            Get-MsGraphResults 'serviceprincipals?$select=id,displayName,appOwnerOrganizationId,appRoles&$expand=appRoleAssignedTo' -Top 999 `
+            | Select-Object -ExpandProperty appRoleAssignedTo
         }
 
     }

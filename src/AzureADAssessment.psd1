@@ -27,7 +27,7 @@ Author = 'Microsoft Identity'
 CompanyName = 'Microsoft Corporation'
 
 # Copyright statement for this module
-Copyright = '© Microsoft Corporation. All rights reserved.'
+Copyright = '(c) 2021 Microsoft Corporation. All rights reserved.'
 
 # Description of the functionality provided by this module
 Description = 'This module analyzes your Azure Active Directory configuration and provides best practice recommendations.'
@@ -71,6 +71,7 @@ RequiredModules = @(
 
 # Modules to import as nested modules of the module specified in RootModule/ModuleToProcess
 NestedModules = @(
+    '.\internal\Add-AadObjectToLookupCache.ps1'
     '.\internal\Assert-DirectoryExists.ps1'
     '.\internal\Complete-AppInsightsRequest.ps1'
     '.\internal\Confirm-ModuleAuthentication.ps1'
@@ -82,9 +83,11 @@ NestedModules = @(
     '.\internal\Export-EventLog.ps1'
     '.\internal\Get-AADAssessmentSingleReport.ps1'
     '.\internal\Get-MsGraphResults.ps1'
+    '.\internal\Get-AadObjectById.ps1'
     '.\internal\Get-ObjectPropertyValue.ps1'
     '.\internal\Import-Config.ps1'
     '.\internal\New-AppInsightsTelemetry.ps1'
+    '.\internal\New-LookupCache.ps1'
     '.\internal\Remove-Diacritics.ps1'
     '.\internal\Remove-InvalidFileNameCharacters.ps1'
     '.\internal\Set-Config.ps1'
@@ -102,7 +105,7 @@ NestedModules = @(
     '.\Export-AADAssessmentPortableModule.ps1'
     '.\Export-AADAssessConditionalAccessData.ps1'
     '.\Get-AADAssessAppAssignmentReport.ps1'
-    '.\Get-AADAssessApplicationKeyExpirationReport.ps1'
+    '.\Get-AADAssessAppCredentialExpirationReport.ps1'
     '.\Get-AADAssessConsentGrantReport.ps1'
     '.\Get-AADAssessNotificationEmailsReport.ps1'
     '.\Invoke-AADAssessmentDataCollection.ps1'
@@ -115,7 +118,7 @@ FunctionsToExport = @(
     'Expand-AADAssessAADConnectConfig'
     'Export-AADAssessmentPortableModule'
     'Get-AADAssessAppAssignmentReport'
-    'Get-AADAssessApplicationKeyExpirationReport'
+    'Get-AADAssessAppCredentialExpirationReport'
     'Export-AADAssessConditionalAccessData'
     'Get-AADAssessConsentGrantReport'
     'Get-AADAssessNotificationEmailsReport'

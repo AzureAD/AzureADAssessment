@@ -49,7 +49,14 @@ function Confirm-ModuleAuthentication {
     [hashtable] $paramMsalToken = @{
         #CorrelationId = $CorrelationId
     }
-    if (!$User -and !(Get-MsalAccount $ClientApplication)) { $paramMsalToken.Add('Interactive',$true) }
+    if (!$User -and !(Get-MsalAccount $ClientApplication)) {
+        if ($PSVersionTable.PSEdition -eq 'Core') {
+            $paramMsalToken.Add('DeviceCode', $true)
+        }
+        else {
+            $paramMsalToken.Add('Interactive', $true)
+        }
+    }
 
     ## Get Tokens
     $MsGraphToken = $null

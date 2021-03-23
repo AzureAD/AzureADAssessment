@@ -46,29 +46,53 @@ function Get-AADAssessNotificationEmailsReport {
                     recipientDisplayName       = $null
                 }
 
-                if (!$PSBoundParameters.ContainsKey('UserData')) {
+                if ($UserData) {
+                    if ($UserData -is [System.Collections.Generic.Dictionary[guid, pscustomobject]]) {
+                        $user = $UserData.Values | Where-Object { $_.proxyAddresses -Contains "smtp:$technicalNotificationMail" -or $_.otherMails -Contains $technicalNotificationMail } | Select-Object -First 1
+                    }
+                    else {
+                        $user = $UserData | Where-Object { $_.proxyAddresses -Contains "smtp:$technicalNotificationMail" -or $_.otherMails -Contains $technicalNotificationMail } | Select-Object -First 1
+                    }
+                }
+                else {
                     $user = Get-MsGraphResults 'users?$select=id,userPrincipalName,displayName,mail,otherMails,proxyAddresses' -Filter "proxyAddresses/any(c:c eq 'smtp:$technicalNotificationMail') or otherMails/any(c:c eq '$technicalNotificationMail')" | Select-Object -First 1
                 }
-                else {
-                    $user = $UserData | Where-Object { $_.proxyAddresses -Contains "smtp:$technicalNotificationMail" -or $_.otherMails -Contains $technicalNotificationMail } | Select-Object -First 1
-                }
+
+                # if (!$PSBoundParameters.ContainsKey('UserData')) {
+                #     $user = Get-MsGraphResults 'users?$select=id,userPrincipalName,displayName,mail,otherMails,proxyAddresses' -Filter "proxyAddresses/any(c:c eq 'smtp:$technicalNotificationMail') or otherMails/any(c:c eq '$technicalNotificationMail')" | Select-Object -First 1
+                # }
+                # else {
+                #     $user = $UserData | Where-Object { $_.proxyAddresses -Contains "smtp:$technicalNotificationMail" -or $_.otherMails -Contains $technicalNotificationMail } | Select-Object -First 1
+                # }
                 if ($user) {
                     $result.recipientType = 'user'
-                    $result.recipientId = $user[0].id
-                    $result.recipientUserPrincipalName = $user[0].userPrincipalName
-                    $result.recipientDisplayName = $user[0].displayName
-                    $result.recipientEmailAlternate = $user[0].otherMails -join ';'
+                    $result.recipientId = $user.id
+                    $result.recipientUserPrincipalName = $user.userPrincipalName
+                    $result.recipientDisplayName = $user.displayName
+                    $result.recipientEmailAlternate = $user.otherMails -join ';'
                 }
-                if (!$PSBoundParameters.ContainsKey('GroupData')) {
-                    $group = Get-MsGraphResults 'groups?$select=id,displayName,mail,proxyAddresses' -Filter "proxyAddresses/any(c:c eq 'smtp:$technicalNotificationMail')" | Select-Object -First 1
+
+                if ($GroupData) {
+                    if ($GroupData -is [System.Collections.Generic.Dictionary[guid, pscustomobject]]) {
+                        $group = $GroupData.Values | Where-Object { $_.proxyAddresses -Contains "smtp:$technicalNotificationMail" } | Select-Object -First 1
+                    }
+                    else {
+                        $group = $GroupData | Where-Object { $_.proxyAddresses -Contains "smtp:$technicalNotificationMail" } | Select-Object -First 1
+                    }
                 }
                 else {
-                    $group = $GroupData | Where-Object { $_.proxyAddresses -Contains "smtp:$technicalNotificationMail" } | Select-Object -First 1
+                    $group = Get-MsGraphResults 'groups?$select=id,displayName,mail,proxyAddresses' -Filter "proxyAddresses/any(c:c eq 'smtp:$technicalNotificationMail')" | Select-Object -First 1
                 }
+                # if (!$PSBoundParameters.ContainsKey('GroupData')) {
+                #     $group = Get-MsGraphResults 'groups?$select=id,displayName,mail,proxyAddresses' -Filter "proxyAddresses/any(c:c eq 'smtp:$technicalNotificationMail')" | Select-Object -First 1
+                # }
+                # else {
+                #     $group = $GroupData | Where-Object { $_.proxyAddresses -Contains "smtp:$technicalNotificationMail" } | Select-Object -First 1
+                # }
                 if ($group) {
                     $result.recipientType = 'group'
-                    $result.recipientId = $group[0].id
-                    $result.recipientDisplayName = $group[0].displayName
+                    $result.recipientId = $group.id
+                    $result.recipientDisplayName = $group.displayName
                 }
 
                 Write-Output $result

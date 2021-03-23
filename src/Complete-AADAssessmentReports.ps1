@@ -63,13 +63,13 @@ function Complete-AADAssessmentReports {
         #[array] $OAuth2PermissionGrantData = Import-Clixml (Join-Path $OutputDirectoryAAD "OAuth2PermissionGrantData.xml")
         #[array] $UserData = Import-Clixml (Join-Path $OutputDirectoryAAD "UserData.xml")
         #[array] $GroupData = Import-Clixml (Join-Path $OutputDirectoryAAD "GroupData.xml")
-        #Remove-Item -Path (Join-Path $OutputDirectoryAAD "*") -Include "OrganizationData.xml", "DirectoryRoleData.xml", "ApplicationData.xml", "ServicePrincipalData.xml", "AppRoleAssignmentData.xml", "OAuth2PermissionGrantData.xml", "UserData.xml", "GroupData.xml"
+        Remove-Item -Path (Join-Path $OutputDirectoryAAD "*") -Include "OrganizationData.xml", "DirectoryRoleData.xml", "ApplicationData.xml", "ServicePrincipalData.xml", "AppRoleAssignmentData.xml", "OAuth2PermissionGrantData.xml", "UserData.xml", "GroupData.xml" -ErrorAction Ignore
 
         ## Generate Reports
         #Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Complete Reports - {0}' -f $AssessmentDetail.AssessmentTenantDomain) -Status 'Complete Reports' -PercentComplete 30
         #Get-AADAssessNotificationEmailsReport -OrganizationData $OrganizationData -UserData $UserData -GroupData $GroupData -DirectoryRoleData $DirectoryRoleData | Export-Csv -Path (Join-Path $OutputDirectoryAAD "NotificationsEmailsReport.csv") -NoTypeInformation
         #Get-AADAssessAppAssignmentReport -ServicePrincipalData $ServicePrincipalData -AppRoleAssignmentData $AppRoleAssignmentData | Export-Csv -Path (Join-Path $OutputDirectoryAAD "AppAssignmentsReport.csv") -NoTypeInformation
-        #Get-AADAssessApplicationKeyExpirationReport -ApplicationData $ApplicationData -ServicePrincipalData $ServicePrincipalData | Export-Csv -Path (Join-Path $OutputDirectoryAAD "AppCredentialsReport.csv") -NoTypeInformation
+        #Get-AADAssessAppCredentialExpirationReport -ApplicationData $ApplicationData -ServicePrincipalData $ServicePrincipalData | Export-Csv -Path (Join-Path $OutputDirectoryAAD "AppCredentialsReport.csv") -NoTypeInformation
         #Get-AADAssessConsentGrantReport -UserData $UserData -ServicePrincipalData $ServicePrincipalData -OAuth2PermissionGrantData $OAuth2PermissionGrantData -AppRoleAssignmentData $AppRoleAssignmentData | Export-Csv -Path (Join-Path $OutputDirectoryAAD "ConsentGrantReport.csv") -NoTypeInformation
 
         ## Report Complete
