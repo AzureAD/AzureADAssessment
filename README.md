@@ -4,9 +4,9 @@
 
 ## Install from the PowerShell Gallery
 ```PowerShell
-Install-Module AzureADAssessment -Force -AcceptLicense
+Install-Module AzureADAssessmentPreview -Force -AcceptLicense
 ## If you have already installed the module, run the following instead to ensure you have the latest version.
-Update-Module AzureADAssessment -Force
+Update-Module AzureADAssessmentPreview -Force
 ```
 
 If you encounter the error, `WARNING: The specified module 'MSAL.PS' with PowerShellGetFormatVersion '2.0' is not supported by the current version of PowerShellGet. Get the latest version of the PowerShellGet module to install this module, 'MSAL.PS'` then run the following commands to proceed with the installation.
