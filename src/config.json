@@ -1,0 +1,9 @@
+{
+    "aad.clientId": "65df9042-2439-4b70-94ac-6cc892f61d85",
+    "ai.disabled": false,
+    "ai.instrumentationKey": "9ef9a343-9c69-4468-a1a0-e1786a6d9f89",
+    "ai.ingestionEndpoint": "https://dc.services.visualstudio.com/v2/track",
+    "pbi.assessmentTemplateUri": "https://github.com/AzureAD/AzureADAssessment/raw/master/assets/AzureADAssessment.pbit",
+    "pbi.conditionalAccessTemplateUri": "https://github.com/AzureAD/AzureADAssessment/raw/master/assets/AzureADAssessment-ConditionalAccess.pbit",
+    "tool.ADFSAADMigrationUtilsUri": "https://github.com/AzureAD/Deployment-Plans/raw/master/ADFS%20to%20AzureAD%20App%20Migration/ADFSAADMigrationUtils.psm1"
+}

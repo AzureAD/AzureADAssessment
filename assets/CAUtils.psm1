@@ -2,7 +2,7 @@
 $global:MSGraphAppName = "Azure Active Directory Configuration Assessment"
 $global:authHeader = $null
 
-Function New-MSCloudIdGraphApp
+function New-MSCloudIdGraphApp
 {
     $msGraphAppId="00000003-0000-0000-c000-000000000000"
     $msGraphApp = Get-AzureADServicePrincipal -Filter "appId eq '$msGraphAppId'"          
@@ -26,13 +26,13 @@ Function New-MSCloudIdGraphApp
 
 
 
-Function Get-MSCloudIdGraphApp
+function Get-MSCloudIdGraphApp
 {
     $app = Get-AzureADApplication -Filter "DisplayName eq '$global:MSGraphAppName'"
     Write-Output $app
 }
 
-Function Remove-MSCloudIdGraphApp
+function Remove-MSCloudIdGraphApp
 {
     Get-AzureADApplication -Filter "DisplayName eq '$global:MSGraphAppName'" | Remove-AzureADApplication
 }
