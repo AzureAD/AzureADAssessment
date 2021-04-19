@@ -21,14 +21,25 @@ Import-Module AzureADAssessment
 ```
 
 ## Run the Data Collection
+Data collection from Azure AD can be run from any client with access to Azure AD. However, data collection from hybrid components such as AD FS, AAD Connect, etc. are best run locally on those servers.
+
+Verify that you have authorized credentials to access these workloads:
+* Azure Active Directory as Global Administrator or Global Reader
+* Domain or local administrator access to ADFS Servers
+* Domain or local administrator access to Azure AD Proxy Connector Servers
+* Domain or local administrator access to Azure AD Connect Server (Primary)
+* Domain or local administrator access to Azure AD Connect Server (Staging Server)
+
 Run following commands to produce a package of all the Azure AD data necessary to complete the assessment.
 ```PowerShell
 ## Authenticate using a Global Admin or Global Reader account.
 Connect-AADAssessment
 
-## Export data to "C:\AzureADAssessment" and package into a single file.
+## Export data to "C:\AzureADAssessment" into a single output package.
 Invoke-AADAssessmentDataCollection
 ```
+
+The output package will be named according to the following pattern: `AzureADAssessmentData-<TenantDomain>.zip`
 
 To collect data from hybrid components (such as AAD Connect, AD FS, AAD App Proxy), you can export a portable version of this module that can be easily copied to servers with no internet connectivity.
 ```PowerShell
@@ -41,7 +52,7 @@ On each server running hybrid components, copy the module file "AzureADAssessmen
 ## Import the module on each server running hybrid components.
 Import-Module "C:\AzureADAssessment\AzureADAssessmentPortable.psm1"
 
-## Export Data to "C:\AzureADAssessment".
+## Export Data to "C:\AzureADAssessment" into a single output package.
 Invoke-AADAssessmentHybridDataCollection
 ```
 
