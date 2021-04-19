@@ -66,7 +66,7 @@ function Complete-AADAssessmentReports {
 
         ## Generate Reports
         [array] $DataFiles = Get-Item -Path (Join-Path $OutputDirectoryAAD "*") -Include "*Data.xml"
-        if ($DataFiles.Count -eq 7) {
+        if ($DataFiles -and $DataFiles.Count -eq 7) {
             Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Complete Reports - {0}' -f $AssessmentDetail.AssessmentTenantDomain) -Status 'Output Report Data' -PercentComplete 20
             Export-AADAssessmentReportData -SourceDirectory $OutputDirectoryAAD -OutputDirectory $OutputDirectoryAAD
 
@@ -105,7 +105,7 @@ function Complete-AADAssessmentReports {
             $PowerBIWorkingDirectory = Join-Path "C:\AzureADAssessment" "PowerBI"
             Assert-DirectoryExists $PowerBIWorkingDirectory
             Copy-Item -Path (Join-Path $OutputDirectoryAAD '*') -Destination $PowerBIWorkingDirectory -Force
-            Copy-Item -LiteralPath $PBITemplatePowerShellPath, $PBITemplateConditionalAccessPath -Destination $PowerBIWorkingDirectory -Force
+            Copy-Item -LiteralPath $PBITemplateAssessmentPath, $PBITemplateConditionalAccessPath -Destination $PowerBIWorkingDirectory -Force
             #Invoke-Item $PowerBIWorkingDirectory
         }
 
