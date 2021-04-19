@@ -3,7 +3,7 @@ function Add-AadObjectToLookupCache {
     param (
         #
         [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
-        [object] $InputObject,
+        [psobject] $InputObject,
         #
         [Parameter(Mandatory = $true)]
         [Alias('Type')]
@@ -11,14 +11,17 @@ function Add-AadObjectToLookupCache {
         [string] $ObjectType,
         #
         [Parameter(Mandatory = $true)]
-        [object] $LookupCache,
+        [psobject] $LookupCache,
         #
         [Parameter(Mandatory = $false)]
         [switch] $PassThru
     )
 
     process {
-        if (!$LookupCache.$ObjectType.ContainsKey($InputObject.id)) { $LookupCache.$ObjectType.Add($InputObject.id, $InputObject) }
+        if (!$LookupCache.$ObjectType.ContainsKey($InputObject.id)) {
+            #if ($ObjectType -eq 'servicePrincipal') { $LookupCache.servicePrincipalAppId.Add($InputObject.appId, $InputObject) }
+            $LookupCache.$ObjectType.Add($InputObject.id, $InputObject)
+        }
         if ($PassThru) { return $InputObject }
     }
 }

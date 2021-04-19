@@ -9,7 +9,7 @@
 #>
 function Import-Config {
     [CmdletBinding()]
-    [OutputType([object])]
+    [OutputType([psobject])]
     param (
         # Configuration File Path
         [Parameter(Mandatory = $false)]

@@ -1,13 +1,14 @@
 <#
- .Synopsis
-  Produces the Azure AD Configuration reports required by the Azure AD assesment
- .Description
-  This cmdlet reads the configuration information from the target Azure AD Tenant and produces the output files
-  in a target directory
-
+.SYNOPSIS
+    Produces the Azure AD Configuration reports required by the Azure AD assesment
+.DESCRIPTION
+    This cmdlet reads the configuration information from the target Azure AD Tenant and produces the output files in a target directory
 .EXAMPLE
-   .\Invoke-AADAssessmentDataCollection -OutputDirectory "C:\Temp"
-
+    PS C:\> Invoke-AADAssessmentDataCollection
+    Collect and package assessment data to "C:\AzureADAssessment".
+.EXAMPLE
+    PS C:\> Invoke-AADAssessmentDataCollection -OutputDirectory "C:\Temp"
+    Collect and package assessment data to "C:\Temp".
 #>
 function Invoke-AADAssessmentDataCollection {
     [CmdletBinding()]
@@ -17,65 +18,44 @@ function Invoke-AADAssessmentDataCollection {
         [string] $OutputDirectory = (Join-Path $env:SystemDrive 'AzureADAssessment'),
         # Generate Reports
         [Parameter(Mandatory = $false)]
-        [switch] $SkipReportOutput
+        [switch] $SkipReportOutput,
+        # Skip Packaging
+        [Parameter(Mandatory = $false)]
+        [switch] $SkipPackaging
     )
 
     Start-AppInsightsRequest $MyInvocation.MyCommand.Name
     try {
 
-        $LookupCache = New-LookupCache
+        $ReferencedIdCache = New-AadReferencedIdCache
+        #$ReferencedIdCacheCA = New-AadReferencedIdCache
 
-        $referencedIds = [PSCustomObject]@{
-            user             = New-Object 'System.Collections.Generic.HashSet[guid]'
-            group            = New-Object 'System.Collections.Generic.HashSet[guid]'
-            servicePrincipal = New-Object 'System.Collections.Generic.HashSet[guid]'
-        }
-
-        function Add-ReferencesToHash {
+        function Extract-AppRoleAssignments {
             param (
                 #
                 [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
-                [object] $InputObject,
+                [psobject] $InputObject,
                 #
                 [Parameter(Mandatory = $true)]
-                [Alias('Type')]
-                [ValidateSet('directoryRoles', 'servicePrincipal', 'oauth2PermissionGrants')]
-                [string] $ObjectType,
+                [psobject] $ListVariable,
                 #
                 [Parameter(Mandatory = $false)]
                 [switch] $PassThru
             )
 
             process {
-                switch ($ObjectType) {
-                    directoryRoles {
-                        foreach ($member in $InputObject.members) {
-                            $MemberType = $member.'@odata.type' -replace '#microsoft.graph.', ''
-                            [void] $referencedIds.$MemberType.Add($member.id)
-                        }
-                        break
-                    }
-                    servicePrincipal {
-                        foreach ($appRoleAssignment in $InputObject.appRoleAssignedTo) {
-                            [void] $referencedIds.servicePrincipal.Add($appRoleAssignment.resourceId)
-                            [void] $referencedIds.$($appRoleAssignment.principalType).Add($appRoleAssignment.principalId)
-                        }
-                        break
-                    }
-                    oauth2PermissionGrants {
-                        [void] $referencedIds.servicePrincipal.Add($InputObject.clientId)
-                        [void] $referencedIds.servicePrincipal.Add($InputObject.resourceId)
-                        if ($InputObject.principalId) { [void] $referencedIds.user.Add($InputObject.principalId) }
-                        break
-                    }
-                }
+                [PSCustomObject[]] $AppRoleAssignment = $InputObject.appRoleAssignedTo
+                $ListVariable.AddRange($AppRoleAssignment)
                 if ($PassThru) { return $InputObject }
             }
         }
 
-        New-Variable -Name stackProgressId -Scope Script -Value (New-Object System.Collections.Generic.Stack[int]) -ErrorAction SilentlyContinue
-        $stackProgressId.Clear()
-        $stackProgressId.Push(0)
+        if ($MyInvocation.CommandOrigin -eq 'Runspace') {
+            ## Reset Parent Progress Bar
+            New-Variable -Name stackProgressId -Scope Script -Value (New-Object 'System.Collections.Generic.Stack[int]') -ErrorAction SilentlyContinue
+            $stackProgressId.Clear()
+            $stackProgressId.Push(0)
+        }
 
         ### Initalize Directory Paths
         #$OutputDirectory = Join-Path $OutputDirectory "AzureADAssessment"
@@ -91,8 +71,8 @@ function Invoke-AADAssessmentDataCollection {
         $OutputDirectoryAAD = Join-Path $OutputDirectoryData "AAD-$InitialTenantDomain"
         Assert-DirectoryExists $OutputDirectoryAAD
 
-        #Export-Clixml -InputObject $OrganizationData -Depth 10 -Path (Join-Path $OutputDirectoryAAD "OrganizationData.xml")
-        ConvertTo-Json -InputObject $OrganizationData -Depth 10 | Set-Content (Join-Path $OutputDirectoryAAD "OrganizationData.json")
+        #Export-Clixml -InputObject $OrganizationData -Depth 10 -Path (Join-Path $OutputDirectoryAAD "organizationData.xml")
+        ConvertTo-Json -InputObject $OrganizationData -Depth 10 | Set-Content (Join-Path $OutputDirectoryAAD "organization.json")
 
         ### Generate Assessment Data
         Assert-DirectoryExists $OutputDirectoryData
@@ -103,102 +83,100 @@ function Invoke-AADAssessmentDataCollection {
             AssessmentTenantDomain = $InitialTenantDomain
         } | Set-Content $AssessmentDetailPath
 
+        ### Policy Data
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Policy' -PercentComplete 5
+        #Get-MsGraphResults "identity/conditionalAccess/policies" -ErrorAction Stop `
+        Get-MsGraphResults "identity/conditionalAccess/policies" `
+        | Add-AadReferencesToCache -Type conditionalAccessPolicy -ReferencedIdCache $ReferencedIdCache -PassThru `
+        | Export-JsonArray (Join-Path $OutputDirectoryAAD "conditionalAccessPolicies.json") -Depth 5 -Compress
+
+        Get-MsGraphResults "identity/conditionalAccess/namedLocations" `
+        | Export-JsonArray (Join-Path $OutputDirectoryAAD "namedLocations.json") -Depth 5 -Compress
+
         ### Directory Role Data
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Directory Roles' -PercentComplete 10
-        #[array] $DirectoryRoleData = Get-MsGraphResults 'directoryRoles?$select=id,displayName&$expand=members' | Where-Object members -NE $null
         Get-MsGraphResults 'directoryRoles?$select=id,displayName&$expand=members' `
-        | Where-Object members -NE $null `
-        | Add-ReferencesToHash -Type directoryRoles -PassThru `
-        | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "DirectoryRoleData.xml")
-        #| ConvertTo-Json -Depth 10 -Compress | Set-Content (Join-Path $OutputDirectoryAAD "DirectoryRoleData.json")
+        | Where-Object { $_.members.Count } `
+        | Add-AadReferencesToCache -Type directoryRoles -ReferencedIdCache $ReferencedIdCache -PassThru `
+        | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "directoryRoleData.xml")
 
         ### Application Data
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Applications' -PercentComplete 20
-        #[array] $ApplicationData = Get-MsGraphResults 'applications?$select=id,appId,displayName,appRoles,keyCredentials,passwordCredentials' -Top 999 | Where-Object { $_.passwordCredentials -ne $null -or $_.keyCredentials -ne $null }
         Get-MsGraphResults 'applications?$select=id,appId,displayName,appRoles,keyCredentials,passwordCredentials' -Top 999 `
-        | Where-Object { $_.passwordCredentials -ne $null -or $_.keyCredentials -ne $null } `
-        | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "ApplicationData.xml")
-        #| ConvertTo-Json -Depth 10 -Compress | Set-Content (Join-Path $OutputDirectoryAAD "ApplicationData.json")
+        | Where-Object { $_.keyCredentials.Count -or $_.passwordCredentials.Count -or $ReferencedIdCache.appId.Contains($_.appId) } `
+        | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "applicationData.xml")
 
         ### Service Principal Data
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Service Principals' -PercentComplete 30
-        #[array] $ServicePrincipalData = Get-MsGraphResults 'serviceprincipals?$select=id,servicePrincipalType,appId,displayName,accountEnabled,appOwnerOrganizationId,appRoles,oauth2PermissionScopes,keyCredentials,passwordCredentials' -Top 999
-        Get-MsGraphResults 'serviceprincipals?$select=id,servicePrincipalType,appId,displayName,accountEnabled,appOwnerOrganizationId,appRoles,oauth2PermissionScopes,keyCredentials,passwordCredentials&$expand=appRoleAssignedTo' -Top 999 -OutVariable ServicePrincipalData `
-        | Add-ReferencesToHash -Type servicePrincipal -PassThru `
-        | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "ServicePrincipalData.xml")
-        #| ConvertTo-Json -Depth 10 -Compress | Set-Content (Join-Path $OutputDirectoryAAD "ServicePrincipalData.json")
-
-        #Import-Clixml -Path (Join-Path $OutputDirectoryAAD "ServicePrincipalData.xml") -OutVariable ServicePrincipalData `
-        #| Add-ReferencesToHash -Type servicePrincipal `
+        #$servicePrincipalIds = New-Object 'System.Collections.Generic.HashSet[guid]'
+        $listAppRoleAssignments = New-Object 'System.Collections.Generic.List[psobject]'
+        Get-MsGraphResults 'servicePrincipals?$select=id,appId,servicePrincipalType,displayName,accountEnabled,appOwnerOrganizationId,appRoles,oauth2PermissionScopes,keyCredentials,passwordCredentials&$expand=appRoleAssignedTo' -Top 999 `
+        | Extract-AppRoleAssignments -ListVariable $listAppRoleAssignments -PassThru `
+        | Select-Object -Property "*" -ExcludeProperty 'appRoleAssignedTo', 'appRoleAssignedTo@odata.context' `
+        | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "servicePrincipalData.xml")
+        #| ForEach-Object { [void]$servicePrincipalIds.Add($_.id); $_ } `
+        # Import-Clixml -Path (Join-Path $OutputDirectoryAAD "servicePrincipalData.xml") `
+        # | ForEach-Object { [void]$servicePrincipalIds.Add($_.id) }
 
         ### App Role Assignments Data
-        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'App Role Assignments' -PercentComplete 40
-        #[array] $AppRoleAssignmentData = Get-MsGraphResults 'serviceprincipals/{0}/appRoleAssignedTo?$select=id,appRoleId,createdDateTime,principalId,principalType,principalDisplayName,resourceId,resourceDisplayName' -UniqueId $ServicePrincipalData.id -Top 999
-        #$ServicePrincipalData.appRoleAssignedTo `
-        #| Export-Clixml -Path (Join-Path $OutputDirectoryAAD "AppRoleAssignmentData.xml")
-        #| ConvertTo-Json -Depth 10 -Compress | Set-Content (Join-Path $OutputDirectoryAAD "AppRoleAssignmentData.json")
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'App Role Assignments' -PercentComplete 35
+        $listAppRoleAssignments `
+        | Add-AadReferencesToCache -Type appRoleAssignment -ReferencedIdCache $ReferencedIdCache -PassThru `
+        | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "appRoleAssignmentData.xml")
+        Remove-Variable listAppRoleAssignments
+        # Import-Clixml -Path (Join-Path $OutputDirectoryAAD "appRoleAssignmentData.xml") `
+        # | Add-AadReferencesToCache -Type appRoleAssignment -ReferencedIdCache $ReferencedIdCache
 
         ### OAuth2 Permission Grants Data
-        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'OAuth2 Permission Grants' -PercentComplete 50
-        ## https://graph.microsoft.com/v1.0/oauth2PermissionGrants cannot be used for large tenants because it eventually fails with "Service is temorarily unavailable."
-        #[array] $OAuth2PermissionGrantData = Get-MsGraphResults 'oauth2PermissionGrants' -Top 999
-        #[array] $OAuth2PermissionGrantData = Get-MsGraphResults 'serviceprincipals/{0}/oauth2PermissionGrants' -UniqueId $ServicePrincipalData.id -Top 999
-        Get-MsGraphResults 'serviceprincipals/{0}/oauth2PermissionGrants' -UniqueId $ServicePrincipalData.id -Top 999 `
-        | Add-ReferencesToHash -Type oauth2PermissionGrants -PassThru `
-        | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "OAuth2PermissionGrantData.xml")
-        #| ConvertTo-Json -Depth 10 -Compress | Set-Content (Join-Path $OutputDirectoryAAD "OAuth2PermissionGrantData.json")
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'OAuth2 Permission Grants' -PercentComplete 40
+        #$servicePrincipalIds | Get-MsGraphResults 'serviceprincipals/{0}/oauth2PermissionGrants' -Top 999 -TotalRequests $servicePrincipalIds.Count -DisableUniqueIdDeduplication `
+        ## https://graph.microsoft.com/v1.0/oauth2PermissionGrants fails with "Service is temorarily unavailable" if too much data is returned in a single request. 600 works on microsoft.onmicrosoft.com.
+        Get-MsGraphResults 'oauth2PermissionGrants' -Top 600 `
+        | Add-AadReferencesToCache -Type oauth2PermissionGrants -ReferencedIdCache $ReferencedIdCache -PassThru `
+        | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "oauth2PermissionGrantData.xml")
+        #Remove-Variable servicePrincipalIds
 
-        #Import-Clixml -Path (Join-Path $OutputDirectoryAAD "OAuth2PermissionGrantData.xml") `
-        #| Add-ReferencesToHash -Type oauth2PermissionGrants `
-
-        ### Remove unnessessary Service Principals
-        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Filtering Service Principals' -PercentComplete 55
-        $ServicePrincipalData | Where-Object { $_.passwordCredentials -ne $null -or $_.keyCredentials -ne $null -or $referencedIds.servicePrincipal.Contains($_.id) } -OutVariable ServicePrincipalData `
-        | Add-AadObjectToLookupCache -Type servicePrincipal -LookupCache $LookupCache -PassThru `
-        | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "ServicePrincipalData.xml")
-        #| ConvertTo-Json -Depth 10 -Compress | Set-Content (Join-Path $OutputDirectoryAAD "ServicePrincipalData.json")
+        ### Filter Service Principals
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Filtering Service Principals' -PercentComplete 50
+        Remove-Item (Join-Path $OutputDirectoryAAD "servicePrincipalData-Unfiltered.xml") -ErrorAction Ignore
+        Rename-Item (Join-Path $OutputDirectoryAAD "servicePrincipalData.xml") -NewName "servicePrincipalData-Unfiltered.xml"
+        Import-Clixml -Path (Join-Path $OutputDirectoryAAD "servicePrincipalData-Unfiltered.xml") `
+        | Where-Object { $_.keyCredentials.Count -or $_.passwordCredentials.Count -or $ReferencedIdCache.servicePrincipal.Contains($_.id) -or $ReferencedIdCache.appId.Contains($_.appId) } `
+        | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "servicePrincipalData.xml")
+        Remove-Item (Join-Path $OutputDirectoryAAD "servicePrincipalData-Unfiltered.xml") -Force
+        $ReferencedIdCache.servicePrincipal.Clear()
 
         ### User Data
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Users' -PercentComplete 60
-        [array] $UserData = Get-MsGraphResults 'users?$select=id,userPrincipalName,displayName,mail,otherMails,proxyAddresses' -UniqueId $referencedIds.user -Top 999
         if ($OrganizationData) {
-            foreach ($technicalNotificationMail in $OrganizationData.technicalNotificationMails) {
-                $user = Get-MsGraphResults 'users?$select=id,userPrincipalName,displayName,mail,otherMails,proxyAddresses' -Filter "proxyAddresses/any(c:c eq 'smtp:$technicalNotificationMail') or otherMails/any(c:c eq '$technicalNotificationMail')" | Select-Object -First 1
-                if ($user -and !($UserData | Where-Object id -EQ $user.id)) { $UserData += $user }
-            }
+            $OrganizationData.technicalNotificationMails | Get-MsGraphResults 'users?$select=id' -Filter "proxyAddresses/any(c:c eq 'smtp:{0}') or otherMails/any(c:c eq '{0}')" `
+            | Foreach-Object { [void]$ReferencedIdCache.user.Add($_.id) }
         }
-        $UserData | Add-AadObjectToLookupCache -Type user -LookupCache $LookupCache -PassThru `
-        | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "UserData.xml")
-        #ConvertTo-Json -InputObject $UserData -Depth 10 -Compress | Set-Content (Join-Path $OutputDirectoryAAD "UserData.json")
+        #Get-MsGraphResults 'users?$select=id,userPrincipalName,displayName,mail,otherMails,proxyAddresses' `
+        #| Where-Object { $ReferencedIdCache.user.Contains($_.id) } `
+        $ReferencedIdCache.user | Get-MsGraphResults 'users?$select=id,userPrincipalName,userType,displayName,accountEnabled,mail,otherMails,proxyAddresses' -TotalRequests $ReferencedIdCache.user.Count -DisableUniqueIdDeduplication `
+        | Select-Object -Property "*" -ExcludeProperty '@odata.type' `
+        | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "userData.xml")
+        $ReferencedIdCache.user.Clear()
 
         ### Group Data
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Groups' -PercentComplete 70
-        [array] $GroupData = Get-MsGraphResults 'groups?$select=id,displayName,mail,proxyAddresses' -UniqueId $referencedIds.group -Top 999
         if ($OrganizationData) {
-            foreach ($technicalNotificationMail in $OrganizationData.technicalNotificationMails) {
-                $group = Get-MsGraphResults 'groups?$select=id,displayName,mail,proxyAddresses' -Filter "proxyAddresses/any(c:c eq 'smtp:$technicalNotificationMail')" | Select-Object -First 1
-                if ($group -and !($GroupData | Where-Object id -EQ $group.id)) { $GroupData += $group }
-            }
+            $OrganizationData.technicalNotificationMails | Get-MsGraphResults 'groups?$select=id' -Filter "proxyAddresses/any(c:c eq 'smtp:{0}')" `
+            | Foreach-Object { [void]$ReferencedIdCache.group.Add($_.id) }
         }
-        $GroupData | Add-AadObjectToLookupCache -Type group -LookupCache $LookupCache -PassThru `
-        | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "GroupData.xml")
-        #ConvertTo-Json -InputObject $GroupData -Depth 10 -Compress | Set-Content (Join-Path $OutputDirectoryAAD "GroupData.json")
-
-        ### Conditional Access Data
-        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Groups' -PercentComplete 80
-        Export-AADAssessConditionalAccessData -OutputDirectory $OutputDirectoryAAD
+        $ReferencedIdCache.group | Get-MsGraphResults 'groups?$select=id,groupTypes,displayName,mail,proxyAddresses' -TotalRequests $ReferencedIdCache.group.Count -DisableUniqueIdDeduplication `
+        | Select-Object -Property "*" -ExcludeProperty '@odata.type' `
+        | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "groupData.xml")
+        $ReferencedIdCache.group.Clear()
 
         ### Generate Reports
         if (!$SkipReportOutput) {
-            Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Generating Reports' -PercentComplete 90
-            $DirectoryRoleData = Import-Clixml -Path (Join-Path $OutputDirectoryAAD "DirectoryRoleData.xml")
-            Get-AADAssessNotificationEmailsReport -OrganizationData $OrganizationData -UserData $LookupCache.user -GroupData $LookupCache.group -DirectoryRoleData $DirectoryRoleData | Export-Csv -Path (Join-Path $OutputDirectoryAAD "NotificationsEmailsReport.csv") -NoTypeInformation
-            #$ServicePrincipalData = Import-Clixml -Path (Join-Path $OutputDirectoryAAD "ServicePrincipalData.xml")
-            Get-AADAssessAppAssignmentReport -ServicePrincipalData $LookupCache.servicePrincipal | Export-Csv -Path (Join-Path $OutputDirectoryAAD "AppAssignmentsReport.csv") -NoTypeInformation
-            $ApplicationData = Import-Clixml -Path (Join-Path $OutputDirectoryAAD "ApplicationData.xml")
-            Get-AADAssessAppCredentialExpirationReport -ApplicationData $ApplicationData -ServicePrincipalData $LookupCache.servicePrincipal | Export-Csv -Path (Join-Path $OutputDirectoryAAD "AppCredentialsReport.csv") -NoTypeInformation
-            $OAuth2PermissionGrantData = Import-Clixml -Path (Join-Path $OutputDirectoryAAD "OAuth2PermissionGrantData.xml")
-            Get-AADAssessConsentGrantReport -UserData $LookupCache.user -ServicePrincipalData $LookupCache.servicePrincipal -OAuth2PermissionGrantData $OAuth2PermissionGrantData | Export-Csv -Path (Join-Path $OutputDirectoryAAD "ConsentGrantReport.csv") -NoTypeInformation
+            Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Output Report Data' -PercentComplete 90
+            Export-AADAssessmentReportData -SourceDirectory $OutputDirectoryAAD -OutputDirectory $OutputDirectoryAAD
+
+            ## Remove Raw Data Output
+            Remove-Item -Path (Join-Path $OutputDirectoryAAD "*") -Include "*Data.xml" -ErrorAction Ignore
         }
 
         ### Complete
@@ -211,11 +189,13 @@ function Invoke-AADAssessmentDataCollection {
             AssessmentTenantId = $OrganizationData.id
         }
 
-        ### Package Output
-        Compress-Archive (Join-Path $OutputDirectoryData '\*') -DestinationPath $PackagePath -Force -ErrorAction Stop
+        if (!$SkipPackaging) {
+            ### Package Output
+            Compress-Archive (Join-Path $OutputDirectoryData '\*') -DestinationPath $PackagePath -Force -ErrorAction Stop
 
-        ### Clean-Up Data Files
-        Remove-Item $OutputDirectoryData -Recurse -Force
+            ### Clean-Up Data Files
+            Remove-Item $OutputDirectoryData -Recurse -Force
+        }
 
         ### Open Directory
         Invoke-Item $OutputDirectory

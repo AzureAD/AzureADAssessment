@@ -1,32 +1,45 @@
 <#
- .Synopsis
-  Gets various email addresses that Azure AD sends notifications to
-
- .Description
-  This functions returns a list with the email notification scope and type, the recipient name and an email address
-
- .Example
-  Get-AADAssessNotificationEmailsReport | Export-Csv -Path ".\NotificationsEmailAddresses.csv"
+.SYNOPSIS
+    Gets various email addresses that Azure AD sends notifications to
+.DESCRIPTION
+    This functions returns a list with the email notification scope and type, the recipient name and an email address
+.EXAMPLE
+    PS C:\> Get-AADAssessNotificationEmailsReport | Export-Csv -Path ".\NotificationsEmailsReport.csv"
 #>
 function Get-AADAssessNotificationEmailsReport {
     [CmdletBinding()]
     param (
         # Organization Data
         [Parameter(Mandatory = $false)]
-        [object] $OrganizationData,
+        [psobject] $OrganizationData,
         # User Data
         [Parameter(Mandatory = $false)]
-        [object] $UserData,
+        [psobject] $UserData,
         # Group Data
         [Parameter(Mandatory = $false)]
-        [object] $GroupData,
+        [psobject] $GroupData,
         # Directory Role Data
         [Parameter(Mandatory = $false)]
-        [object] $DirectoryRoleData
+        [psobject] $DirectoryRoleData,
+        # Generate Report Offline, only using the data passed in parameters
+        [Parameter(Mandatory = $false)]
+        [switch] $Offline
     )
 
     Start-AppInsightsRequest $MyInvocation.MyCommand.Name
     try {
+
+        if ($Offline -and (!$PSBoundParameters['OrganizationData'] -or !$PSBoundParameters['UserData'] -or !$PSBoundParameters['GroupData'] -or !$PSBoundParameters['DirectoryRoleData'])) {
+            Write-Error -Exception (New-Object System.Management.Automation.ItemNotFoundException -ArgumentList 'Use of the offline parameter requires that all data be provided using the data parameters.') -ErrorId 'DataParametersRequired' -Category ObjectNotFound
+            return
+        }
+
+        # Confirm-ModuleAuthentication -ErrorAction Stop -MsGraphScopes @(
+        #     'https://graph.microsoft.com/Organization.Read.All'
+        #     'https://graph.microsoft.com/RoleManagement.Read.Directory'
+        #     'https://graph.microsoft.com/User.Read.All'
+        #     'https://graph.microsoft.com/Group.Read.All'
+        # )
 
         ## Get Organization Technical Contacts
         if (!$OrganizationData) {
@@ -109,10 +122,10 @@ function Get-AADAssessNotificationEmailsReport {
                 [PSCustomObject]@{
                     notificationType           = $role.displayName
                     notificationScope          = 'Role'
-                    recipientName              = (Get-ObjectPropertyValue $roleMember 'displayName')
                     recipientType              = (Get-ObjectPropertyValue $roleMember '@odata.type') -replace '#microsoft.graph.', ''
                     recipientEmail             = (Get-ObjectPropertyValue $roleMember 'mail')
                     recipientEmailAlternate    = (Get-ObjectPropertyValue $roleMember 'otherMails') -join ';'
+                    recipientId                = (Get-ObjectPropertyValue $roleMember 'id')
                     recipientUserPrincipalName = (Get-ObjectPropertyValue $roleMember 'userPrincipalName')
                     recipientDisplayName       = (Get-ObjectPropertyValue $roleMember 'displayName')
                 }

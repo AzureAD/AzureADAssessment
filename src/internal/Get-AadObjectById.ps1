@@ -4,7 +4,7 @@ function Get-AadObjectById {
         #
         [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
         [Alias('Id')]
-        [object] $ObjectId,
+        [string] $ObjectId,
         #
         [Parameter(Mandatory = $true)]
         [Alias('Type')]
@@ -12,15 +12,24 @@ function Get-AadObjectById {
         [string] $ObjectType,
         #
         [Parameter(Mandatory = $false)]
-        [object] $LookupCache
+        [Alias('Select')]
+        [string[]] $Properties,
+        #
+        [Parameter(Mandatory = $false)]
+        [psobject] $LookupCache,
+        #
+        [Parameter(Mandatory = $false)]
+        [switch] $UseLookupCacheOnly
     )
 
     process {
         if ($LookupCache -and $LookupCache.$ObjectType.ContainsKey($ObjectId)) {
             return $($LookupCache.$ObjectType)[$ObjectId]
         }
-        else {
-            return Get-MsGraphResults 'directoryObjects' -UniqueId $ObjectId
+        elseif (!$UseLookupCacheOnly) {
+            $Object = Get-MsGraphResults 'directoryObjects' -UniqueId $ObjectId -DisableUniqueIdDeduplication -DisableGetByIdsBatching -Select $Properties
+            if ($LookupCache) { Add-AadObjectToLookupCache $Object -Type $ObjectType -LookupCache $LookupCache -PassThru }
+            return $Object
         }
     }
 }

@@ -1,8 +1,9 @@
+
 function Confirm-ModuleAuthentication {
     param (
         # Specifies the client application or client application options to use for authentication.
         [Parameter(Mandatory = $false, Position = 0, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
-        [object] $ClientApplication = $script:ConnectState.ClientApplication,
+        [psobject] $ClientApplication = $script:ConnectState.ClientApplication,
         # Instance of Azure Cloud
         [Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
         [ValidateSet('Global', 'China', 'Germany', 'USGov', 'USGovDoD')]
@@ -25,16 +26,17 @@ function Confirm-ModuleAuthentication {
         # Scopes for MS Graph
         [Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
         [string[]] $MsGraphScopes = @(
-            'https://graph.microsoft.com/User.Read'
             'https://graph.microsoft.com/Organization.Read.All'
             'https://graph.microsoft.com/RoleManagement.Read.Directory'
-            'https://graph.microsoft.com/Application.Read.All'
+            #'https://graph.microsoft.com/Application.Read.All'
             'https://graph.microsoft.com/User.Read.All'
-            'https://graph.microsoft.com/Group.Read.All'
+            #'https://graph.microsoft.com/Group.Read.All'
             'https://graph.microsoft.com/Policy.Read.All'
             'https://graph.microsoft.com/Directory.Read.All'
         )
     )
+
+    if (!$MsGraphScopes.Contains('openid')) { $MsGraphScopes += 'openid' }
 
     ## Throw error if no client application exists
     if (!$script:ConnectState.ClientApplication) {
@@ -43,6 +45,7 @@ function Confirm-ModuleAuthentication {
     }
 
     ## Initialize
+    #if (!$User) { $User = Get-MsalAccount $script:ConnectState.ClientApplication | Select-Object -First 1 -ExpandProperty Username }
     if ($script:AppInsightsRuntimeState.OperationStack.Count -gt 0) {
         $CorrelationId = $script:AppInsightsRuntimeState.OperationStack.Peek().Id
     }
@@ -66,7 +69,7 @@ function Confirm-ModuleAuthentication {
         try {
             #$MsGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes $MsGraphScopes -ExtraScopesToConsent $AadGraphScopes -UseEmbeddedWebView:$false -ForceRefresh:$ForceRefresh -CorrelationId $CorrelationId -Interactive:$Interactive -Verbose:$false -ErrorAction Stop
             #$AadGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes $AadGraphScopes -UseEmbeddedWebView:$false -ForceRefresh:$ForceRefresh -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
-            $MsGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes 'https://graph.microsoft.com/.default' -UseEmbeddedWebView:$true -ForceRefresh:$ForceRefresh -CorrelationId $CorrelationId -LoginHint $User @paramMsalToken -Verbose:$false -ErrorAction Stop
+            $MsGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes $MsGraphScopes -UseEmbeddedWebView:$true -ForceRefresh:$ForceRefresh -CorrelationId $CorrelationId -LoginHint $User @paramMsalToken -Verbose:$false -ErrorAction Stop
             #$AadGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes 'https://graph.windows.net/.default' -UseEmbeddedWebView:$true -ForceRefresh:$ForceRefresh -CorrelationId $CorrelationId -LoginHint $User -Verbose:$false -ErrorAction Stop
         }
         catch { throw }

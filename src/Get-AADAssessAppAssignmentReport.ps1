@@ -1,39 +1,36 @@
 <#
- .Synopsis
-  Gets a report of all assignments to all applications
-
- .Description
-  This functions returns a list indicating the applications and their user/groups assignments
-
- .Example
-  Get-AADAssessAppAssignmentReport | Export-Csv -Path ".\AppAssignments.csv"
+.SYNOPSIS
+    Gets a report of all assignments to all applications
+.DESCRIPTION
+    This functions returns a list indicating the applications and their user/groups assignments
+.EXAMPLE
+    PS C:\> Get-AADAssessAppAssignmentReport | Export-Csv -Path ".\AppAssignmentsReport.csv"
 #>
 function Get-AADAssessAppAssignmentReport {
     [CmdletBinding()]
     param (
-        # Service Principal Data
-        [Parameter(Mandatory = $false)]
-        [object] $ServicePrincipalData
         # App Role Assignment Data
-        #[Parameter(Mandatory = $false)]
-        #[object] $AppRoleAssignmentData
+        [Parameter(Mandatory = $false)]
+        [psobject] $AppRoleAssignmentData,
+        # Generate Report Offline, only using the data passed in parameters
+        [Parameter(Mandatory = $false)]
+        [switch] $Offline
     )
 
     Start-AppInsightsRequest $MyInvocation.MyCommand.Name
     try {
 
-        ## Get Application Assignments
-        if ($ServicePrincipalData) {
-            if ($ServicePrincipalData -is [System.Collections.Generic.Dictionary[guid, pscustomobject]]) {
-                $ServicePrincipalData.Values | Select-Object -ExpandProperty appRoleAssignedTo
-            }
-            else {
-                $ServicePrincipalData | Select-Object -ExpandProperty appRoleAssignedTo
-            }
+        if ($Offline -and (!$PSBoundParameters['AppRoleAssignmentData'])) {
+            Write-Error -Exception (New-Object System.Management.Automation.ItemNotFoundException -ArgumentList 'Use of the offline parameter requires that all data be provided using the data parameters.') -ErrorId 'DataParametersRequired' -Category ObjectNotFound
+            return
+        }
+
+        if ($AppRoleAssignmentData) {
+            $AppRoleAssignmentData
         }
         else {
-            Write-Verbose "Getting serviceprincipals..."
-            Get-MsGraphResults 'serviceprincipals?$select=id,displayName,appOwnerOrganizationId,appRoles&$expand=appRoleAssignedTo' -Top 999 `
+            Write-Verbose "Getting servicePrincipals..."
+            Get-MsGraphResults 'servicePrincipals?$select=id,displayName,appOwnerOrganizationId,appRoles&$expand=appRoleAssignedTo' -Top 999 `
             | Select-Object -ExpandProperty appRoleAssignedTo
         }
 

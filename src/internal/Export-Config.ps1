@@ -12,13 +12,13 @@ function Export-Config {
     param (
         # Configuration Object
         [Parameter(Mandatory = $false, Position = 0, ValueFromPipeline = $true)]
-        [object] $InputObject = $script:ModuleConfig,
+        [psobject] $InputObject = $script:ModuleConfig,
         # Property Names to Ignore
         [Parameter(Mandatory = $false)]
         [string[]] $IgnoreProperty,
         # Ignore Default Configuration Values
         [Parameter(Mandatory = $false)]
-        [object] $IgnoreDefaultValues = $script:ModuleConfigDefault,
+        [psobject] $IgnoreDefaultValues = $script:ModuleConfigDefault,
         # Configuration File Path
         [Parameter(Mandatory = $false)]
         [string] $Path = 'config.json'

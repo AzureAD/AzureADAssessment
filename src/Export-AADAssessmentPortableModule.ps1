@@ -1,4 +1,10 @@
-
+<#
+.SYNOPSIS
+    Export a portable assessment module that can be copied to servers for data collection.
+.EXAMPLE
+    PS C:\> Export-AADAssessmentPortableModule "c:\temp\contoso"
+    Exports the module file to "c:\temp\contoso".
+#>
 function Export-AADAssessmentPortableModule {
     [CmdletBinding()]
     [OutputType([System.IO.FileInfo])]

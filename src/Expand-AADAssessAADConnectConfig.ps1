@@ -1,51 +1,35 @@
 <#
- .Synopsis
-  Produces the Azure AD Connect Config Documenter report
-
- .Description
-  This cmdlet downloads and executes the Azure AD Config Documenter tool against supplied input files, and returns the
-  full path of the HTML report to the powershell pipeline.
-  This cmdlet also will create subdirectories and files under the root output directory supplied as a parameter.
-
-  .PARAMETER AADConnectProdConfigZipFilePath
-    Full path of the ZIP file that from the Azure AD Connect environment in production
-
-  .PARAMETER AADConnectProdStagingZipFilePath
-    Full path of the ZIP file that from the Azure AD Connect environment in staging
-
-  .PARAMETER OutputRootPath
-    Full path of an output directory where the tool will be downloaded, and ZIP files will be expanded.
-    This cmdlet will NOT clean up the files there.
-
-   .PARAMETER CustomerName
-    String lable that identifies the customer. This is used to create folder names and report filenames.
-
-    .EXAMPLE
+.SYNOPSIS
+    Produces the Azure AD Connect Config Documenter report
+.DESCRIPTION
+    This cmdlet downloads and executes the Azure AD Config Documenter tool against supplied input files, and returns the
+    full path of the HTML report to the powershell pipeline.
+    This cmdlet also will create subdirectories and files under the root output directory supplied as a parameter.
+.EXAMPLE
     .\Expand-AADAssessAADConnectConfig -AADConnectProdConfigZipFilePath "c:\temp\contoso\prod.zip" `
-                                        -AADConnectProdStagingZipFilePath "c:\temp\contoso\staging.zip" `
-                                        -OutputRootPath "c:\temp\contoso"`
-                                        -CustomerName "contoso"
-
+                                    -AADConnectProdStagingZipFilePath "c:\temp\contoso\staging.zip" `
+                                    -OutputRootPath "c:\temp\contoso"`
+                                    -CustomerName "contoso"
     This command will return a string with full path of the report "C:\Temp\Contoso\Report\Contoso_Production_AppliedTo_Contoso_Staging_AADConnectSync_report.html"
-
-    .EXAMPLE
+.EXAMPLE
     .\Expand-AADAssessAADConnectConfig -AADConnectProdConfigZipFilePath "c:\temp\contoso\prod.zip" `
-                                        -OutputRootPath "c:\temp\contoso" `
-                                        -CustomerName "contoso"
-
+                                    -OutputRootPath "c:\temp\contoso" `
+                                    -CustomerName "contoso"
     This command will return a string with full path of the report "C:\Temp\Contoso\Report\Contoso_Production_AppliedTo_Contoso_Production_AADConnectSync_report.html"
-
-
 #>
 function Expand-AADAssessAADConnectConfig {
     [CmdletBinding()]
     param (
+        # Full path of the ZIP file that from the Azure AD Connect environment in production
         [Parameter(Mandatory = $true)]
         [String]$AADConnectProdConfigZipFilePath,
+        # Full path of the ZIP file that from the Azure AD Connect environment in staging
         [Parameter(Mandatory = $false)]
         [String]$AADConnectProdStagingZipFilePath,
+        # Full path of an output directory where the tool will be downloaded, and ZIP files will be expanded. This cmdlet will NOT clean up the files there.
         [Parameter(Mandatory = $true)]
         [String]$OutputRootPath,
+        # String label that identifies the customer. This is used to create folder names and report filenames.
         [Parameter(Mandatory = $true)]
         [String]$CustomerName
     )

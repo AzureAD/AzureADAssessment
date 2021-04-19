@@ -1,8 +1,6 @@
 <#
 .SYNOPSIS
     Connect the Azure AD Assessment module to Azure AD tenant.
-.DESCRIPTION
-    This command will connect Microsoft.Graph, AzureAD, and MSOnline modules to your Azure AD tenant.
 .EXAMPLE
     PS C:\>Connect-AADAssessment
     Connect to home tenant of authenticated user.
@@ -15,7 +13,7 @@ function Connect-AADAssessment {
     param (
         # Specifies the client application or client application options to use for authentication.
         [Parameter(Mandatory = $true, ParameterSetName = 'InputObject', Position = 0, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
-        [object] $ClientApplication,
+        [psobject] $ClientApplication,
         # Identifier of the client requesting the token.
         [Parameter(Mandatory = $false, ParameterSetName = 'PublicClient', Position = 0, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
         [Parameter(Mandatory = $true, ParameterSetName = 'ConfidentialClientCertificate', Position = 0, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
@@ -69,7 +67,7 @@ function Connect-AADAssessment {
         Confirm-ModuleAuthentication $script:ConnectState.ClientApplication -CloudEnvironment $script:ConnectState.CloudEnvironment -User $User -ErrorAction Stop
         #Get-MgContext
         #Get-AzureADCurrentSessionInfo
-
+        Write-Debug ($script:ConnectState.MsGraphToken.Scopes -join ' ')
     }
     catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException $_.Exception }; throw }
     finally { Complete-AppInsightsRequest $MyInvocation.MyCommand.Name -Success $? }

@@ -72,6 +72,7 @@ RequiredModules = @(
 # Modules to import as nested modules of the module specified in RootModule/ModuleToProcess
 NestedModules = @(
     '.\internal\Add-AadObjectToLookupCache.ps1'
+    '.\internal\Add-AadReferencesToCache.ps1'
     '.\internal\Assert-DirectoryExists.ps1'
     '.\internal\Complete-AppInsightsRequest.ps1'
     '.\internal\Confirm-ModuleAuthentication.ps1'
@@ -81,11 +82,13 @@ NestedModules = @(
     '.\internal\Expand-JsonWebTokenPayload.ps1'
     '.\internal\Export-Config.ps1'
     '.\internal\Export-EventLog.ps1'
-    '.\internal\Get-AADAssessmentSingleReport.ps1'
+    '.\internal\Export-JsonArray.ps1'
+    '.\internal\Export-AADAssessmentReportData.ps1'
     '.\internal\Get-MsGraphResults.ps1'
     '.\internal\Get-AadObjectById.ps1'
     '.\internal\Get-ObjectPropertyValue.ps1'
     '.\internal\Import-Config.ps1'
+    '.\internal\New-AadReferencedIdCache.ps1'
     '.\internal\New-AppInsightsTelemetry.ps1'
     '.\internal\New-LookupCache.ps1'
     '.\internal\Remove-Diacritics.ps1'

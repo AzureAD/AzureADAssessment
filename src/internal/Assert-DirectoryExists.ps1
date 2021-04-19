@@ -1,3 +1,4 @@
+
 function Assert-DirectoryExists {
     [CmdletBinding()]
     [OutputType([string[]])]

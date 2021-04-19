@@ -19,7 +19,8 @@ function Get-MsGraphResults {
         [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
         [uri[]] $RelativeUri,
         # Specifies unique Id(s) for the URI endpoint. For example, users endpoint accepts Id or UPN.
-        [Parameter(Mandatory = $false, Position = 1, ValueFromPipeline = $false)]
+        [Parameter(Mandatory = $false, Position = 1, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
+        [Alias('Id')]
         #[ValidateNotNullOrEmpty()]
         [string[]] $UniqueId,
         # Filters properties (columns).
@@ -44,15 +45,27 @@ function Get-MsGraphResults {
         # Specifies consistency level.
         [Parameter(Mandatory = $false)]
         [string] $ConsistencyLevel = "eventual",
-        # Copy OData Context to each object.
+        # Total requests to calcuate progress bar when using pipeline.
+        [Parameter(Mandatory = $false)]
+        [int] $TotalRequests,
+        # Copy OData Context to each result value.
         [Parameter(Mandatory = $false)]
         [switch] $KeepODataContext,
+        # Add OData Type to each result value.
+        [Parameter(Mandatory = $false)]
+        [switch] $AddODataType,
         # Disable deduplication of UniqueId values.
         [Parameter(Mandatory = $false)]
         [switch] $DisableUniqueIdDeduplication,
         # Only return first page of results.
         [Parameter(Mandatory = $false)]
         [switch] $DisablePaging,
+        # Disable consolidating uniqueIds using getByIds endpoint
+        [Parameter(Mandatory = $false)]
+        [switch] $DisableGetByIdsBatching,
+        # Specify GetByIds Batch size.
+        [Parameter(Mandatory = $false)]
+        [int] $GetByIdsBatchSize = 1000,
         # Force individual requests to MS Graph.
         [Parameter(Mandatory = $false)]
         [switch] $DisableBatching,
@@ -65,22 +78,30 @@ function Get-MsGraphResults {
     )
 
     begin {
-        $listRequests = New-Object 'System.Collections.Generic.List[pscustomobject]'
+        [uri] $uriGraphVersionBase = [IO.Path]::Combine($GraphBaseUri.AbsoluteUri, $ApiVersion)
+        $listRequests = New-Object 'System.Collections.Generic.Dictionary[string,System.Collections.Generic.List[pscustomobject]]'
+        $listRequests.Add($uriGraphVersionBase.AbsoluteUri, (New-Object 'System.Collections.Generic.List[pscustomobject]'))
+        [System.Collections.Generic.List[guid]] $listIds = New-Object 'System.Collections.Generic.List[guid]'
+        [System.Collections.Generic.HashSet[uri]] $hashUri = New-Object 'System.Collections.Generic.HashSet[uri]'
+        $ProgressState = Start-Progress -Activity 'Microsoft Graph Requests' -Total $TotalRequests
 
         function Catch-MsGraphError ($ErrorRecord) {
             if ($_.Exception -is [System.Net.WebException]) {
-                $StreamReader = New-Object System.IO.StreamReader -ArgumentList $_.Exception.Response.GetResponseStream()
-                try { $responseBody = ConvertFrom-Json $StreamReader.ReadToEnd() }
-                finally { $StreamReader.Close() }
+                if ($_.Exception.Response) {
+                    $StreamReader = New-Object System.IO.StreamReader -ArgumentList $_.Exception.Response.GetResponseStream()
+                    try { $responseBody = ConvertFrom-Json $StreamReader.ReadToEnd() }
+                    finally { $StreamReader.Close() }
 
-                if ($responseBody.error.code -eq 'Authentication_ExpiredToken' -or $responseBody.error.code -eq 'Service_ServiceUnavailable') {
-                    #Write-AppInsightsException $_.Exception
-                    Write-Error -Exception $_.Exception -Message $responseBody.error.message -ErrorId $responseBody.error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorAction Stop
+                    if ($responseBody.error.code -eq 'Authentication_ExpiredToken' -or $responseBody.error.code -eq 'Service_ServiceUnavailable') {
+                        #Write-AppInsightsException $_.Exception
+                        Write-Error -Exception $_.Exception -Message $responseBody.error.message -ErrorId $responseBody.error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorAction Stop
+                    }
+                    else {
+                        Write-Error -Exception $_.Exception -Message $responseBody.error.message -ErrorId $responseBody.error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorVariable cmdError
+                        Write-AppInsightsException $cmdError.Exception
+                    }
                 }
-                else {
-                    Write-Error -Exception $_.Exception -Message $responseBody.error.message -ErrorId $responseBody.error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorVariable cmdError
-                    Write-AppInsightsException $cmdError.Exception
-                }
+                else { throw $ErrorRecord }
             }
             else { throw $ErrorRecord }
         }
@@ -99,91 +120,193 @@ function Get-MsGraphResults {
             return $false
         }
 
-        function New-MsGraphBatchRequest {
+        function Add-MsGraphRequest {
             param (
+                # A collection of request objects.
+                [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
                 [object[]] $Requests,
-                [int] $BatchSize = 20,
-                [int] $Depth = 1,
-                [uri] $GraphBatchUri = 'https://graph.microsoft.com/v1.0/$batch'
+                # Base URL for Microsoft Graph API.
+                [Parameter(Mandatory = $false)]
+                [uri] $GraphBaseUri = 'https://graph.microsoft.com/'
             )
 
-            for ($iRequest = 0; $iRequest -lt $Requests.Count; $iRequest += [System.Math]::Pow($BatchSize, $Depth)) {
-                $indexEnd = [System.Math]::Min($iRequest + [System.Math]::Pow($BatchSize, $Depth) - 1, $Requests.Count - 1)
-
-                if ($Depth -gt 1) {
-                    $BatchRequest = New-MsGraphBatchRequest $Requests[$iRequest..$indexEnd] -Depth ($Depth - 1)
+            process {
+                foreach ($Request in $Requests) {
+                    if ($DisableBatching) {
+                        if ($ProgressState) { Update-Progress $ProgressState -CurrentOperation ('{0} {1}' -f $Request.method.ToUpper(), $Request.url) -IncrementBy 1 }
+                        Invoke-MsGraphRequest $Request -GraphBaseUri $GraphBaseUri
+                    }
+                    else {
+                        $listRequests[$GraphBaseUri].Add($Request)
+                        ## Invoke when there are enough for a batch
+                        while ($listRequests[$GraphBaseUri].Count -ge $BatchSize) {
+                            Invoke-MsGraphBatchRequest $listRequests[$GraphBaseUri][0..($BatchSize - 1)] -BatchSize $BatchSize -ProgressState $ProgressState -GraphBaseUri $GraphBaseUri
+                            $listRequests[$GraphBaseUri].RemoveRange(0, $BatchSize)
+                        }
+                    }
                 }
+            }
+        }
+
+        function Invoke-MsGraphBatchRequest {
+            param (
+                # A collection of request objects.
+                [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
+                [object[]] $Requests,
+                # Specify Batch size.
+                [Parameter(Mandatory = $false)]
+                [int] $BatchSize = 20,
+                # Use external progress object.
+                [Parameter(Mandatory = $false)]
+                [psobject] $ProgressState,
+                # Base URL for Microsoft Graph API.
+                [Parameter(Mandatory = $false)]
+                [uri] $GraphBaseUri = 'https://graph.microsoft.com/'
+            )
+
+            begin {
+                [bool] $ExternalProgress = $false
+                if ($ProgressState) { $ExternalProgress = $true }
                 else {
-                    $BatchRequest = $Requests[$iRequest..$indexEnd]
+                    $ProgressState = Start-Progress -Activity 'Microsoft Graph Requests - Batched' -Total $Requests.Count
+                    $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
                 }
+                [uri] $uriEndpoint = [IO.Path]::Combine($GraphBaseUri.AbsoluteUri, '$batch')
+                $listRequests = New-Object 'System.Collections.Generic.List[pscustomobject]'
+            }
 
-                [pscustomobject]@{
-                    id     = $iRequest
-                    method = 'POST'
-                    url    = $GraphBatchUri.AbsoluteUri
-                    body   = [PSCustomObject]@{ requests = $BatchRequest }
+            process {
+                foreach ($Request in $Requests) {
+                    $listRequests.Add($Request)
                 }
             }
-        }
 
-        function Get-MsGraphResultsCount ([uri]$Uri) {
-            $uriQueryEndpointCount = New-Object System.UriBuilder -ArgumentList $Uri -ErrorAction Stop
-            $uriQueryEndpointCount.Path = ([IO.Path]::Combine($uriQueryEndpointCount.Path, '$count'))
-            [int] $Count = $null
-            try {
-                $Count = Invoke-RestMethod -WebSession $MsGraphSession -UseBasicParsing -Method GET -Uri $uriQueryEndpointCount.Uri.AbsoluteUri -Headers @{ ConsistencyLevel = 'eventual' } -Verbose:$false -ErrorAction Ignore
-            }
-            catch {}
-            return $Count
-        }
+            end {
+                [array] $BatchRequests = New-MsGraphBatchRequest $listRequests -BatchSize $BatchSize
+                for ($iRequest = 0; $iRequest -lt $BatchRequests.Count; $iRequest++) {
+                    Update-Progress $ProgressState -CurrentOperation ('{0} {1}' -f $BatchRequests[$iRequest].method.ToUpper(), $BatchRequests[$iRequest].url) -IncrementBy $BatchSize
+                    $resultsBatch = Invoke-MsGraphRequest $BatchRequests[$iRequest] -NoAppInsights -GraphBaseUri $GraphBaseUri
 
-        function Format-Result ($results, [bool]$RawOutput, [bool]$KeepODataContext) {
-            if (!$RawOutput -and $results.psobject.Properties.Name -contains 'value') {
-                foreach ($result in $results.value) {
-                    if ($KeepODataContext) {
-                        if ($result -is [hashtable]) {
-                            $result.Add('@odata.context', ('{0}/$entity' -f $results.'@odata.context'))
-                        }
-                        else {
-                            $result | Add-Member -MemberType NoteProperty -Name '@odata.context' -Value ('{0}/$entity' -f $results.'@odata.context')
+                    [array] $resultsBatch = $resultsBatch.responses | Sort-Object -Property { [int]$_.id }
+                    foreach ($results in ($resultsBatch)) {
+                        if (!(Test-MsGraphBatchError $results)) {
+                            #Expand-MsGraphResult $results.body $DisablePaging $KeepODataContext
+                            Complete-MsGraphResult $results.body -DisablePaging:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType -Request $listRequests[$results.id] -GraphBaseUri $GraphBaseUri
                         }
                     }
-                    Write-Output $result
+                }
+
+                if (!$ExternalProgress) {
+                    $Stopwatch.Stop()
+                    Write-AppInsightsDependency ('{0} {1}' -f 'POST', $uriEndpoint.AbsolutePath) -Type 'MS Graph' -Data ("{0} {1}`r`n`r`n{2}" -f 'POST', $uriEndpoint.AbsoluteUri, ('{{"requests":[...{0}...]}}' -f $listRequests.Count)) -Duration $Stopwatch.Elapsed -Success ($null -ne $resultsBatch)
+                    Stop-Progress $ProgressState
                 }
             }
-            else { Write-Output $results }
         }
 
-        function Complete-Result ($results, [bool]$DisablePaging, [bool]$KeepODataContext, [string]$RequestMethod = 'GET', [uri]$RequestUri, [hashtable]$RequestHeaders) {
-            Format-Result $results $DisablePaging $KeepODataContext
-            if (!$DisablePaging -and $results) {
-                $ProgressState = $null
-                if (Get-ObjectPropertyValue $results '@odata.nextLink') {
-                    $Total = Get-MsGraphResultsCount $RequestUri
-                    if ($Total) {
-                        $Activity = 'Microsoft Graph Request'
-                        if ($RequestUri) { $Activity = ('Microsoft Graph Request - {0} {1}' -f $RequestMethod, $RequestUri.AbsolutePath) }
-                        $ProgressState = Start-Progress -Activity $Activity -Total $Total
-                        $ProgressState.CurrentIteration = $results.value.Count
-                    }
+        function Invoke-MsGraphRequest {
+            param (
+                # A collection of request objects.
+                [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
+                [psobject] $Request,
+                # Do not write application insights dependency.
+                [Parameter(Mandatory = $false)]
+                [switch] $NoAppInsights,
+                # Base URL for Microsoft Graph API.
+                [Parameter(Mandatory = $false)]
+                [uri] $GraphBaseUri = 'https://graph.microsoft.com/'
+            )
+
+            process {
+                [uri] $uriEndpoint = $Request.url
+                if (!$uriEndpoint.IsAbsoluteUri) {
+                    $uriEndpoint = [IO.Path]::Combine($GraphBaseUri.AbsoluteUri, $Request.url.TrimStart('/'))
                 }
+                #if ($uriEndpoint.Segments -contains 'directoryObjects/') { $NoAppInsights = $true }
+
+                [hashtable] $paramInvokeRestMethod = @{
+                    Method = $Request.method
+                    Uri    = $uriEndpoint
+                }
+                if ($Request.psobject.Properties.Name -contains 'headers') { $paramInvokeRestMethod.Add('Headers', $Request.headers) }
+                if ($Request.psobject.Properties.Name -contains 'body') {
+                    $paramInvokeRestMethod.Add('Body', ($Request.body | ConvertTo-Json -Depth 10 -Compress))
+                    $paramInvokeRestMethod.Add('ContentType', 'application/json')
+                }
+
+                ## Get results
+                $results = $null
+                $MsGraphSession = Confirm-ModuleAuthentication -MsGraphSession -ErrorAction Stop
+                if (!$NoAppInsights) { $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew() }
                 try {
-                    while (Get-ObjectPropertyValue $results '@odata.nextLink') {
-                        if ($ProgressState) { Update-Progress $ProgressState -IncrementBy $results.value.Count }
-                        $nextLink = $results.'@odata.nextLink'
-                        # Confirm-ModuleAuthentication -ErrorAction Stop
-                        # $results = Invoke-MgGraphRequest -Method GET -Uri $results.'@odata.nextLink' -Headers $RequestHeaders
-                        $MsGraphSession = Confirm-ModuleAuthentication -MsGraphSession -ErrorAction Stop
-                        $results = $null
-                        try {
-                            $results = Invoke-RestMethod -WebSession $MsGraphSession -UseBasicParsing -Method Get -Uri $nextLink -Headers $RequestHeaders -ErrorAction Stop
-                        }
-                        catch { Catch-MsGraphError $_ }
-                        Format-Result $results $DisablePaging $KeepODataContext
+                    # [hashtable] $results = Invoke-MgGraphRequest -Method $Request.method -Uri $uriEndpoint.AbsoluteUri -Headers $Request.headers
+                    $results = Invoke-RestMethod -WebSession $MsGraphSession -UseBasicParsing @paramInvokeRestMethod -ErrorAction Stop
+                    #Expand-MsGraphResult $results $DisablePaging $KeepODataContext
+                    Complete-MsGraphResult $results -DisablePaging:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType -Request $Request -GraphBaseUri $GraphBaseUri
+                }
+                catch { Catch-MsGraphError $_ }
+                finally {
+                    if (!$NoAppInsights) {
+                        $Stopwatch.Stop()
+                        Write-AppInsightsDependency ('{0} {1}' -f $Request.method.ToUpper(), $uriEndpoint.AbsolutePath) -Type 'MS Graph' -Data ('{0} {1}' -f $Request.method.ToUpper(), $uriEndpoint.AbsoluteUri) -Duration $Stopwatch.Elapsed -Success ($null -ne $results)
                     }
                 }
-                finally {
-                    if ($ProgressState) { Stop-Progress $ProgressState }
+            }
+        }
+
+        function Complete-MsGraphResult {
+            param (
+                # Results from MS Graph API.
+                [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
+                [object[]] $Results,
+                # Only return first page of results.
+                [Parameter(Mandatory = $false)]
+                [switch] $DisablePaging,
+                # Copy ODataContext to each result value.
+                [Parameter(Mandatory = $false)]
+                [switch] $KeepODataContext,
+                # Add ODataType to each result value.
+                [Parameter(Mandatory = $false)]
+                [switch] $AddODataType,
+                # MS Graph request object.
+                [Parameter(Mandatory = $false)]
+                [psobject] $Request,
+                # Base URL for Microsoft Graph API.
+                [Parameter(Mandatory = $false)]
+                [uri] $GraphBaseUri = 'https://graph.microsoft.com/'
+            )
+
+            process {
+                foreach ($Result in $Results) {
+                    Expand-MsGraphResult $Result -RawOutput:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType
+
+                    if (!$DisablePaging -and $Result) {
+                        if (Get-ObjectPropertyValue $Result '@odata.nextLink') {
+                            [uri] $uriEndpoint = [IO.Path]::Combine($GraphBaseUri.AbsoluteUri, $Request.url.TrimStart('/'))
+                            [int] $Total = Get-MsGraphResultsCount $uriEndpoint -GraphBaseUri $GraphBaseUri
+                            $Activity = ('Microsoft Graph Request - {0} {1}' -f $Request.method.ToUpper(), $uriEndpoint.AbsolutePath)
+                            $ProgressState = Start-Progress -Activity $Activity -Total $Total
+                            $ProgressState.CurrentIteration = $Result.value.Count
+                            try {
+                                while (Get-ObjectPropertyValue $Result '@odata.nextLink') {
+                                    Update-Progress $ProgressState -IncrementBy $Result.value.Count
+                                    $nextLink = $Result.'@odata.nextLink'
+                                    $MsGraphSession = Confirm-ModuleAuthentication -MsGraphSession -ErrorAction Stop
+                                    $Result = $null
+                                    try {
+                                        $Result = Invoke-RestMethod -WebSession $MsGraphSession -UseBasicParsing -Method Get -Uri $nextLink -Headers $Request.headers -ErrorAction Stop
+                                    }
+                                    catch { Catch-MsGraphError $_ }
+                                    #$Request.url = $Result.'@odata.nextLink'
+                                    #$Result = Invoke-MsGraphRequest $Request -NoAppInsights -GraphBaseUri $GraphBaseUri
+                                    Expand-MsGraphResult $Result -RawOutput:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType
+                                }
+                            }
+                            finally {
+                                Stop-Progress $ProgressState
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -191,35 +314,38 @@ function Get-MsGraphResults {
 
     process {
         ## Initialize
-        if ($DisableBatching -and ($RelativeUri.Count -gt 1 -or $UniqueId -and $UniqueId.Count -gt 1)) {
-            Write-Warning ('This command is invoking {0} individual Graph requests. For better performance, remove the -DisableBatching parameter.' -f ($RelativeUri.Count * $UniqueId.Count))
-        }
+        if ($PSBoundParameters.ContainsKey('UniqueId') -and !$UniqueId) { return }
+        if ($RelativeUri.OriginalString -eq $UniqueId) { $UniqueId = $null }  # Pipeline string/uri input binds to both parameters so default to just uri
 
         ## Process Each RelativeUri
-        [System.Collections.Generic.List[uri]] $uriQueryEndpoints = New-Object 'System.Collections.Generic.List[uri]'
         foreach ($uri in $RelativeUri) {
-            if ($uri.IsAbsoluteUri) { $uriQueryEndpoint = New-Object System.UriBuilder -ArgumentList $uri }
-            else { $uriQueryEndpoint = New-Object System.UriBuilder -ArgumentList ([IO.Path]::Combine($GraphBaseUri.AbsoluteUri, $ApiVersion, $uri)) }
+            [string] $BaseUri = $uriGraphVersionBase.AbsoluteUri
+            if ($uri.IsAbsoluteUri) {
+                if ($uri.AbsoluteUri -match '^https://(.+?)/(v1.0|beta)?') { $BaseUri = $Matches[0] }
+                if (!$listRequests.ContainsKey($BaseUri)) { $listRequests.Add($BaseUri, (New-Object 'System.Collections.Generic.List[pscustomobject]')) }
+                $uriQueryEndpoint = New-Object System.UriBuilder -ArgumentList $uri
+            }
+            else { $uriQueryEndpoint = New-Object System.UriBuilder -ArgumentList ([IO.Path]::Combine($BaseUri, $uri)) }
 
             ## Combine query parameters from URI and cmdlet parameters
+            [hashtable] $QueryParametersFinal = @{ }
             if ($uriQueryEndpoint.Query) {
-                [hashtable] $finalQueryParameters = ConvertFrom-QueryString $uriQueryEndpoint.Query -AsHashtable
+                $QueryParametersFinal = ConvertFrom-QueryString $uriQueryEndpoint.Query -AsHashtable
                 if ($QueryParameters) {
                     foreach ($ParameterName in $QueryParameters.Keys) {
-                        $finalQueryParameters[$ParameterName] = $QueryParameters[$ParameterName]
+                        $QueryParametersFinal[$ParameterName] = $QueryParameters[$ParameterName]
                     }
                 }
             }
-            elseif ($QueryParameters) { [hashtable] $finalQueryParameters = $QueryParameters }
-            else { [hashtable] $finalQueryParameters = @{ } }
-            if ($Select) { $finalQueryParameters['$select'] = $Select -join ',' }
-            if ($Filter) { $finalQueryParameters['$filter'] = $Filter }
-            if ($Top) { $finalQueryParameters['$top'] = $Top }
-            if ($PSBoundParameters.ContainsKey('Count')) { $finalQueryParameters['$count'] = $Count }
-            $uriQueryEndpoint.Query = ConvertTo-QueryString $finalQueryParameters
+            elseif ($QueryParameters) { $QueryParametersFinal = $QueryParameters }
+            if ($Select) { $QueryParametersFinal['$select'] = $Select -join ',' }
+            if ($Filter) { $QueryParametersFinal['$filter'] = $Filter }
+            if ($Top) { $QueryParametersFinal['$top'] = $Top }
+            if ($PSBoundParameters.ContainsKey('Count')) { $QueryParametersFinal['$count'] = $Count }
+            $uriQueryEndpoint.Query = ConvertTo-QueryString $QueryParametersFinal
 
             ## Expand with UniqueIds
-            if ($PSBoundParameters.ContainsKey('UniqueId')) {
+            if ($UniqueId) {
                 foreach ($id in $UniqueId) {
                     if ($id) {
                         ## If the URI contains '{0}', then replace it with Unique Id.
@@ -230,77 +356,325 @@ function Get-MsGraphResults {
                             $uriQueryEndpointUniqueId = New-Object System.UriBuilder -ArgumentList $uriQueryEndpoint.Uri
                             $uriQueryEndpointUniqueId.Path = ([IO.Path]::Combine($uriQueryEndpointUniqueId.Path, $id))
                         }
-                        if (!$uriQueryEndpoints.Contains($uriQueryEndpointUniqueId.Uri) -or $DisableUniqueIdDeduplication) { $uriQueryEndpoints.Add($uriQueryEndpointUniqueId.Uri) }
+                        if ($DisableUniqueIdDeduplication -or $hashUri.Add($uriQueryEndpointUniqueId.Uri)) {
+                            if (!$DisableGetByIdsBatching -and $id -match '^[{]?[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}[}]?$' -and $uriQueryEndpoint.Uri.Segments.Count -eq 3 -and $uriQueryEndpoint.Uri.Segments[2] -in ('directoryObjects', 'users', 'groups', 'devices', 'servicePrincipals', 'applications') -and ($QueryParametersFinal.Count -eq 0 -or ($QueryParametersFinal.Count -eq 1 -and $QueryParametersFinal.ContainsKey('$select')))) {
+                                $listIds.Add($id)
+                                while ($listIds.Count -ge $GetByIdsBatchSize) {
+                                    New-MsGraphGetByIdsRequest $listIds[0..($GetByIdsBatchSize - 1)] -Types $uriQueryEndpoint.Uri.Segments[2].TrimEnd('s') -Select $QueryParametersFinal['$select'] -BatchSize $GetByIdsBatchSize | Add-MsGraphRequest -GraphBaseUri $BaseUri
+                                    $listIds.RemoveRange(0, $GetByIdsBatchSize)
+                                    if ($ProgressState) { $ProgressState.CurrentIteration += $GetByIdsBatchSize - 1 }
+                                }
+                            }
+                            else {
+                                New-MsGraphRequest $uriQueryEndpointUniqueId.Uri -Headers @{ ConsistencyLevel = $ConsistencyLevel } | Add-MsGraphRequest -GraphBaseUri $BaseUri
+                            }
+                        }
+                        elseif ($ProgressState) { $ProgressState.Total -= 1 }
                     }
+                    elseif ($ProgressState) { $ProgressState.Total -= 1 }
                 }
-            }
-            else { $uriQueryEndpoints.Add($uriQueryEndpoint.Uri) }
-        }
-
-        ## Invoke graph requests individually or save for single batch request
-        foreach ($uriFinal in $uriQueryEndpoints) {
-            if (!$DisableBatching -and ($uriQueryEndpoints.Count -gt 1)) {
-                ## Create batch request entry
-                $request = [pscustomobject]@{
-                    id      = $listRequests.Count #(New-Guid).ToString()
-                    method  = 'GET'
-                    url     = $uriFinal.AbsoluteUri -replace ('{0}{1}/' -f $GraphBaseUri.AbsoluteUri, $ApiVersion)
-                    headers = @{ ConsistencyLevel = $ConsistencyLevel }
-                }
-                $listRequests.Add($request)
             }
             else {
-                ## Get results
-                # Confirm-ModuleAuthentication -ErrorAction Stop
-                # [hashtable] $results = Invoke-MgGraphRequest -Method GET -Uri $uriFinal.AbsoluteUri -Headers @{ ConsistencyLevel = $ConsistencyLevel }
-                $MsGraphSession = Confirm-ModuleAuthentication -MsGraphSession -ErrorAction Stop
-                $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-                try {
-                    $results = Invoke-RestMethod -WebSession $MsGraphSession -UseBasicParsing -Method GET -Uri $uriFinal.AbsoluteUri -Headers @{ ConsistencyLevel = $ConsistencyLevel } -ErrorAction Stop
-                    #Format-Result $results $DisablePaging $KeepODataContext
-                    Complete-Result $results $DisablePaging $KeepODataContext 'GET' $uriFinal @{ ConsistencyLevel = $ConsistencyLevel }
-                }
-                catch { Catch-MsGraphError $_ }
-                finally {
-                    $Stopwatch.Stop()
-                    Write-AppInsightsDependency ('{0} {1}' -f 'GET', $uriFinal.AbsolutePath) -Type 'MS Graph' -Data ('{0} {1}' -f 'GET', $uriFinal.AbsoluteUri) -Duration $Stopwatch.Elapsed -Success ($null -ne $results)
-                }
+                New-MsGraphRequest $uriQueryEndpoint.Uri -Headers @{ ConsistencyLevel = $ConsistencyLevel } | Add-MsGraphRequest -GraphBaseUri $BaseUri
             }
         }
     }
 
     end {
-        if ($listRequests.Count -gt 0) {
-            $uriQueryEndpoint = New-Object System.UriBuilder -ArgumentList ([IO.Path]::Combine($GraphBaseUri.AbsoluteUri, $ApiVersion, '$batch'))
-
-            $ProgressState = Start-Progress -Activity 'Microsoft Graph Requests - Batched' -Total $listRequests.Count
-            $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-            for ($iRequest = 0; $iRequest -lt $listRequests.Count; $iRequest += $BatchSize) {
-                Update-Progress $ProgressState -IncrementBy $BatchSize
-                # foreach ($request in $listRequests[$iRequest..$indexEnd]) {
-                #     $request.url = $request.url.Substring($uriQueryEndpoint.Uri.AbsoluteUri.Length - 6)
-                #     $request.url
-                # }
-                $indexEnd = [System.Math]::Min($iRequest + $BatchSize - 1, $listRequests.Count - 1)
-                $jsonRequests = [PSCustomObject]@{ requests = $listRequests[$iRequest..$indexEnd] } | ConvertTo-Json -Depth 5 -Compress
-
-                # Confirm-ModuleAuthentication -ErrorAction Stop
-                # [hashtable] $resultsBatch = Invoke-MgGraphRequest -Method POST -Uri $uriQueryEndpoint.Uri.AbsoluteUri -Body $jsonRequests
-                # [hashtable[]] $resultsBatch = $resultsBatch.responses | Sort-Object -Property id
-                $MsGraphSession = Confirm-ModuleAuthentication -MsGraphSession -ErrorAction Stop
-                $resultsBatch = Invoke-RestMethod -WebSession $MsGraphSession -UseBasicParsing -Method POST -Uri $uriQueryEndpoint.Uri.AbsoluteUri -ContentType 'application/json' -Body $jsonRequests -ErrorAction Stop
-
-                [array] $resultsBatch = $resultsBatch.responses | Sort-Object -Property { [int]$_.id }
-                foreach ($results in ($resultsBatch)) {
-                    if (!(Test-MsGraphBatchError $results)) {
-                        #Format-Result $results.body $DisablePaging $KeepODataContext
-                        Complete-Result $results.body $DisablePaging $KeepODataContext $listRequests[$results.id].method $uriQueryEndpoint.Uri.AbsoluteUri.Replace('$batch', $listRequests[$results.id].url) $listRequests[$results.id].headers
-                    }
+        ## Complete Remaining Ids
+        if ($listIds.Count -gt 0) {
+            New-MsGraphGetByIdsRequest $listIds -Types $uriQueryEndpoint.Uri.Segments[2].TrimEnd('s') -Select $QueryParametersFinal['$select'] -BatchSize $GetByIdsBatchSize | Add-MsGraphRequest -GraphBaseUri $BaseUri
+            if ($ProgressState) { $ProgressState.CurrentIteration += $listIds.Count - 1 }
+        }
+        ## Finish requests
+        foreach ($BaseUri in $listRequests.Keys) {
+            if ($listRequests[$BaseUri].Count -eq 1) {
+                Invoke-MSGraphRequest $listRequests[$BaseUri][0] -GraphBaseUri $BaseUri
+                if (!$DisableBatching -and $ProgressState) {
+                    [uri] $uriEndpoint = [IO.Path]::Combine($BaseUri, '$batch')
+                    Write-AppInsightsDependency ('{0} {1}' -f 'POST', $uriEndpoint.AbsolutePath) -Type 'MS Graph' -Data ("{0} {1}`r`n`r`n{2}" -f 'POST', $uriEndpoint.AbsoluteUri, ('{{"requests":[...{0}...]}}' -f $ProgressState.Total)) -Duration $ProgressState.Stopwatch.Elapsed -Success $?
                 }
             }
-            $Stopwatch.Stop()
-            Write-AppInsightsDependency ('{0} {1}' -f 'POST', $uriQueryEndpoint.Uri.AbsolutePath) -Type 'MS Graph' -Data ("{0} {1}`r`n`r`n{2}" -f 'POST', $uriQueryEndpoint.Uri.AbsoluteUri, ('{{"requests":[...{0}...]}}' -f $listRequests.Count)) -Duration $Stopwatch.Elapsed -Success ($null -ne $resultsBatch)
-            Stop-Progress $ProgressState
+            elseif ($listRequests[$BaseUri].Count -gt 0) {
+                Invoke-MsGraphBatchRequest $listRequests[$BaseUri] -BatchSize $BatchSize -ProgressState $ProgressState -GraphBaseUri $BaseUri
+                if ($ProgressState) {
+                    [uri] $uriEndpoint = [IO.Path]::Combine($BaseUri, '$batch')
+                    Write-AppInsightsDependency ('{0} {1}' -f 'POST', $uriEndpoint.AbsolutePath) -Type 'MS Graph' -Data ("{0} {1}`r`n`r`n{2}" -f 'POST', $uriEndpoint.AbsoluteUri, ('{{"requests":[...{0}...]}}' -f $ProgressState.Total)) -Duration $ProgressState.Stopwatch.Elapsed -Success $?
+                }
+            }
         }
+        ## Clean-up
+        if ($ProgressState) { Stop-Progress $ProgressState }
+    }
+}
+
+
+
+<#
+.SYNOPSIS
+    New request object containing Microsoft Graph API details.
+.EXAMPLE
+    PS C:\>New-MsGraphRequest 'users'
+    Return request object for GET /users.
+.EXAMPLE
+    PS C:\>New-MsGraphRequest -Method Get -Uri 'https://graph.microsoft.com/v1.0/users'
+    Return request object for GET /users.
+.EXAMPLE
+    PS C:\>New-MsGraphRequest -Method Patch -Uri 'users/{id}' -Body ([PsCustomObject]{ displayName = "Joe Cool" }
+    Return request object for PATCH /users/{id} with a body payload to update the displayName.
+#>
+function New-MsGraphRequest {
+    [CmdletBinding()]
+    param (
+        # Specifies the method used for the web request.
+        [Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
+        [Alias('Id')]
+        [int] $RequestId = 0,
+        # Specifies the method used for the web request.
+        [Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
+        [ValidateSet('Get', 'Head', 'Post', 'Put', 'Delete', 'Trace', 'Options', 'Merge', 'Patch')]
+        [string] $Method = 'Get',
+        # Specifies the Uniform Resource Identifier (URI) of the Internet resource to which the web request is sent.
+        [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
+        [uri[]] $Uri,
+        # Specifies the headers of the web request.
+        [Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
+        [hashtable] $Headers,
+        # Specifies the body of the request.
+        [Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
+        [pscustomobject] $Body
+    )
+
+    process {
+        if (!$Headers) { $Headers = @{} }
+        for ($iRequest = 0; $iRequest -lt $Uri.Count; $iRequest++) {
+            if ($Body) {
+                if (!$Headers.ContainsKey('Content-Type')) { $Headers.Add('Content-Type', 'application/json') }
+            }
+            [string] $url = $Uri[$iRequest].PathAndQuery
+            if (!$url) { $url = $Uri[$iRequest].ToString() }
+            [pscustomobject]@{
+                id      = $RequestId + $iRequest
+                method  = $Method.ToUpper()
+                url     = $url -replace '^(https://.+?/)?/?(v1.0/|beta/)?', '/'
+                headers = $Headers
+                body    = $Body
+            }
+        }
+    }
+}
+
+function New-MsGraphGetByIdsRequest {
+    [CmdletBinding()]
+    param (
+        # A collection of IDs for which to return objects.
+        [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
+        [guid[]] $Ids,
+        # A collection of resource types that specifies the set of resource collections to search.
+        [Parameter(Mandatory = $false)]
+        [string[]] $Types,
+        # Filters properties (columns).
+        [Parameter(Mandatory = $false)]
+        [string[]] $Select,
+        # Specify Batch size.
+        [Parameter(Mandatory = $false)]
+        [int] $BatchSize = 1000
+    )
+
+    begin {
+        $Types = $Types | Where-Object { $_ -ne 'directoryObject' }
+        if (!$Select) { $Select = "*" }
+        $listIds = New-Object 'System.Collections.Generic.List[guid]'
+    }
+
+    process {
+        foreach ($Id in $Ids) {
+            $listIds.Add($Id)
+
+            ## Process IDs when a full batch is reached
+            while ($listIds.Count -ge $BatchSize) {
+                New-MsGraphRequest ('/directoryObjects/getByIds?$select={0}' -f ($Select -join ',')) -Method Post -Headers @{ 'Content-Type' = 'application/json' } -Body ([PSCustomObject]@{
+                        ids   = $listIds[0..($BatchSize - 1)]
+                        types = $Types
+                    })
+                $listIds.RemoveRange(0, $BatchSize)
+            }
+        }
+    }
+
+    end {
+        ## Process any remaining IDs
+        if ($listIds.Count -gt 0) {
+            New-MsGraphRequest ('/directoryObjects/getByIds?$select={0}' -f ($Select -join ',')) -Method Post -Headers @{ 'Content-Type' = 'application/json' } -Body ([PSCustomObject]@{
+                    ids   = $listIds
+                    types = $Types
+                })
+        }
+    }
+}
+
+function New-MsGraphBatchRequest {
+    [CmdletBinding()]
+    param (
+        # A collection of request objects.
+        [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
+        [object[]] $Requests,
+        # Specify Batch size.
+        [Parameter(Mandatory = $false)]
+        [int] $BatchSize = 20,
+        # Specify depth of nested batches. MS Graph does not currently support batch nesting.
+        [Parameter(Mandatory = $false)]
+        [int] $Depth = 1
+    )
+
+    process {
+        for ($iRequest = 0; $iRequest -lt $Requests.Count; $iRequest += [System.Math]::Pow($BatchSize, $Depth)) {
+            $indexEnd = [System.Math]::Min($iRequest + [System.Math]::Pow($BatchSize, $Depth) - 1, $Requests.Count - 1)
+
+            ## Reset ID Order
+            for ($iId = $iRequest; $iId -le $indexEnd; $iId++) {
+                $Requests[$iId].id = $iId
+            }
+
+            ## Generate Batch Request
+            if ($Depth -gt 1) {
+                $BatchRequest = New-MsGraphBatchRequest $Requests[$iRequest..$indexEnd] -Depth ($Depth - 1)
+            }
+            else {
+                $BatchRequest = $Requests[$iRequest..$indexEnd]
+            }
+
+            New-MsGraphRequest -RequestId $iRequest -Method Post -Uri '/$batch' -Headers @{ 'Content-Type' = 'application/json' } -Body ([PSCustomObject]@{
+                    requests = $BatchRequest
+                })
+        }
+    }
+}
+
+function Get-MsGraphMetadata {
+    param (
+        # Metadata URL for Microsoft Graph API.
+        [Parameter(Mandatory = $false, Position = 0, ValueFromPipeline = $true)]
+        [uri] $Uri = 'https://graph.microsoft.com/$metadata',
+        # Force a refresh of metadata.
+        [Parameter(Mandatory = $false)]
+        [switch] $ForceRefresh
+    )
+
+    if (!(Get-Variable MsGraphMetadataCache -Scope Script -ErrorAction SilentlyContinue)) { New-Variable -Name MsGraphMetadataCache -Scope Script -Value (New-Object 'System.Collections.Generic.Dictionary[string,xml]') }
+    [string] $BaseUri = $Uri.AbsoluteUri
+    if ($Uri.AbsoluteUri -match ('^.+{0}' -f ([regex]::Escape($Uri.AbsolutePath)))) { $BaseUri = $Matches[0] }
+
+    if ($ForceRefresh -or !$script:MsGraphMetadataCache.ContainsKey($BaseUri)) {
+        #$MsGraphSession = Confirm-ModuleAuthentication -MsGraphSession -ErrorAction Stop
+        try {
+            $script:MsGraphMetadataCache[$BaseUri] = Invoke-RestMethod -UseBasicParsing -Method Get -Uri $Uri -ErrorAction Ignore
+        }
+        catch {}
+    }
+    return $script:MsGraphMetadataCache[$BaseUri]
+}
+
+function Get-MsGraphEntityType {
+    param (
+        # Metadata URL for Microsoft Graph API.
+        [Parameter(Mandatory = $false, Position = 0, ValueFromPipeline = $true)]
+        [uri] $Uri = 'https://graph.microsoft.com/$metadata',
+        # Name of endpoint.
+        [Parameter(Mandatory = $false)]
+        [string] $EntityName
+    )
+
+    process {
+        $MsGraphMetadata = Get-MSGraphMetadata $Uri
+
+        if (!$EntityName -and $Uri.Fragment -match '^#(.+?)(\(.+\))?$') { $EntityName = $Matches[1] }
+
+        foreach ($Schema in $MsGraphMetadata.Edmx.DataServices.Schema) {
+            foreach ($EntitySet in $Schema.EntityContainer.EntitySet) {
+                if ($EntitySet.Name -eq $EntityName) {
+                    return $EntitySet.EntityType
+                }
+            }
+        }
+    }
+}
+
+function Expand-MsGraphResult {
+    param (
+        # Results from MS Graph API.
+        [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
+        [object[]] $Results,
+        # Do not expand result values
+        [Parameter(Mandatory = $false)]
+        [switch] $RawOutput,
+        # Copy ODataContext to each result value
+        [Parameter(Mandatory = $false)]
+        [switch] $KeepODataContext,
+        # Add ODataType to each result value
+        [Parameter(Mandatory = $false)]
+        [switch] $AddODataType
+    )
+
+    process {
+        foreach ($Result in $Results) {
+            if (!$RawOutput -and (Get-ObjectPropertyValue $Result.psobject.Properties 'Name') -contains 'value') {
+                foreach ($ResultValue in $Result.value) {
+                    if ($AddODataType) {
+                        $ODataType = Get-ObjectPropertyValue $Result '@odata.context' | Get-MsGraphEntityType
+                        if ($ODataType) { $ODataType = '#' + $ODataType }
+                        if ($ResultValue -is [hashtable] -and !$ResultValue.ContainsKey('@odata.type')) {
+                            $ResultValue.Add('@odata.type', $ODataType)
+                        }
+                        elseif ($ResultValue.psobject.Properties.Name -notcontains '@odata.type') {
+                            $ResultValue | Add-Member -MemberType NoteProperty -Name '@odata.type' -Value $ODataType
+                        }
+                    }
+                    if ($KeepODataContext) {
+                        if ($ResultValue -is [hashtable]) {
+                            $ResultValue.Add('@odata.context', ('{0}/$entity' -f $Result.'@odata.context'))
+                        }
+                        else {
+                            $ResultValue | Add-Member -MemberType NoteProperty -Name '@odata.context' -Value ('{0}/$entity' -f $Result.'@odata.context')
+                        }
+                    }
+                    Write-Output $ResultValue
+                }
+            }
+            else { Write-Output $Result }
+        }
+    }
+}
+
+function Get-MsGraphResultsCount {
+    [CmdletBinding()]
+    param (
+        # Graph endpoint such as "users".
+        [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
+        [uri] $Uri,
+        # Base URL for Microsoft Graph API.
+        [Parameter(Mandatory = $false)]
+        [uri] $GraphBaseUri = 'https://graph.microsoft.com/'
+    )
+
+    process {
+        if ($Uri.IsAbsoluteUri) {
+            $uriEndpointCount = New-Object System.UriBuilder -ArgumentList $Uri -ErrorAction Stop
+        }
+        else {
+            $uriEndpointCount = New-Object System.UriBuilder -ArgumentList $GraphBaseUri -ErrorAction Stop
+        }
+        $uriEndpointCount.Path = ([IO.Path]::Combine($uriEndpointCount.Path, '$count'))
+        ## $count is not supported with $expand parameter so remove it.
+        [hashtable] $QueryParametersUpdated = ConvertFrom-QueryString $uriEndpointCount.Query -AsHashtable
+        if ($QueryParametersUpdated.ContainsKey('$expand')) { $QueryParametersUpdated.Remove('$expand') }
+        $uriEndpointCount.Query = ConvertTo-QueryString $QueryParametersUpdated
+        $MsGraphSession = Confirm-ModuleAuthentication -MsGraphSession -ErrorAction Stop
+        [int] $Count = $null
+        try {
+            $Count = Invoke-RestMethod -WebSession $MsGraphSession -UseBasicParsing -Method Get -Uri $uriEndpointCount.Uri -Headers @{ ConsistencyLevel = 'eventual' } -ErrorAction Ignore
+        }
+        catch {}
+        return $Count
     }
 }

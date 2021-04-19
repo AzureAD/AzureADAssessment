@@ -1,4 +1,15 @@
-
+<#
+.SYNOPSIS
+    Produces the Azure AD Configuration reports required by the Azure AD assesment
+.DESCRIPTION
+    This cmdlet reads the configuration information from the target Azure AD Tenant and produces the output files in a target directory
+.EXAMPLE
+    PS C:\> Complete-AADAssessmentReports
+    Expand assessment data and reports to "C:\AzureADAssessment".
+.EXAMPLE
+    PS C:\> Complete-AADAssessmentReports -OutputDirectory "C:\Temp"
+    Expand assessment data and reports to "C:\Temp".
+#>
 function Complete-AADAssessmentReports {
     [CmdletBinding()]
     param
@@ -31,6 +42,13 @@ function Complete-AADAssessmentReports {
             $script:ConnectState.MsGraphToken = Get-MsalToken -PublicClientApplication $script:ConnectState.ClientApplication -Scopes 'openid' -UseEmbeddedWebView:$true -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
         }
 
+        if ($MyInvocation.CommandOrigin -eq 'Runspace') {
+            ## Reset Parent Progress Bar
+            New-Variable -Name stackProgressId -Scope Script -Value (New-Object 'System.Collections.Generic.Stack[int]') -ErrorAction SilentlyContinue
+            $stackProgressId.Clear()
+            $stackProgressId.Push(0)
+        }
+
         ## Initalize Directory Paths
         #$OutputDirectory = Join-Path (Split-Path $Path) ([IO.Path]::GetFileNameWithoutExtension($Path))
         #$OutputDirectory = Join-Path $OutputDirectory "AzureADAssessment"
@@ -45,32 +63,15 @@ function Complete-AADAssessmentReports {
         ## Load Data
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Complete Reports - {0}' -f $AssessmentDetail.AssessmentTenantDomain) -Status 'Load Data' -PercentComplete 10
         $OutputDirectoryAAD = Join-Path $OutputDirectoryData 'AAD-*' -Resolve -ErrorAction Stop
-        # [array] $OrganizationData = Get-Content (Join-Path $OutputDirectoryAAD "OrganizationData.json") -Raw | ConvertFrom-Json
-        # [array] $DirectoryRoleData = Get-Content (Join-Path $OutputDirectoryAAD "DirectoryRoleData.json") -Raw | ConvertFrom-Json
-        # [array] $ApplicationData = Get-Content (Join-Path $OutputDirectoryAAD "ApplicationData.json") -Raw | ConvertFrom-Json
-        # [array] $ServicePrincipalData = Get-Content (Join-Path $OutputDirectoryAAD "ServicePrincipalData.json") -Raw | ConvertFrom-Json
-        # [array] $AppRoleAssignmentData = Get-Content (Join-Path $OutputDirectoryAAD "AppRoleAssignmentData.json") -Raw | ConvertFrom-Json
-        # [array] $OAuth2PermissionGrantData = Get-Content (Join-Path $OutputDirectoryAAD "OAuth2PermissionGrantData.json") -Raw | ConvertFrom-Json
-        # [array] $UserData = Get-Content (Join-Path $OutputDirectoryAAD "UserData.json") -Raw | ConvertFrom-Json
-        # [array] $GroupData = Get-Content (Join-Path $OutputDirectoryAAD "GroupData.json") -Raw | ConvertFrom-Json
-        #Remove-Item -Path (Join-Path $OutputDirectoryAAD "*") -Include "OrganizationData.json", "DirectoryRoleData.json", "ApplicationData.json", "ServicePrincipalData.json", "AppRoleAssignmentData.json", "OAuth2PermissionGrantData.json", "UserData.json", "GroupData.json"
-
-        #[array] $OrganizationData = Import-Clixml (Join-Path $OutputDirectoryAAD "OrganizationData.xml")
-        #[array] $DirectoryRoleData = Import-Clixml (Join-Path $OutputDirectoryAAD "DirectoryRoleData.xml")
-        #[array] $ApplicationData = Import-Clixml (Join-Path $OutputDirectoryAAD "ApplicationData.xml")
-        #[array] $ServicePrincipalData = Import-Clixml (Join-Path $OutputDirectoryAAD "ServicePrincipalData.xml")
-        #[array] $AppRoleAssignmentData = Import-Clixml (Join-Path $OutputDirectoryAAD "AppRoleAssignmentData.xml")
-        #[array] $OAuth2PermissionGrantData = Import-Clixml (Join-Path $OutputDirectoryAAD "OAuth2PermissionGrantData.xml")
-        #[array] $UserData = Import-Clixml (Join-Path $OutputDirectoryAAD "UserData.xml")
-        #[array] $GroupData = Import-Clixml (Join-Path $OutputDirectoryAAD "GroupData.xml")
-        Remove-Item -Path (Join-Path $OutputDirectoryAAD "*") -Include "OrganizationData.xml", "DirectoryRoleData.xml", "ApplicationData.xml", "ServicePrincipalData.xml", "AppRoleAssignmentData.xml", "OAuth2PermissionGrantData.xml", "UserData.xml", "GroupData.xml" -ErrorAction Ignore
 
         ## Generate Reports
-        #Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Complete Reports - {0}' -f $AssessmentDetail.AssessmentTenantDomain) -Status 'Complete Reports' -PercentComplete 30
-        #Get-AADAssessNotificationEmailsReport -OrganizationData $OrganizationData -UserData $UserData -GroupData $GroupData -DirectoryRoleData $DirectoryRoleData | Export-Csv -Path (Join-Path $OutputDirectoryAAD "NotificationsEmailsReport.csv") -NoTypeInformation
-        #Get-AADAssessAppAssignmentReport -ServicePrincipalData $ServicePrincipalData -AppRoleAssignmentData $AppRoleAssignmentData | Export-Csv -Path (Join-Path $OutputDirectoryAAD "AppAssignmentsReport.csv") -NoTypeInformation
-        #Get-AADAssessAppCredentialExpirationReport -ApplicationData $ApplicationData -ServicePrincipalData $ServicePrincipalData | Export-Csv -Path (Join-Path $OutputDirectoryAAD "AppCredentialsReport.csv") -NoTypeInformation
-        #Get-AADAssessConsentGrantReport -UserData $UserData -ServicePrincipalData $ServicePrincipalData -OAuth2PermissionGrantData $OAuth2PermissionGrantData -AppRoleAssignmentData $AppRoleAssignmentData | Export-Csv -Path (Join-Path $OutputDirectoryAAD "ConsentGrantReport.csv") -NoTypeInformation
+        [array] $DataFiles = Get-Item -Path (Join-Path $OutputDirectoryAAD "*") -Include "*Data.xml"
+        if ($DataFiles.Count -eq 7) {
+            Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Complete Reports - {0}' -f $AssessmentDetail.AssessmentTenantDomain) -Status 'Output Report Data' -PercentComplete 20
+            Export-AADAssessmentReportData -SourceDirectory $OutputDirectoryAAD -OutputDirectory $OutputDirectoryAAD
+
+            Remove-Item -Path (Join-Path $OutputDirectoryAAD "*") -Include "*Data.xml" -ErrorAction Ignore
+        }
 
         ## Report Complete
         Write-AppInsightsEvent 'AAD Assessment Report Generation Complete' -OverrideProperties -Properties @{
@@ -92,8 +93,8 @@ function Complete-AADAssessmentReports {
         Invoke-WebRequest -Uri $script:ModuleConfig.'tool.ADFSAADMigrationUtilsUri' -UseBasicParsing -OutFile $AdfsAadMigrationModulePath
 
         ## Download PowerBI Dashboards
-        $PBITemplatePowerShellPath = Join-Path $OutputDirectoryData 'AzureADAssessment-PowerShell.pbit'
-        Invoke-WebRequest -Uri $script:ModuleConfig.'pbi.powershellTemplateUri' -UseBasicParsing -OutFile $PBITemplatePowerShellPath
+        $PBITemplateAssessmentPath = Join-Path $OutputDirectoryData 'AzureADAssessment.pbit'
+        Invoke-WebRequest -Uri $script:ModuleConfig.'pbi.assessmentTemplateUri' -UseBasicParsing -OutFile $PBITemplateAssessmentPath
 
         $PBITemplateConditionalAccessPath = Join-Path $OutputDirectoryData 'AzureADAssessment-ConditionalAccess.pbit'
         Invoke-WebRequest -Uri $script:ModuleConfig.'pbi.conditionalAccessTemplateUri' -UseBasicParsing -OutFile $PBITemplateConditionalAccessPath

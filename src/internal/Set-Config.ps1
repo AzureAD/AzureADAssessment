@@ -9,11 +9,11 @@
 #>
 function Set-Config {
     [CmdletBinding()]
-    #[OutputType([object])]
+    #[OutputType([psobject])]
     param (
         # Configuration Object
         [Parameter(Mandatory = $false, Position = 0, ValueFromPipeline = $true)]
-        [object] $InputObject,
+        [psobject] $InputObject,
         # Application Insights Telemetry Disabled
         [Parameter(Mandatory = $false)]
         [bool] $AIDisabled,

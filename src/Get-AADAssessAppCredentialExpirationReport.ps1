@@ -1,34 +1,38 @@
 <#
- .Synopsis
-  Provides a report to show all the keys expiration date accross application and service principals
-
- .Description
-  Provides a report to show all the keys expiration date accross application and service principals
-
- .Example
-  Connect-AzureAD
-  Get-AADAssessAppCredentialExpirationReport
-
+.SYNOPSIS
+    Provides a report to show all the keys expiration date accross application and service principals
+.DESCRIPTION
+    Provides a report to show all the keys expiration date accross application and service principals
+.EXAMPLE
+    PS C:\> Get-AADAssessAppCredentialExpirationReport | Export-Csv -Path ".\AppCredentialsReport.csv"
 #>
 function Get-AADAssessAppCredentialExpirationReport {
     [CmdletBinding()]
     param (
         # Application Data
         [Parameter(Mandatory = $false)]
-        [object] $ApplicationData,
+        [psobject] $ApplicationData,
         # Service Principal Data
         [Parameter(Mandatory = $false)]
-        [object] $ServicePrincipalData
+        [psobject] $ServicePrincipalData,
+        # Generate Report Offline, only using the data passed in parameters
+        [Parameter(Mandatory = $false)]
+        [switch] $Offline
     )
 
     Start-AppInsightsRequest $MyInvocation.MyCommand.Name
     try {
 
+        if ($Offline -and (!$PSBoundParameters['ApplicationData'] -or !$PSBoundParameters['ServicePrincipalData'])) {
+            Write-Error -Exception (New-Object System.Management.Automation.ItemNotFoundException -ArgumentList 'Use of the offline parameter requires that all data be provided using the data parameters.') -ErrorId 'DataParametersRequired' -Category ObjectNotFound
+            return
+        }
+
         function Process-AppCredentials {
             param (
                 #
                 [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
-                [object] $InputObject,
+                [psobject] $InputObject,
                 #
                 [Parameter(Mandatory = $true)]
                 [string] $ObjectType
@@ -84,7 +88,7 @@ function Get-AADAssessAppCredentialExpirationReport {
         }
         else {
             Write-Verbose "Getting serviceprincipals..."
-            Get-MsGraphResults 'serviceprincipals?$select=id,displayName,keyCredentials,passwordCredentials' -Top 999 `
+            Get-MsGraphResults 'servicePrincipals?$select=id,displayName,keyCredentials,passwordCredentials' -Top 999 `
             | Process-AppCredentials -ObjectType 'Service Principal'
         }
 

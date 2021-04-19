@@ -4,59 +4,69 @@
 
 ## Install from the PowerShell Gallery
 ```PowerShell
+## This is the first time using the module, run the following to install the latest version.
 Install-Module AzureADAssessment -Force -AcceptLicense
-## If you have already installed the module, run the following instead to ensure you have the latest version.
-Update-Module AzureADAssessment -Force
+## If the module has been installed previously, run the following instead to ensure you have the latest version.
+Update-Module AzureADAssessment -Force -AcceptLicense
 ```
 
-If you encounter the error, `WARNING: The specified module 'MSAL.PS' with PowerShellGetFormatVersion '2.0' is not supported by the current version of PowerShellGet. Get the latest version of the PowerShellGet module to install this module, 'MSAL.PS'` then run the following commands to proceed with the installation.
-
+If you encounter an error, try the following commands instead to update the PowerShell Package Manager.
 ```PowerShell
 ## Update Nuget Package and PowerShellGet Module
 Install-PackageProvider NuGet -Force
 Install-Module PowerShellGet -Force
 
-## In a new PowerShell process, install the MSAL.PS Module. Restart PowerShell console if this fails.
-&(Get-Process -Id $pid).Path -Command { Install-Module MSAL.PS -AcceptLicense }
-Import-Module MSAL.PS
+## In a new PowerShell process, install the AzureADAssessment Module. Restart PowerShell console if this fails.
+&(Get-Process -Id $pid).Path -Command { Install-Module AzureADAssessment -AcceptLicense }
+Import-Module AzureADAssessment
 ```
 
 ## Run the Data Collection
-Run following commands to produce a package of all the data necessary to complete the assessment.
+Run following commands to produce a package of all the Azure AD data necessary to complete the assessment.
 ```PowerShell
 ## Authenticate using a Global Admin or Global Reader account.
 Connect-AADAssessment
-## If you prefer to use your own app registration for automation purposes, you may connect using your own ClientId and Certificate like the example below. Your app registration should include Directory.Read.All and Policy.Read.All permissions to MS Graph for a complete assessment. Once added, ensure you have completed admin consent on the service principal for those application permissions.
-Connect-AADAssessment -ClientId <ClientId> -ClientCertificate (Get-Item 'Cert:\CurrentUser\My\<Thumbprint>') -TenantId <TenantId>
 
-## Export Data to "C:\AzureADAssessment".
+## Export data to "C:\AzureADAssessment" and package into a single file.
 Invoke-AADAssessmentDataCollection
-## If you would like to specify a different directory, use the OutputDirectory parameter.
-Invoke-AADAssessmentDataCollection "C:\Temp"
 ```
 
-Run the following to collect data from hybrid components such as AAD Connect, AD FS, AAD App Proxy.
+To collect data from hybrid components (such as AAD Connect, AD FS, AAD App Proxy), you can export a portable version of this module that can be easily copied to servers with no internet connectivity.
 ```PowerShell
 ## Export Portable Module to "C:\AzureADAssessment".
 Export-AADAssessmentPortableModule "C:\AzureADAssessment"
-
-## On each server running hybrid components, copy the module file "AzureADAssessmentPortable.psm1" and import it there.
-Import-Module "C:\AzureADAssessment\AzureADAssessmentPortable.psm1"
-## Export Data to "C:\AzureADAssessment".
-Invoke-AADAssessmentHybridDataCollection
-## If you would like to specify a different directory, use the OutputDirectory parameter.
-Invoke-AADAssessmentHybridDataCollection "C:\Temp"
 ```
 
-Data collection is complete so provide the output packages to whoever is completing the assessment.
+On each server running hybrid components, copy the module file "AzureADAssessmentPortable.psm1" and import it there.
+```PowerShell
+## Import the module on each server running hybrid components.
+Import-Module "C:\AzureADAssessment\AzureADAssessmentPortable.psm1"
+
+## Export Data to "C:\AzureADAssessment".
+Invoke-AADAssessmentHybridDataCollection
+```
+
+Once data collection is complete, provide the output packages to whoever is completing the assessment.
 
 ## Complete Assessment Reports
 As the assessor, run the following command using the output package from data collection to complete generation of the assessment reports.
 ```PowerShell
-## Output Assessment Reports to "C:\AzureADAssessment".
+## Output Assessment Reports to "C:\AzureADAssessment" and "C:\AzureADAssessment\PowerBI".
 Complete-AADAssessmentReports "C:\AzureADAssessment\AzureADAssessmentData-<TenantName>.onmicrosoft.com.zip"
 ```
 
+The generated reports and PowerBI templates can now be used to assess the tenant.
+
+## Alternate Ways to Run The Assessment
+```PowerShell
+## If you prefer to use your own app registration for automation purposes, you may connect using your own ClientId and Certificate like the example below. Your app registration should include Directory.Read.All and Policy.Read.All permissions to MS Graph for a complete assessment. Once added, ensure you have completed admin consent on the service principal for those application permissions.
+Connect-AADAssessment -ClientId <ClientId> -ClientCertificate (Get-Item 'Cert:\CurrentUser\My\<Thumbprint>') -TenantId <TenantId>
+
+## If you would like to specify a different directory, use the OutputDirectory parameter.
+Invoke-AADAssessmentDataCollection "C:\Temp"
+Invoke-AADAssessmentHybridDataCollection "C:\Temp"
+Complete-AADAssessmentReports "C:\AzureADAssessment\AzureADAssessmentData-<TenantName>.onmicrosoft.com.zip" -OutputDirectory "C:\Temp"
+```
 
 ## Contents
 

@@ -11,7 +11,7 @@
 param (
     # Provide module configuration
     [Parameter(Mandatory = $false)]
-    [object] $ModuleConfiguration
+    [psobject] $ModuleConfiguration
 )
 
 ## Set Strict Mode for Module. https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/set-strictmode

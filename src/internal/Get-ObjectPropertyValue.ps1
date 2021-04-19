@@ -15,12 +15,12 @@
 #>
 function Get-ObjectPropertyValue {
     [CmdletBinding()]
-    [OutputType([object])]
+    [OutputType([psobject])]
     param (
         # Object containing property values
         [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
         [AllowNull()]
-        [object] $InputObjects,
+        [psobject] $InputObjects,
         # Name of property. Specify an array of property names to tranverse nested objects.
         [Parameter(Mandatory = $true, ValueFromRemainingArguments = $true)]
         [string[]] $Property
