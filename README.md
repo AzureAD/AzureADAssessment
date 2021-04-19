@@ -4,9 +4,9 @@
 
 ## Install from the PowerShell Gallery
 ```PowerShell
-Install-Module AzureADAssessmentPreview -Force -AcceptLicense
+Install-Module AzureADAssessment -Force -AcceptLicense
 ## If you have already installed the module, run the following instead to ensure you have the latest version.
-Update-Module AzureADAssessmentPreview -Force
+Update-Module AzureADAssessment -Force
 ```
 
 If you encounter an error, try the following commands instead to update the PowerShell Package Manager.
