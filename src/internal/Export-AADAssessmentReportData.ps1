@@ -21,9 +21,10 @@ function Export-AADAssessmentReportData {
     | Use-Progress -Activity 'Exporting directoryRoles' -ScriptBlock { $args[0] } -Property displayName `
     | Export-JsonArray (Join-Path $OutputDirectory "directoryRoles.json") -Depth 5 -Compress
 
-    Set-Content -Path (Join-Path $OutputDirectory "appRoleAssignments.csv") -Value 'id,deletedDateTime,appRoleId,createdDateTime,principalDisplayName,principalId,principalType,resourceDisplayName,resourceId'
+    Set-Content -Path (Join-Path $OutputDirectory "appRoleAssignments.csv") -Value 'id,appRoleId,createdDateTime,principalDisplayName,principalId,principalType,resourceDisplayName,resourceId'
     Import-Clixml -Path (Join-Path $SourceDirectory "appRoleAssignmentData.xml") `
     | Use-Progress -Activity 'Exporting appRoleAssignments' -ScriptBlock { $args[0] } -Property id `
+    | Format-Csv `
     | Export-Csv (Join-Path $OutputDirectory "appRoleAssignments.csv") -NoTypeInformation
 
     Set-Content -Path (Join-Path $OutputDirectory "oauth2PermissionGrants.csv") -Value 'id,consentType,clientId,principalId,resourceId,scope'
@@ -75,13 +76,15 @@ function Export-AADAssessmentReportData {
     Import-Clixml -Path (Join-Path $SourceDirectory "servicePrincipalData.xml") | Add-AadObjectToLookupCache -Type servicePrincipal -LookupCache $LookupCache
     Get-AADAssessAppCredentialExpirationReport -Offline -ApplicationData $ApplicationData -ServicePrincipalData $LookupCache.servicePrincipal `
     | Use-Progress -Activity 'Exporting AppCredentialsReport' -ScriptBlock { $args[0] } `
+    | Format-Csv `
     | Export-Csv -Path (Join-Path $OutputDirectory "AppCredentialsReport.csv") -NoTypeInformation
     Remove-Variable ApplicationData
 
     [array] $AppRoleAssignmentData = Import-Clixml -Path (Join-Path $SourceDirectory "appRoleAssignmentData.xml")
-    #Get-AADAssessAppAssignmentReport -Offline -AppRoleAssignmentData $AppRoleAssignmentData `
-    #| Use-Progress -Activity 'Exporting AppAssignmentsReport' -ScriptBlock { $args[0] } `
-    #| Export-Csv -Path (Join-Path $OutputDirectory "AppAssignmentsReport.csv") -NoTypeInformation
+    # Get-AADAssessAppAssignmentReport -Offline -AppRoleAssignmentData $AppRoleAssignmentData `
+    # | Use-Progress -Activity 'Exporting AppAssignmentsReport' -ScriptBlock { $args[0] } `
+    # | Format-Csv `
+    # | Export-Csv -Path (Join-Path $OutputDirectory "AppAssignmentsReport.csv") -NoTypeInformation
 
     [array] $OAuth2PermissionGrantData = Import-Clixml -Path (Join-Path $OutputDirectory "oauth2PermissionGrantData.xml")
     Get-AADAssessConsentGrantReport -Offline -AppRoleAssignmentData $AppRoleAssignmentData -OAuth2PermissionGrantData $OAuth2PermissionGrantData -UserData $LookupCache.user -ServicePrincipalData $LookupCache.servicePrincipal `
