@@ -3,10 +3,10 @@ function Export-AADAssessmentReportData {
     [CmdletBinding()]
     param
     (
-        #
+        # Full path of the directory where the source xml files are located.
         [Parameter(Mandatory = $true)]
         [string] $SourceDirectory,
-        #
+        # Full path of the directory where the output files will be generated.
         [Parameter(Mandatory = $true)]
         [string] $OutputDirectory
     )
@@ -67,7 +67,7 @@ function Export-AADAssessmentReportData {
     Import-Clixml -Path (Join-Path $SourceDirectory "userData.xml") | Add-AadObjectToLookupCache -Type user -LookupCache $LookupCache
     Import-Clixml -Path (Join-Path $SourceDirectory "groupData.xml") | Add-AadObjectToLookupCache -Type group -LookupCache $LookupCache
     Get-AADAssessNotificationEmailsReport -Offline -OrganizationData $OrganizationData -UserData $LookupCache.user -GroupData $LookupCache.group -DirectoryRoleData $DirectoryRoleData `
-    | Use-Progress -Activity 'Exporting NotificationsEmailsReport' -ScriptBlock { $args[0] } `
+    | Use-Progress -Activity 'Exporting NotificationsEmailsReport' -ScriptBlock { $args[0] } -Property recipientEmail `
     | Export-Csv -Path (Join-Path $OutputDirectory "NotificationsEmailsReport.csv") -NoTypeInformation
     Remove-Variable DirectoryRoleData
     $LookupCache.group.Clear()
@@ -75,7 +75,7 @@ function Export-AADAssessmentReportData {
     [array] $ApplicationData = Import-Clixml -Path (Join-Path $SourceDirectory "applicationData.xml")
     Import-Clixml -Path (Join-Path $SourceDirectory "servicePrincipalData.xml") | Add-AadObjectToLookupCache -Type servicePrincipal -LookupCache $LookupCache
     Get-AADAssessAppCredentialExpirationReport -Offline -ApplicationData $ApplicationData -ServicePrincipalData $LookupCache.servicePrincipal `
-    | Use-Progress -Activity 'Exporting AppCredentialsReport' -ScriptBlock { $args[0] } `
+    | Use-Progress -Activity 'Exporting AppCredentialsReport' -ScriptBlock { $args[0] } -Property displayName `
     | Format-Csv `
     | Export-Csv -Path (Join-Path $OutputDirectory "AppCredentialsReport.csv") -NoTypeInformation
     Remove-Variable ApplicationData

@@ -184,7 +184,7 @@ function Get-MsGraphResults {
             end {
                 [array] $BatchRequests = New-MsGraphBatchRequest $listRequests -BatchSize $BatchSize
                 for ($iRequest = 0; $iRequest -lt $BatchRequests.Count; $iRequest++) {
-                    Update-Progress $ProgressState -CurrentOperation ('{0} {1}' -f $BatchRequests[$iRequest].method.ToUpper(), $BatchRequests[$iRequest].url) -IncrementBy $BatchSize
+                    Update-Progress $ProgressState -CurrentOperation ('{0} {1}' -f $BatchRequests[$iRequest].method.ToUpper(), $BatchRequests[$iRequest].url) -IncrementBy $BatchRequests[$iRequest].body.requests.Count
                     $resultsBatch = Invoke-MsGraphRequest $BatchRequests[$iRequest] -NoAppInsights -GraphBaseUri $GraphBaseUri
 
                     [array] $resultsBatch = $resultsBatch.responses | Sort-Object -Property { [int]$_.id }
@@ -390,17 +390,13 @@ function Get-MsGraphResults {
         foreach ($BaseUri in $listRequests.Keys) {
             if ($listRequests[$BaseUri].Count -eq 1) {
                 Invoke-MSGraphRequest $listRequests[$BaseUri][0] -GraphBaseUri $BaseUri
-                if (!$DisableBatching -and $ProgressState) {
-                    [uri] $uriEndpoint = [IO.Path]::Combine($BaseUri, '$batch')
-                    Write-AppInsightsDependency ('{0} {1}' -f 'POST', $uriEndpoint.AbsolutePath) -Type 'MS Graph' -Data ("{0} {1}`r`n`r`n{2}" -f 'POST', $uriEndpoint.AbsoluteUri, ('{{"requests":[...{0}...]}}' -f $ProgressState.Total)) -Duration $ProgressState.Stopwatch.Elapsed -Success $?
-                }
             }
             elseif ($listRequests[$BaseUri].Count -gt 0) {
                 Invoke-MsGraphBatchRequest $listRequests[$BaseUri] -BatchSize $BatchSize -ProgressState $ProgressState -GraphBaseUri $BaseUri
-                if ($ProgressState) {
-                    [uri] $uriEndpoint = [IO.Path]::Combine($BaseUri, '$batch')
-                    Write-AppInsightsDependency ('{0} {1}' -f 'POST', $uriEndpoint.AbsolutePath) -Type 'MS Graph' -Data ("{0} {1}`r`n`r`n{2}" -f 'POST', $uriEndpoint.AbsoluteUri, ('{{"requests":[...{0}...]}}' -f $ProgressState.Total)) -Duration $ProgressState.Stopwatch.Elapsed -Success $?
-                }
+            }
+            if (!$DisableBatching -and $ProgressState -and $ProgressState.CurrentIteration -gt 1) {
+                [uri] $uriEndpoint = [IO.Path]::Combine($BaseUri, '$batch')
+                Write-AppInsightsDependency ('{0} {1}' -f 'POST', $uriEndpoint.AbsolutePath) -Type 'MS Graph' -Data ("{0} {1}`r`n`r`n{2}" -f 'POST', $uriEndpoint.AbsoluteUri, ('{{"requests":[...{0}...]}}' -f $ProgressState.CurrentIteration)) -Duration $ProgressState.Stopwatch.Elapsed -Success $?
             }
         }
         ## Clean-up

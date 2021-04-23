@@ -1,4 +1,13 @@
-
+<#
+.SYNOPSIS
+    Produces the Azure AD Hybrid Component data required by the Azure AD Assesment
+.EXAMPLE
+    PS C:\> Invoke-AADAssessmentHybridDataCollection
+    Collect and package assessment data to "C:\AzureADAssessment".
+.EXAMPLE
+    PS C:\> Invoke-AADAssessmentHybridDataCollection -OutputDirectory "C:\Temp"
+    Collect and package assessment data to "C:\Temp".
+#>
 function Invoke-AADAssessmentHybridDataCollection {
     [CmdletBinding()]
     param
@@ -98,22 +107,20 @@ function Invoke-AADAssessmentHybridDataCollection {
     }
 }
 
-
 <#
- .Synopsis
-  Exports the configuration of Relying Party Trusts and Claims Provider Trusts
-
- .Description
-  Creates and zips a set of files that hold the configuration of AD FS claim providers and relying parties.
-  The output files are created under a directory called "ADFS" in the system drive.
-
- .Example
-  Export-AADAssessADFSConfiguration
+.SYNOPSIS
+    Exports the configuration of Relying Party Trusts and Claims Provider Trusts
+.DESCRIPTION
+    Creates and zips a set of files that hold the configuration of AD FS claim providers and relying parties.
+    The output files are created under a directory called "ADFS" in the system drive.
+.EXAMPLE
+    PS C:\> Export-AADAssessADFSConfiguration "C:\AzureADAssessment"
+    Export ADFS configuration to "C:\AzureADAssessment".
 #>
 function Export-AADAssessADFSConfiguration {
     [CmdletBinding()]
     param (
-        #
+        # Specify directory to output data.
         [Parameter(Mandatory = $true)]
         [string] $OutputDirectory
     )
@@ -154,14 +161,13 @@ function Export-AADAssessADFSConfiguration {
 
 
 <#
- .Synopsis
-  Gets the list of all enabled endpoints in ADFS
-
- .Description
-  Gets the list of all enabled endpoints in ADFS
-
- .Example
-  Get-AADAssessADFSEndpoints | Export-Csv -Path ".\ADFSEnabledEndpoints.csv"
+.SYNOPSIS
+    Gets the list of all enabled endpoints in ADFS
+.DESCRIPTION
+    Gets the list of all enabled endpoints in ADFS
+.EXAMPLE
+    PS C:\> Get-AADAssessADFSEndpoints | Export-Csv -Path ".\ADFSEnabledEndpoints.csv"
+    Export ADFS enabled endpoints to CSV.
 #>
 function Get-AADAssessADFSEndpoints {
     Get-AdfsEndpoint | Where-Object { $_.Enabled -eq "True" }
@@ -169,21 +175,19 @@ function Get-AADAssessADFSEndpoints {
 
 
 <#
- .Synopsis
-  Gets the AD FS Admin Log
-
- .Description
-  This function exports the events from the AD FS Admin log
-
- .Example
-  Get the last seven days of logs
-  Export-AADAssessADFSAdminLog -DaysToRetrieve 7
+.SYNOPSIS
+    Gets the AD FS Admin Log
+.DESCRIPTION
+    This function exports the events from the AD FS Admin log
+.EXAMPLE
+    PS C:\> Export-AADAssessADFSAdminLog -DaysToRetrieve 7
+    Get the last seven days of logs.
 #>
 function Export-AADAssessADFSAdminLog {
     [CmdletBinding()]
     param
     (
-        #
+        # Specify directory to output data.
         [Parameter(Mandatory = $true)]
         [string] $OutputDirectory,
         # Specify how far back in the past will the events be retrieved
@@ -198,30 +202,23 @@ function Export-AADAssessADFSAdminLog {
     Export-EventLog -Path (Join-Path $OutputDirectory "ADFS-$env:COMPUTERNAME.evtx") -LogName 'AD FS/Admin' -Query $XPathQuery -Overwrite
 }
 
-
 <#
- .Synopsis
-  Gets Azure AD Application Proxy Connector Logs
+.SYNOPSIS
+    Gets Azure AD Application Proxy Connector Logs
+.DESCRIPTION
+    This functions returns the events from the Azure AD Application Proxy Connector Admin Log
+.EXAMPLE
+    PS C:\> $targetGalleryApp = "GalleryAppName"
+    PS C:\> $targetGroup = Get-AzureADGroup -SearchString "TestGroupName"
+    PS C:\> $targetAzureADRole = "TestRoleName"
+    PS C:\> $targetADFSRPId = "ADFSRPIdentifier"
 
- .Description
-  This functions returns the events from the Azure AD Application Proxy Connector Admin Log
+    PS C:\> $RP=Get-AdfsRelyingPartyTrust -Identifier $targetADFSRPId
+    PS C:\> $galleryApp = Get-AzureADApplicationTemplate -DisplayNameFilter $targetGalleryApp
 
- .Parameter DaysToRetrieve
-  Indicates how far back in the past will the events be retrieved
+    PS C:\> $RP=Get-AdfsRelyingPartyTrust -Identifier $targetADFSRPId
 
- .Example
-
- $targetGalleryApp = "GalleryAppName"
- $targetGroup = Get-AzureADGroup -SearchString "TestGroupName"
- $targetAzureADRole = "TestRoleName"
- $targetADFSRPId = "ADFSRPIdentifier"
-
-  $RP=Get-AdfsRelyingPartyTrust -Identifier $targetADFSRPId
-  $galleryApp = Get-AzureADApplicationTemplate -DisplayNameFilter $targetGalleryApp
-
-  $RP=Get-AdfsRelyingPartyTrust -Identifier $targetADFSRPId
-
-  New-AzureADAppFromADFSRPTrust `
+    PS C:\> New-AzureADAppFromADFSRPTrust `
     -AzureADAppTemplateId $galleryApp.id `
     -ADFSRelyingPartyTrust $RP `
     -TestGroupAssignmentObjectId $targetGroup.ObjectId `
@@ -231,9 +228,9 @@ function Get-AADAssessAppProxyConnectorLog {
     [CmdletBinding()]
     param
     (
+        # Indicates how far back in the past will the events be retrieved
         [Parameter(Mandatory = $true)]
-        [int]
-        $DaysToRetrieve
+        [int] $DaysToRetrieve
     )
 
     $TimeFilter = $DaysToRetrieve * 86400000
@@ -243,26 +240,21 @@ function Get-AADAssessAppProxyConnectorLog {
 
 
 <#
- .Synopsis
-  Gets the Azure AD Password Writeback Agent Log
-
- .Description
-  This functions returns the events from the Azure AD Password Write Bag source from the application Log
-
- .Parameter DaysToRetrieve
-  Indicates how far back in the past will the events be retrieved
-
- .Example
-  Get the last seven days of logs and saves them on a CSV file
-  Get-AADAssessPasswordWritebackAgentLog -DaysToRetrieve 7 | Export-Csv -Path ".\AzureADAppProxyLogs-$env:ComputerName.csv"
+.SYNOPSIS
+    Gets the Azure AD Password Writeback Agent Log
+.DESCRIPTION
+    This functions returns the events from the Azure AD Password Write Bag source from the application Log
+.EXAMPLE
+    PS C:\> Get-AADAssessPasswordWritebackAgentLog -DaysToRetrieve 7 | Export-Csv -Path ".\AzureADAppProxyLogs-$env:ComputerName.csv"
+    Get the last seven days of logs and saves them on a CSV file
 #>
 function Get-AADAssessPasswordWritebackAgentLog {
     [CmdletBinding()]
     param
     (
+        # Indicates how far back in the past will the events be retrieved
         [Parameter(Mandatory = $true)]
-        [int]
-        $DaysToRetrieve
+        [int] $DaysToRetrieve
     )
 
     $TimeFilter = $DaysToRetrieve * 86400000
