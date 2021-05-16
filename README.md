@@ -6,7 +6,7 @@
 ```PowerShell
 Install-Module AzureADAssessment -Force -AcceptLicense
 ## If you have already installed the module, run the following instead to ensure you have the latest version.
-Update-Module AzureADAssessment -Force
+Update-Module AzureADAssessment -Force -AcceptLicense
 ```
 
 If you encounter an error, try the following commands instead to update the PowerShell Package Manager.
