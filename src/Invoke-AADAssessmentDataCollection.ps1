@@ -93,6 +93,9 @@ function Invoke-AADAssessmentDataCollection {
         Get-MsGraphResults "identity/conditionalAccess/namedLocations" `
         | Export-JsonArray (Join-Path $OutputDirectoryAAD "namedLocations.json") -Depth 5 -Compress
 
+        Get-MsGraphResults "policies/authenticationMethodsPolicy/authenticationMethodConfigurations/email" `
+        | ConvertTo-Json -Depth 5 -Compress | Set-Content -Path (Join-Path $OutputDirectoryAAD "emailOTPMethodPolicy.json")
+
         ### Directory Role Data
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Directory Roles' -PercentComplete 10
         Get-MsGraphResults 'directoryRoles?$select=id,displayName&$expand=members' `
