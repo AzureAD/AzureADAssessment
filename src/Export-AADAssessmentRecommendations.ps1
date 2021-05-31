@@ -54,15 +54,18 @@ function Export-AADAssessmentRecommendations {
         $data.Version = "AzureADAssessment - 2.0"
 
         # Main Summary
-        $data.Summary = "" | Select-Object P1,P2,P3,P1infos
+        $data.Summary = "" | Select-Object P1,P2,P3,Passed,P1infos
 
         $P1s = @($Recommandations | Where-Object {$_.Priority -eq "P1"} | Select-Object Category,Area,Name)
         $P2s = @($Recommandations | Where-Object {$_.Priority -eq "P2"} | Select-Object Category,Area,Name)
         $P3s = @($Recommandations | Where-Object {$_.Priority -eq "P3"} | Select-Object Category,Area,Name)
+        $Passed = @($Recommandations | Where-Object {$_.Priority -eq "Passed"} | Select-Object Category,Area,Name)
+
 
         $data.Summary.P1 = $P1s.Count
         $data.Summary.P2 = $P2s.Count
         $data.Summary.P3 = $P3s.Count
+        $data.Summary.Passed = $Passed.Count
 
         $data.Summary.P1Infos = @{}
 
@@ -72,13 +75,14 @@ function Export-AADAssessmentRecommendations {
             $catData = "" | Select-Object Category,Summary,Areas
             $catDAta.Category = $catGroup.Name
             $catData.Areas = @{}
-            $catData.Summary = "" | Select-Object P1,P2,P3
+            $catData.Summary = "" | Select-Object P1,P2,P3,Passed
 
             $catRecommendations = $catGroup.Group
 
             $catData.Summary.P1 = @($catRecommendations | Where-Object {$_.Priority -eq "P1"}).Count
             $catData.Summary.P2 = @($catRecommendations | Where-Object {$_.Priority -eq "P2"}).Count
             $catData.Summary.P3 = @($catRecommendations | Where-Object {$_.Priority -eq "P3"}).Count
+            $catData.Summary.Passed = @($catRecommendations | Where-Object {$_.Priority -eq "Passed"}).Count
 
             if ($catData.Summary.P1 -gt 0) {
                 $data.Summary.P1Infos[$catGroup.Name] = @{}
@@ -118,6 +122,7 @@ function Export-AADAssessmentRecommendations {
         "* P1: $($data.Summary.P1)" | Out-File -FilePath (Join-Path $OutputDirectory "recommendations.md") -Append
         "* P2: $($data.Summary.P2)" | Out-File -FilePath (Join-Path $OutputDirectory "recommendations.md") -Append
         "* P3: $($data.Summary.P3)" | Out-File -FilePath (Join-Path $OutputDirectory "recommendations.md") -Append
+        "* Passed: $($data.Summary.Passed)" | Out-File -FilePath (Join-Path $OutputDirectory "recommendations.md") -Append
         "" | Out-File -FilePath (Join-Path $OutputDirectory "recommendations.md") -Append
 
         if ($data.Summary.P1 -gt 0) {
@@ -186,6 +191,7 @@ function Export-AADAssessmentRecommendations {
                 }
             }
         }
+        "" | Out-File -FilePath (Join-Path $OutputDirectory "recommendations.md") -Append
         
         # output categories
 
@@ -199,6 +205,7 @@ function Export-AADAssessmentRecommendations {
             "* P1: $($category.Summary.P1)" | Out-File -FilePath (Join-Path $OutputDirectory "recommendations.md") -Append
             "* P2: $($category.Summary.P2)" | Out-File -FilePath (Join-Path $OutputDirectory "recommendations.md") -Append
             "* P3: $($category.Summary.P3)" | Out-File -FilePath (Join-Path $OutputDirectory "recommendations.md") -Append
+            "* Passed: $($category.Summary.Passed)" | Out-File -FilePath (Join-Path $OutputDirectory "recommendations.md") -Append
             "" | Out-File -FilePath (Join-Path $OutputDirectory "recommendations.md") -Append
 
             # areas
@@ -223,16 +230,9 @@ function Export-AADAssessmentRecommendations {
                     "" | Out-File -FilePath (Join-Path $OutputDirectory "recommendations.md") -Append
 
                     # Recommendation
-                    "**Recommendation:**" | Out-File -FilePath (Join-Path $OutputDirectory "recommendations.md") -Append
-                    "" | Out-File -FilePath (Join-Path $OutputDirectory "recommendations.md") -Append
-                    $check.Recommendation | Out-File -FilePath (Join-Path $OutputDirectory "recommendations.md") -Append
-                    "" | Out-File -FilePath (Join-Path $OutputDirectory "recommendations.md") -Append
-
-                    # references
-                    "References:" | Out-File -FilePath (Join-Path $OutputDirectory "recommendations.md") -Append
-                    foreach($ref in $check.DataReport) {
-                        "* $ref" | Out-File -FilePath (Join-Path $OutputDirectory "recommendations.md") -Append
-                    }
+                    "> **Recommendation:**" | Out-File -FilePath (Join-Path $OutputDirectory "recommendations.md") -Append
+                    ">" | Out-File -FilePath (Join-Path $OutputDirectory "recommendations.md") -Append
+                    "> $($check.Recommendation)" | Out-File -FilePath (Join-Path $OutputDirectory "recommendations.md") -Append
                     "" | Out-File -FilePath (Join-Path $OutputDirectory "recommendations.md") -Append
                 }
 
