@@ -64,10 +64,41 @@ function New-AADAssessmentRecommendations {
 
     # Generate recommendations from tenant data
     if (![String]::IsNullOrWhiteSpace($TenantDirectoryData)) {
-        # generate Email OTP recommendation
-        Get-EOTPRecommendation -Path $TenantDirectoryData
+        ### Load all the data on AAD
+        # Prepare paths
+        $AssessmentDetailPath = Join-Path $TenantDirectoryData "AzureADAssessment.json"
+        # Read assessment data
+        $AssessmentDetail = Get-Content $AssessmentDetailPath -Raw | ConvertFrom-Json
+        # Generate AAD data path
+        $AADPath = Join-Path $TenantDirectoryData "AAD-$($AssessmentDetail.AssessmentTenantDomain)"
+        $data = @{}
+        $files = get-childitem -Path $AADPath -File
+        foreach($file in $files) {
+            switch -Wildcard ($file.Name) {
+                "*.json" {
+                    $data[$file.Name] = get-content -Path $file.FullName | ConvertFrom-Json
+                }
+                "*.csv" {
+                    $data[$file.Name] = Import-Csv -Path $file.FullName
+                }
+                "*.xml" {
+                    $data[$file.Name] = Import-Clixml -Path $file.FullName
+                }
+                default {
+                    Write-Warning "Unsupported data file format: $($file.Name)"
+                }
+            }
+        }
+        ### Load configuration file
+        $recommendations = Select-Xml -Path (Join-Path $PSScriptRoot "AADRecommendations.xml") -XPath "/recommendations"
+        foreach($recommendationDef in $recommendations.Node.recommendation) {
+            $scriptblock = [Scriptblock]::Create($recommendationDef.PowerShell)
+            $recommendation = $recommendationDef | select-object Category,Area,Name,Summary,Recommendation,Priority
+            $recommendation.Priority = Invoke-Command -ScriptBlock $scriptblock -ArgumentList $Data
+            $recommendation
+        }
         # generate Trusted network locations
-        Get-TrustedNetworksRecommendation -Path $TenantDirectoryData
+        #Get-TrustedNetworksRecommendation -Path $TenantDirectoryData
     } else {
         Write-Error "No Tenant Data found"
     }

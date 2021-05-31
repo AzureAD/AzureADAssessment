@@ -1,0 +1,84 @@
+<recommendations>
+    <recommendation>
+        <!--
+            The powershell property will contain the powershell script used to evaluate the recommendation.
+            Data will contain a hasharray of all the evaluated data in the path of the current scope (i.e. AAD, ADFS, AADC, AADAP).
+            The script will return the priority of the recommandation (P1, P2, P3) or Passed if the recommendation is already met.
+        -->
+        <Powershell>
+            param($Data)
+            if ($Data["emailOTPMethodPolicy.json"].state -ne "enabled" -or $Data["emailOTPMethodPolicy.json"].allowExternalIdToUseEmailOtp -ne "enabled") {
+                return "P2"
+            }
+            return "Passed"
+        </Powershell>
+        <Category>Access Management</Category>
+        <Area>Authentication Experience</Area>
+        <Name>Email OTP</Name>
+        <Summary>With email OTP, org members can collaborate with anyone in the world by simply sharing a link or sending an invitation via email. Invited users prove their identity by using a verification code sent to their email account</Summary>
+        <Recommendation>Enable email OTP</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Powershell>
+            param($Data)
+            $trustedNetworks = @($Data["namedLocations.json"] | Where-Object { $_.isTrusted })
+            if ($trustedNetworks.Count -eq 0) {
+                return "P1"
+            }
+            return "Passed"
+        </Powershell>
+        <Category>Access Management</Category>
+        <Area>Access Policies</Area>
+        <Name>Trusted networks</Name>
+        <Summary>Trusted network is a signal leveraged by identity protection to improve risk detection. Defining your trusted networks will improve detection of risk events</Summary>
+        <Recommendation>Define trusted networks</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Powershell>
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            # list policies using trusted networks conditions
+            $trustedNetworkPolicies = @($enabledCAPolicies | Where-Object { 
+                $null -ne $_.conditions.locations -and (`
+                    $_.conditions.locations.includedLocations -contains "AllTrusted" -or `
+                    $_.conditions.locations.excludedLocations -contains "AllTrusted"
+                )
+            })
+
+            # list policies using riskState conditions
+            $riskPolicies = @($enabledCAPolicies | Where-Object {
+                $_.conditions.signInRiskLevels.Count -gt 0 -or `
+                $_.conditions.userRiskLevels.Count -gt 0
+            })
+
+            # list policies using devices conditions
+            # TODO: check with Device ABAC too?
+            $devicePolicies = @($enabledCAPolicies | Where-Object {
+                $_.conditions.psobject.properties.match('devices').Count -and `
+                $null -ne $_.conditions.devices -and (`
+                    $_.conditions.devices.excludeDevices.Count -gt 0 -or `
+                    $_.conditions.devices.excludeDevicesStates.Count -gt 0
+                )
+            })
+
+            # list policies using device grant controls
+            $deviceGrantPolicies = @($enabledCAPolicies | Where-Object {
+                $null -ne $_.grantControls -and (`
+                    $_.grantControls.builtInControls -contains "compliantDevice" -or `
+                    $_.grantControls.builtInControls -contains "domainJoinDevice"
+                )
+            })
+
+            if ($trustedNetworkPolicies.Count -eq 0 -and $riskPolicies.Count -eq 0 -and ($devicePolicies.Count -eq 0 -or $deviceGrantPolicies.Count -eq 0)) {
+                return "P1"
+            }
+            return "Passed"
+        </Powershell>
+        <Category>Access Management</Category>
+        <Area>Access Policies</Area>
+        <Name>Conditional Access Controls (network, device and/or risks)</Name>
+        <Summary>Protect your users sign-ins by applying conditional access policies including risk, device or network location controls to improve your security</Summary>
+        <Recommendation>Design conditional access to include risk, device and/or netowrk location conditions</Recommendation>
+    </recommendation>
+</recommendations>

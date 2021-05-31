@@ -102,8 +102,6 @@ NestedModules = @(
     '.\internal\Write-AppInsightsException.ps1'
     '.\internal\Write-AppInsightsRequest.ps1'
     '.\internal\Write-AppInsightsTrace.ps1'
-    '.\internal\recommendations\Get-EOTPRecommendation.ps1'
-    '.\internal\recommendations\Get-TrustedNetworksRecommendation.ps1'
     '.\AzureADAssessmentPortable.psm1'
     '.\Complete-AADAssessmentReports.ps1'
     '.\Connect-AADAssessment.ps1'
