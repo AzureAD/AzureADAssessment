@@ -81,4 +81,36 @@
         <Summary>Protect your users sign-ins by applying conditional access policies including risk, device or network location controls to improve your security</Summary>
         <Recommendation>Design conditional access to include risk, device and/or netowrk location conditions</Recommendation>
     </recommendation>
+    <recommendation>
+        <Powershell>
+            param($Data)
+            $passwordAppOrSP = @($Data["AppCredentialsReport.csv"]  | Where-Object { $_.credentialType -eq "Password" })
+            if ($passwordAppOrSP.Count -gt 0) {
+                return "P2"
+            }
+            return "Passed"
+        </Powershell>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <Name>Programatic usage of password credentials</Name>
+        <Summary>Application or Service Principals using password is discouraged to enforce the lifecycle of credentials</Summary>
+        <Recommendation>Use managed identities, Windows Integrated Authentication or certificate whenever possible</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Powershell>
+            param($Data)
+            $expiredSecretAppOrSP = @($Data["AppCredentialsReport.csv"]  | select displayName,@{N="EndDateTime";E={Get-Date -Date $_.credentialEndDateTime}} | Group-Object -Property displayName | ForEach-Object {
+                $_.Group | Sort-Object -Property EndDateTime -Descending | Select-Object -First 1
+            } | Where-Object { $_.EndDateTime -lt (Get-Date).AddMonths(1) })
+            if ($expiredSecretAppOrSP.Count -gt 0) {
+                return "P2"
+            }
+            return "Passed"
+        </Powershell>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <Name>Application or Service Principals with expired credentials</Name>
+        <Summary>Applicaiton or Service Principals credential lifecycle should be managed</Summary>
+        <Recommendation>Review application or service principals with expired credentials</Recommendation>
+    </recommendation>
 </recommendations>
