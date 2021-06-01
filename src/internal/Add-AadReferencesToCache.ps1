@@ -47,7 +47,7 @@ function Add-AadReferencesToCache {
                 $InputObject.conditions.users.includeGroups | Where-Object { $_ -notin 'All' } | ForEach-Object { [void]$ReferencedIdCache.group.Add($_) }
                 $InputObject.conditions.users.excludeGroups | ForEach-Object { [void]$ReferencedIdCache.group.Add($_) }
                 $InputObject.conditions.applications.includeApplications | Where-Object { $_ -notin 'None', 'All', 'Office365' } | ForEach-Object { [void]$ReferencedIdCache.appId.Add($_) }
-                $InputObject.conditions.applications.excludeApplications | ForEach-Object { [void]$ReferencedIdCache.appId.Add($_) }
+                $InputObject.conditions.applications.excludeApplications | Where-Object { $_ -notin 'Office365' } | ForEach-Object { [void]$ReferencedIdCache.appId.Add($_) }
                 break
             }
         }
