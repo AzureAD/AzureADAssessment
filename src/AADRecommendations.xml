@@ -3,7 +3,7 @@
         <!--
             The powershell property will contain the powershell script used to evaluate the recommendation.
             Data will contain a hasharray of all the evaluated data in the path of the current scope (i.e. AAD, ADFS, AADC, AADAP).
-            The script will return the priority of the recommandation (P1, P2, P3) or Passed if the recommendation is already met.
+            The script will return the priority of the recommendation (P1, P2, P3) or Passed if the recommendation is already met.
         -->
         <Powershell>
             param($Data)
@@ -35,6 +35,7 @@
     </recommendation>
     <recommendation>
         <Powershell>
+            param($Data)
             # filter enabled policies
             $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
 
@@ -110,7 +111,179 @@
         <Category>Access Management</Category>
         <Area>Credentials Management</Area>
         <Name>Application or Service Principals with expired credentials</Name>
-        <Summary>Applicaiton or Service Principals credential lifecycle should be managed</Summary>
+        <Summary>Application or Service Principals credential lifecycle should be managed</Summary>
         <Recommendation>Review application or service principals with expired credentials</Recommendation>
     </recommendation>
+    <recommendation>
+        <Powershell>
+            param($Data)
+            # Select high permisions grants 
+            # high permissions = Mail or ReadWrite permissions
+            # filtering out microsoft and office demo tenant
+            $highPermissionsGrants = @($Data["ConsentGrantReport.csv"] | where { $_.permission -match "ReadWrite|Mail" -and $_.clientOwnerTenantId -notin ("72f988bf-86f1-41af-91ab-2d7cd011db47","a942cf59-f3c6-4338-acac-d26c18783a46") })
+            if ($highPermissionsGrants.Count -gt 0) {
+                return "P2"
+            }
+            return "Passed"
+        </Powershell>
+        <Category>Access Management</Category>
+        <Area>Access Surface Area</Area>
+        <Name>Grants for high level permissions</Name>
+        <Summary>Application can request high level permission trough fishing. Such permissions include those allowing "ReadWrite" actions or "Mail" operations. Regular reviews should be in place and non-necessary grants should be removed</Summary>
+        <Recommendation>Review applications having high permissions and remove unnecessary grants</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Powershell>
+            param($Data)
+            # Select grants to deprecated resource (Azure AD Graph)
+            $highPermissionsGrants = @($Data["ConsentGrantReport.csv"] | Where-Object { $_.resourceObjectId -eq "369aeace-0da3-434f-a94b-cdd518008814" })
+            if ($highPermissionsGrants.Count -gt 0) {
+                return "P2"
+            }
+            return "Passed"
+        </Powershell>
+        <Category>Access Management</Category>
+        <Area>Access Surface Area</Area>
+        <Name>Grants to legacy resources</Name>
+        <Summary>Grants are present to resources that are being deprected (Azure AD Graph)</Summary>
+        <Recommendation>Review applications relying on these resources and review potential migration path with developer</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            # TODO: check if ELM is used or not
+            $userAppAssignments = @($Data["appRoleAssignments.csv"] | Where-Object { $_.principalType -eq "User" })
+            if ($userAppAssignments.Count -gt 0) {
+                return "P3"
+            }
+            return "Passed"
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Application Authentication and Assignment</Area>
+        <Name>User App Assignments</Name>
+        <Summary>Direct assignment to user is not advisable when attestation to applications is not used</Summary>
+        <Recommendation>Assign applicaiton roles to groups to have more flexibility</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $allUsersAppAssignments = @($Data["appRoleAssignments.csv"] | Where-Object { $_.principalType -eq "Group" -and $_.principalDisplayName -eq "All users" })
+            if ($allUsersAppAssignments.Count -gt 0) {
+                return "P1"
+            }
+            return "Passed"
+        </PowerShell>
+        <Category>Identity Management</Category>
+        <Area>Entitlement Management</Area>
+        <Name>Assignment of Apps with "All users" group</Name>
+        <Summary>The "All users" group contains both Members and Guests. Resource owners might misunderstand this group to contain only members. As a result, special condsideration should be takeb when using this group for application assignment or grant access tor resource such as SharePoint Content or Azure resources</Summary>
+        <Recommendation>Fix the entittlements by creating the right groups (e.g. "all members")</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $requireMFACAPolicies = @($enabledCAPolicies.grantControls.builtInControls -contains "mfa")
+
+            if ($requireMFACAPolicies.Count -eq 0)  {
+                return "P2"
+            }
+
+            return "Passed"
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <Name>Control MFA trough Conditional Access</Name>
+        <Summary>MFA can be condigured per user or on a federated Identity Provider. Applying MFA protection trough Conditional Access provides more flexibility</Summary>
+        <Recommendation>Configure authentication policies to leverage MFA requirement via conditional access</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            # list policies using device grant controls
+            $deviceGrantPolicies = @($enabledCAPolicies | Where-Object {
+                $null -ne $_.grantControls -and (`
+                    $_.grantControls.builtInControls -contains "compliantDevice" -or `
+                    $_.grantControls.builtInControls -contains "domainJoinDevice"
+                )
+            })
+
+            if ($deviceGrantPolicies.Count -eq 0) {
+                return "P2"
+            }
+            return "Passed"
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Authentication Experience</Area>
+        <Name>Device Trust Access Policies</Name>
+        <Summary>Authenticating devices and account for its trust type improves your security posture and usability by avoiding friction (e.g. MFA) and blocking access to untrusted devices</Summary>
+        <Recommendation>Use hybrid azure ad joined or compliant devices as a control in conditional access policies</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+
+            # list policies using riskState conditions
+            $riskPolicies = @($enabledCAPolicies | Where-Object {
+                $_.conditions.signInRiskLevels.Count -gt 0 -or `
+                $_.conditions.userRiskLevels.Count -gt 0
+            })
+
+            if ($riskPolicies.Count -eq 0) {
+                return "P2"
+            }
+            return "Passed"
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Access Policies</Area>
+        <Name>Risk-Based Access Policies</Name>
+        <Summary>Azure AD Calculates risk for every sign-in and every user. Using risk as criteria in access policies can provide a better user experience (fewer authentication prompts), better security (only prompt user when needed) and automate remediation.</Summary>
+        <Recommendation>Use sign-in or user risk controls in conditional access policies</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            # list policies using app grant control
+            $appGrantPolicies = @($enabledCAPolicies | Where-Object {
+                $null -ne $_.grantControls -and (`
+                    $_.grantControls.builtInControls -contains "approvedApplication" -or `
+                    $_.grantControls.builtInControls -contains "compliantApplication"
+                )
+            })
+
+            if ($appGrantPolicies.Count -eq 0) {
+                return "P2"
+            }
+            return "Passed"
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Access Policies</Area>
+        <Name>Client Application Access Policies</Name>
+        <Summary>Microsoft Intune Appliucation Management (MAM) provides the ability to push data protection controls to compatible client mobile applications such as Outlook. Conditional Access can enforce policies that will restrict access to cloud services from approved and/or compatible apps</Summary>
+        <Recommendation>Deploy application MAM policies to manage application configuration. Update Conditional Access policies to only allow access from MAM capables clients.</Recommendation>
+    </recommendation>
+    <!--
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            return "Passed"
+        </PowerShell>
+        <Category></Category>
+        <Area></Area>
+        <Name></Name>
+        <Summary></Summary>
+        <Recommendation></Recommendation>
+    </recommendation>
+    -->
 </recommendations>
