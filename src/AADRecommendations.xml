@@ -21,7 +21,7 @@
     <recommendation>
         <Powershell>
             param($Data)
-            $trustedNetworks = @($Data["namedLocations.json"] | Where-Object { $_.isTrusted })
+            $trustedNetworks = @($Data["namedLocations.json"] | Where-Object { $_.psobject.properties.match('isTrusted').Count -and $_.isTrusted })
             if ($trustedNetworks.Count -eq 0) {
                 return "P1"
             }
@@ -42,8 +42,8 @@
             # list policies using trusted networks conditions
             $trustedNetworkPolicies = @($enabledCAPolicies | Where-Object { 
                 $null -ne $_.conditions.locations -and (`
-                    $_.conditions.locations.includedLocations -contains "AllTrusted" -or `
-                    $_.conditions.locations.excludedLocations -contains "AllTrusted"
+                    ($_.conditions.locations.psobject.properties.match('includedLocations').Count -and $_.conditions.locations.includedLocations -contains "AllTrusted") -or `
+                    ($_.conditions.locations.psobject.properties.match('excludedLocations').Count -and $_.conditions.locations.excludedLocations -contains "AllTrusted")
                 )
             })
 
@@ -162,7 +162,7 @@
         <Area>Application Authentication and Assignment</Area>
         <Name>User App Assignments</Name>
         <Summary>Direct assignment to user is not advisable when attestation to applications is not used</Summary>
-        <Recommendation>Assign applicaiton roles to groups to have more flexibility</Recommendation>
+        <Recommendation>Assign application roles to groups to have more flexibility</Recommendation>
     </recommendation>
     <recommendation>
         <PowerShell>
@@ -185,7 +185,7 @@
             # filter enabled policies
             $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
 
-            $requireMFACAPolicies = @($enabledCAPolicies.grantControls.builtInControls -contains "mfa")
+            $requireMFACAPolicies = @($enabledCAPolicies | Where-Object { $null -ne $_.grantControls -and $_.grantControls.builtInControls -contains "mfa" })
 
             if ($requireMFACAPolicies.Count -eq 0)  {
                 return "P2"
@@ -229,7 +229,6 @@
             param($Data)
             # filter enabled policies
             $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
-
 
             # list policies using riskState conditions
             $riskPolicies = @($enabledCAPolicies | Where-Object {

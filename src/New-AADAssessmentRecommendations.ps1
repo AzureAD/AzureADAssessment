@@ -25,7 +25,6 @@ function New-AADAssessmentRecommendations {
 
     #Start-AppInsightsRequest $MyInvocation.MyCommand.Name
 
-
     ## Expand extracted data
     if (-not $SkipExpand) {
         $Archives = Get-ChildItem -Path $Path | Where-Object {$_.Name -like "AzureADAssessmentData-*.zip" }
