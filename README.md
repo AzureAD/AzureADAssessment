@@ -16,7 +16,7 @@ Update-Module AzureADAssessment -Force -AcceptLicense -Scope CurrentUser
 Data collection from Azure AD can be run from any client with access to Azure AD. However, data collection from hybrid components such as AD FS, AAD Connect, etc. are best run locally on those servers.
 
 Verify that you have authorized credentials to access these workloads:
-* Azure Active Directory as Global Administrator or Global Reader
+* Azure Active Directory as Global Administrator or Global Reader (email OTP policy won't be reported by Global Reader)
 * Domain or local administrator access to ADFS Servers
 * Domain or local administrator access to Azure AD Proxy Connector Servers
 * Domain or local administrator access to Azure AD Connect Server (Primary)
