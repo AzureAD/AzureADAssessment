@@ -86,7 +86,7 @@ Install-Module AzureADAssessment -Force -AcceptLicense -Scope CurrentUser
 ```
 
 ### Unable to sign in with device code flow
-If you are using PowerShell Core (ie PowerShell 6 or 7) and your tenant has a conditional access policy that requires a Compliant or Hybrid Azure AD Joined device, you will not be able to sign in.
+If you are using PowerShell Core (ie PowerShell 6 or 7) and your tenant has a conditional access policy that requires a Compliant or Hybrid Azure AD Joined device, you may not be able to sign in.
 
 To work around this issue use Windows PowerShell (instead of PowerShell 6 or 7). To launch Windows PowerShell go to **Start > Windows PowerShell**
 
