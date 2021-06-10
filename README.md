@@ -3,21 +3,13 @@
 [![PSGallery Version](https://img.shields.io/powershellgallery/v/AzureADAssessment.svg?style=flat&logo=powershell&label=PSGallery%20Version)](https://www.powershellgallery.com/packages/AzureADAssessment) [![PSGallery Downloads](https://img.shields.io/powershellgallery/dt/AzureADAssessment.svg?style=flat&logo=powershell&label=PSGallery%20Downloads)](https://www.powershellgallery.com/packages/AzureADAssessment) [![PSGallery Platform](https://img.shields.io/powershellgallery/p/AzureADAssessment.svg?style=flat&logo=powershell&label=PSGallery%20Platform)](https://www.powershellgallery.com/packages/AzureADAssessment)
 
 ## Install from the PowerShell Gallery
+If you run into any errors please see the [FAQ section](#faq) at the end of this document.
+
 ```PowerShell
-Install-Module AzureADAssessment -Force -AcceptLicense
+Install-Module AzureADAssessment -Force -AcceptLicense -Scope CurrentUser
+
 ## If you have already installed the module, run the following instead to ensure you have the latest version.
-Update-Module AzureADAssessment -Force -AcceptLicense
-```
-
-If you encounter an error, try the following commands instead to update the PowerShell Package Manager.
-```PowerShell
-## Update Nuget Package and PowerShellGet Module
-Install-PackageProvider NuGet -Force
-Install-Module PowerShellGet -Force
-
-## In a new PowerShell process, install the AzureADAssessment Module. Restart PowerShell console if this fails.
-&(Get-Process -Id $pid).Path -Command { Install-Module AzureADAssessment -AcceptLicense }
-Import-Module AzureADAssessment
+Update-Module AzureADAssessment -Force -AcceptLicense -Scope CurrentUser
 ```
 
 ## Run the Data Collection
@@ -77,6 +69,26 @@ Invoke-AADAssessmentDataCollection "C:\Temp"
 Invoke-AADAssessmentHybridDataCollection "C:\Temp"
 Complete-AADAssessmentReports "C:\AzureADAssessment\AzureADAssessmentData-<TenantName>.onmicrosoft.com.zip" -OutputDirectory "C:\Temp"
 ```
+
+## <h2 id="faq">Frequently Asked Questions</h2>
+### When trying to install the module I'm receiving the error 'A parameter cannot be found that matches parameter name 'AcceptLicense' 
+Run the following command to update PowerShellGet to the latest version.
+
+```PowerShell
+## Update Nuget Package and PowerShellGet Module
+Install-PackageProvider NuGet -Force
+Install-Module PowerShellGet -Force
+```
+Once completed, close all open PowerShell windows, open a new PowerShell window and run the command below to install the module.
+
+```PowerShell
+Install-Module AzureADAssessment -Force -AcceptLicense -Scope CurrentUser
+```
+
+### Unable to sign in with device code flow
+If you are using PowerShell Core (ie PowerShell 6 or 7) and your tenant has a conditional access policy that requires a Compliant or Hybrid Azure AD Joined device, you will not be able to sign in.
+
+To work around this issue use Windows PowerShell (instead of PowerShell 6 or 7). To launch Windows PowerShell go to **Start > Windows PowerShell**
 
 ## Contents
 
