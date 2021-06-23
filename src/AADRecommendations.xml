@@ -733,9 +733,11 @@
 
             $externalPolicies = @($enabledCAPolicies | Where-Object {
                 $null -ne $_.grantControls -and 
-                $_.grantControls.builtInControls -contains "mfa" -and 
-                $_.conditions.users.includeUsers -contains "GuestsOrExternalUsers"-and 
-                $_.conditions.applications.includeApplications -contains "All"
+                $_.grantControls.builtInControls -contains "mfa" -and  
+                $_.conditions.applications.includeApplications -contains "All" -and (
+                    $_.conditions.users.includeUsers -contains "GuestsOrExternalUsers" -or
+                    $_.conditions.users.includeUsers -contains "All"
+                )
             })
 
             if ($externalPolicies.Count -gt 0) {
@@ -748,7 +750,104 @@
         <Area>Conditional Access</Area>
         <Name>Guest targeted policies to all apss requiring mfa</Name>
         <Summary>Guest should be required to MFA to access applications</Summary>
-        <Recommendation>Create a policy tragetting guest on all apps with mfa requirement</Recommendation>
+        <Recommendation>Create a policy targetting guest on all apps with mfa requirement</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $deviceStatenAllorGuestPolicies = @($enabledCAPolicies | Where-Object {
+                # grantControls requires a device condition
+                $null -ne $_.grantControls -and (
+                    $_.grantControls.builtInControls -contains "compliantDevice" -or 
+                    $_.grantControls.builtInControls -contains "domainJoinedDevice"
+                ) -and (
+                    $_.conditions.users.includeUsers -contains "All" -or
+                    $_.conditions.users.includeUsers -contains "GuestsOrExternalUsers" 
+                )
+            })
+
+            if ($deviceStatenAllorGuestPolicies.Count -gt 0) {
+                return "P1"
+            }
+
+            return "Passed"
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <Name>Policies requring domain joined or compliant targetting guest users</Name>
+        <Summary>Policies that require hybrid azure ad join or compliant device targetting guests pose a risk of locking out the guests</Summary>
+        <Recommendation>Review these policies</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $office365policies = @($enabledCAPolicies | Where-Object {
+                $_.conditions.applications.includeApplications -contains "Office365"
+            })
+
+            if ($office365policies.Count -eq 0) {
+                return "P2"
+            }
+
+            return "Passed"
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <Name>Policies explicitly targetting Office 365</Name>
+        <Summary>Office 365 applications are interdependent. Targeting Office 365 as a group of applications will avoid some access issues</Summary>
+        <Recommendation>Create at least one policy targetting Office 365</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            # list of Office 365 apps in conditional access
+
+            # 00000002-0000-0ff1-ce00-000000000000 Office 365 Exchange Online
+            # 00000003-0000-0ff1-ce00-000000000000 Office 365 SharePoint Online
+            # 00000004-0000-0ff1-ce00-000000000000 Skype for Business Online
+            # cc15fd57-2c6c-4117-a88c-83b1d56b4bbe Microsoft Teams Services
+            # 2634dd23-5e5a-431c-81ca-11710d9079f4 Microsoft Stream Service
+            # 00000005-0000-0ff1-ce00-000000000000 Office 365 Yammer
+            # 905fcf26-4eb7-48a0-9ff0-8dcc7194b5ba Sway
+            # 09abbdfd-ed23-44ee-a2d9-a627aa1c90f3 ProjectWorkManagement
+            # 94c63fef-13a3-47bc-8074-75af8c65887a Office Delve
+            # c9a559d2-7aab-4f13-a6ed-e7e9c52aec87 Microsoft Forms
+            # 95de633a-083e-42f5-b444-a4295d8e9314 Microsoft Whiteboard Services
+
+            $office365apps = @(
+                "00000002-0000-0ff1-ce00-000000000000", "00000003-0000-0ff1-ce00-000000000000", "00000004-0000-0ff1-ce00-000000000000",
+                "cc15fd57-2c6c-4117-a88c-83b1d56b4bbe", "2634dd23-5e5a-431c-81ca-11710d9079f4", "00000005-0000-0ff1-ce00-000000000000",
+                "905fcf26-4eb7-48a0-9ff0-8dcc7194b5ba", "09abbdfd-ed23-44ee-a2d9-a627aa1c90f3", "94c63fef-13a3-47bc-8074-75af8c65887a",
+                "c9a559d2-7aab-4f13-a6ed-e7e9c52aec87", "95de633a-083e-42f5-b444-a4295d8e9314"
+            )
+
+            $office365apppolicies = @($enabledCAPolicies | Where-Object {
+                @(Compare-Object -ReferenceObject $_.conditions.applications.includeApplications -DifferenceObject $office365apps -PassThru -IncludeEqual -ExcludeDifferent).Count -gt 0
+            })
+
+            if ($office365apppolicies.Count -eq 0) {
+                return "P2"
+            }
+            
+            return "Passed"
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <Name>Policies targetting individual Office Applications</Name>
+        <Summary>Office 365 applications are interdependent. Targeting specific Office 365 applications can generate some access issues</Summary>
+        <Recommendation>Target Office 365 as a group in place of specific applications</Recommendation>
     </recommendation>
     <!--
     <recommendation>
