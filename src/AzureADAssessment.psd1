@@ -113,6 +113,8 @@ NestedModules = @(
     '.\Get-AADAssessConsentGrantReport.ps1'
     '.\Get-AADAssessNotificationEmailsReport.ps1'
     '.\Invoke-AADAssessmentDataCollection.ps1'
+    '.\New-AADAssessmentRecommendations.ps1'
+    '.\Export-AADASsessmentRecommendations.ps1'
 )
 
 # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
@@ -134,6 +136,8 @@ FunctionsToExport = @(
     'Get-AADAssessAppProxyConnectorLog'
     'Get-AADAssessPasswordWritebackAgentLog'
     'Get-MsGraphResults'
+    'New-AADAssessmentRecommendations'
+    'Export-AADAssessmentRecommendations'
 )
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.

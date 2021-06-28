@@ -1,0 +1,1140 @@
+<recommendations>
+    <recommendation>
+        <!--
+            The powershell property will contain the powershell script used to evaluate the recommendation.
+            Data will contain a hasharray of all the evaluated data in the path of the current scope (i.e. AAD, ADFS, AADC, AADAP).
+            The result of the script contains two properties:
+            * Priority: the priority of the recommendation (P1, P2, P3) or Passed if the recommendation is already met.
+            * Data: any identifiable data to corobore the result (faulty elements or positive result)
+        -->
+        <Powershell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            $res.Priority = "Passed"
+            if ($Data["emailOTPMethodPolicy.json"].state -ne "enabled" -or $Data["emailOTPMethodPolicy.json"].allowExternalIdToUseEmailOtp -ne "enabled") {
+                $res.Priority = "P2"
+            }
+
+            return $res
+        </Powershell>
+        <Category>Access Management</Category>
+        <Area>Authentication Experience</Area>
+        <Name>Email OTP</Name>
+        <Summary>With email OTP, org members can collaborate with anyone in the world by simply sharing a link or sending an invitation via email. Invited users prove their identity by using a verification code sent to their email account</Summary>
+        <Recommendation>Enable email OTP</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Powershell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            # get trusted networks
+            $trustedNetworks = @($Data["namedLocations.json"] | Where-Object { $_.psobject.properties.match('isTrusted').Count -and $_.isTrusted })
+
+            # set the data
+            $res.Data = @($trustedNetworks | select-object Id,displayName)
+
+            # set the priority
+            $res.Priority = "Passed"
+            if ($trustedNetworks.Count -eq 0) {
+                $res.Priority =  "P1"
+            }
+            
+            # return result
+            return $res
+        </Powershell>
+        <Category>Access Management</Category>
+        <Area>Access Policies</Area>
+        <Name>Trusted networks</Name>
+        <Summary>Trusted network is a signal leveraged by identity protection to improve risk detection. Defining your trusted networks will improve detection of risk events</Summary>
+        <Recommendation>Define trusted networks</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Powershell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            # list policies using device grand or device condition or risk or network location
+            $matchedPolicies = @($enabledCAPolicies | Where-Object {
+                ( # device grant
+                    $null -ne $_.grantControls -and (
+                        $_.grantControls.builtInControls -contains "compliantDevice" -or 
+                        $_.grantControls.builtInControls -contains "domainJoinDevice"
+                    )
+                ) -or ( # device condition
+                    $_.conditions.psobject.properties.match('devices').Count -and
+                    $null -ne $_.conditions.devices -and (
+                        $_.conditions.devices.excludeDevices.Count -gt 0 -or 
+                        $_.conditions.devices.excludeDevicesStates.Count -gt 0
+                    )
+                ) -or ( # risk level condition
+                    $_.conditions.signInRiskLevels.Count -gt 0 -or
+                    $_.conditions.userRiskLevels.Count -gt 0
+                ) -or (  # location condition 
+                    $null -ne $_.conditions.locations -and (
+                        ($_.conditions.locations.psobject.properties.match('includedLocations').Count -and $_.conditions.locations.includedLocations -contains "AllTrusted") -or 
+                        ($_.conditions.locations.psobject.properties.match('excludedLocations').Count -and $_.conditions.locations.excludedLocations -contains "AllTrusted")
+                    )
+                )
+            })
+
+            $res.Priority = "Passed"
+            if ($matchedPolicies.Count -eq 0) {
+                res.Priority = "P1"
+            }
+
+            $res.Data = $matchedPolicies
+
+            # return result
+            return $res
+        </Powershell>
+        <Category>Access Management</Category>
+        <Area>Access Policies</Area>
+        <Name>Conditional Access Controls (network, device and/or risks)</Name>
+        <Summary>Protect your users sign-ins by applying conditional access policies including risk, device or network location controls to improve your security</Summary>
+        <Recommendation>Design conditional access to include risk, device and/or netowrk location conditions</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Powershell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            $passwordAppOrSP = @($Data["AppCredentialsReport.csv"]  | Where-Object { $_.credentialType -eq "Password" })
+
+            $res.Priority =  "Passed"
+            if ($passwordAppOrSP.Count -gt 0) {
+                $res.Priority = "P2"
+            }
+            
+            $res.Data = $passwordAppOrSP | Group-Object -Property "displayName" | select Name,PasswordCount
+
+            # return result
+            return $res
+        </Powershell>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <Name>Programatic usage of password credentials</Name>
+        <Summary>Application or Service Principals using password is discouraged to enforce the lifecycle of credentials</Summary>
+        <Recommendation>Use managed identities, Windows Integrated Authentication or certificate whenever possible</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Powershell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            $expiredSecretAppOrSP = @($Data["AppCredentialsReport.csv"]  | select displayName,@{N="EndDateTime";E={Get-Date -Date $_.credentialEndDateTime}} | Group-Object -Property displayName | ForEach-Object {
+                $_.Group | Sort-Object -Property EndDateTime -Descending | Select-Object -First 1
+            } | Where-Object { $_.EndDateTime -lt (Get-Date).AddMonths(1) })
+
+            $res.Priority = "Passed"
+            if ($expiredSecretAppOrSP.Count -gt 0) {
+                $res.Priority = "P2"
+            }
+
+            $res.Data = $expiredSecretAppOrSP
+            
+            # return result
+            return $res
+        </Powershell>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <Name>Application or Service Principals with expired credentials</Name>
+        <Summary>Application or Service Principals credential lifecycle should be managed</Summary>
+        <Recommendation>Review application or service principals with expired credentials</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Powershell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            # Select high permisions grants 
+            # high permissions = Mail or ReadWrite permissions
+            # filtering out microsoft and office demo tenant
+            $highPermissionsGrants = @($Data["ConsentGrantReport.csv"] | where { $_.permission -match "ReadWrite|Mail" -and $_.clientOwnerTenantId -notin ("72f988bf-86f1-41af-91ab-2d7cd011db47","a942cf59-f3c6-4338-acac-d26c18783a46") })
+
+            $res.Priority = "Passed"
+            if ($highPermissionsGrants.Count -gt 0) {
+                $res.Priority = "P2"
+            }
+
+            $res.Data = $highPermissionsGrants | select-object clientId,clientDisplayName,resourceObjectId,resourceDisplayName,permission,permissionType,@{N="IsAdminConsent";E={$_.consentType -eq "AllPrincipals"}}
+
+            # return result
+            return $res
+        </Powershell>
+        <Category>Access Management</Category>
+        <Area>Access Surface Area</Area>
+        <Name>Grants for high level permissions</Name>
+        <Summary>Application can request high level permission trough fishing. Such permissions include those allowing "ReadWrite" actions or "Mail" operations. Regular reviews should be in place and non-necessary grants should be removed</Summary>
+        <Recommendation>Review applications having high permissions and remove unnecessary grants</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Powershell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            # Select grants to deprecated resource (Azure AD Graph)
+            $deprecatedGrants = @($Data["ConsentGrantReport.csv"] | Where-Object { $_.resourceObjectId -eq "369aeace-0da3-434f-a94b-cdd518008814" })
+
+            $res.Priority = "Passed"
+            if ($deprecatedGrants.Count -gt 0) {
+                $res.Priority = "P2"
+            }
+
+            $res.Data = $deprecatedGrants | select-object clientId,clientDisplayName,resourceObjectId,resourceDisplayName,permission,permissionType,@{N="IsAdminConsent";E={$_.consentType -eq "AllPrincipals"}}
+
+            # return result
+            return $res
+        </Powershell>
+        <Category>Access Management</Category>
+        <Area>Access Surface Area</Area>
+        <Name>Grants to legacy resources</Name>
+        <Summary>Grants are present to resources that are being deprected (Azure AD Graph)</Summary>
+        <Recommendation>Review applications relying on these resources and review potential migration path with developer</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            # TODO: check if ELM/AR is used or not
+            $userAppAssignments = @($Data["appRoleAssignments.csv"] | Where-Object { $_.principalType -eq "User" })
+            
+            $res.Priority = "Passed"
+            if ($userAppAssignments.Count -gt 0) {
+                $res.Priority = "P3"
+            }
+            
+            $res.Data = $userAppAssignments | Group-Object -property resourceDisplayName,resourceId | select @{N="resourceId";E={$_.Group[0].resourceId}},@{N="resourceDisplayName";E={$_.Group[0].resourceDisplayName}},@{N="userAppAssignmentCount";E={$_.Count}}
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Application Authentication and Assignment</Area>
+        <Name>User App Assignments</Name>
+        <Summary>Direct assignment to user is not advisable when attestation (Access Reviews) to applications is not used</Summary>
+        <Recommendation>Assign application roles to groups to have more flexibility</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            $allUsersAppAssignments = @($Data["appRoleAssignments.csv"] | Where-Object { $_.principalType -eq "Group" -and $_.principalDisplayName -eq "All users" }) 
+            
+            $res.Priority = "Passed"
+            if ($allUsersAppAssignments.Count -gt 0) {
+                $res.Priority = "P1"
+            }
+
+            $res.Data =  $allUsersAppAssignments | select-object resourceId,resourceDisplayName | Sort-Object -property resourceId -unique
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Identity Management</Category>
+        <Area>Entitlement Management</Area>
+        <Name>Assignment of Apps with "All users" group</Name>
+        <Summary>The "All users" group contains both Members and Guests. Resource owners might misunderstand this group to contain only members. As a result, special condsideration should be takeb when using this group for application assignment or grant access tor resource such as SharePoint Content or Azure resources</Summary>
+        <Recommendation>Fix the entittlements by creating the right groups (e.g. "all members")</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $requireMFACAPolicies = @($enabledCAPolicies | Where-Object { $null -ne $_.grantControls -and $_.grantControls.builtInControls -contains "mfa" })
+
+            $res.Priority = "Passed"
+            if ($requireMFACAPolicies.Count -eq 0)  {
+                $res.Priority = "P2"
+            }
+
+            $res.Data = $requireMFACAPolicies | Select-Object id,displayName
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <Name>Control MFA trough Conditional Access</Name>
+        <Summary>MFA can be condigured per user or on a federated Identity Provider. Applying MFA protection trough Conditional Access provides more flexibility</Summary>
+        <Recommendation>Configure authentication policies to leverage MFA requirement via conditional access</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            # list policies using device grant controls
+            $deviceGrantPolicies = @($enabledCAPolicies | Where-Object {
+                $null -ne $_.grantControls -and (`
+                    $_.grantControls.builtInControls -contains "compliantDevice" -or `
+                    $_.grantControls.builtInControls -contains "domainJoinDevice"
+                )
+            })
+
+            $res.Priority = "Passed"
+            if ($deviceGrantPolicies.Count -eq 0) {
+                $res.Priority = "P2"
+            }
+
+            $res.Data = $deviceGrantPolicies | Select-Object id,displayName
+            
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Authentication Experience</Area>
+        <Name>Device Trust Access Policies</Name>
+        <Summary>Authenticating devices and account for its trust type improves your security posture and usability by avoiding friction (e.g. MFA) and blocking access to untrusted devices</Summary>
+        <Recommendation>Use hybrid azure ad joined or compliant devices as a control in conditional access policies</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            # list policies using riskState conditions
+            $riskPolicies = @($enabledCAPolicies | Where-Object {
+                $_.conditions.signInRiskLevels.Count -gt 0 -or `
+                $_.conditions.userRiskLevels.Count -gt 0
+            })
+
+            $res.Priority = "Passed"
+            if ($riskPolicies.Count -eq 0) {
+                $res.Priority = "P2"
+            }
+
+            $res.Data = $riskPolicies | Select-Object id,displayName
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Access Policies</Area>
+        <Name>Risk-Based Access Policies</Name>
+        <Summary>Azure AD Calculates risk for every sign-in and every user. Using risk as criteria in access policies can provide a better user experience (fewer authentication prompts), better security (only prompt user when needed) and automate remediation.</Summary>
+        <Recommendation>Use sign-in or user risk controls in conditional access policies</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            # list policies using app grant control
+            $appGrantPolicies = @($enabledCAPolicies | Where-Object {
+                $null -ne $_.grantControls -and (`
+                    $_.grantControls.builtInControls -contains "approvedApplication" -or `
+                    $_.grantControls.builtInControls -contains "compliantApplication"
+                )
+            })
+
+            $res.Priority = "Passed"
+            if ($appGrantPolicies.Count -eq 0) {
+                $res.Priority = "P2"
+            }
+
+            $res.Data = $appGrantPolicies | Select-Object id,displayName
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Access Policies</Area>
+        <Name>Client Application Access Policies</Name>
+        <Summary>Microsoft Intune Appliucation Management (MAM) provides the ability to push data protection controls to compatible client mobile applications such as Outlook. Conditional Access can enforce policies that will restrict access to cloud services from approved and/or compatible apps</Summary>
+        <Recommendation>Deploy application MAM policies to manage application configuration. Update Conditional Access policies to only allow access from MAM capables clients.</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $policiesWithExcludes = @($enabledCAPolicies | Where-Object {
+                $_.conditions.users.excludeUsers.Count -gt 0 -or `
+                $_.conditions.users.excludeGroups.Count -gt 0 -or `
+                $_.conditions.users.excludeRoles.Count -gt 0
+            })
+
+            $res.Priority = "Passed"
+            if ($policiesWithExcludes.Count -eq 0) {
+                $res.Priority = "P1"
+            }
+
+            $res.Data = $policiesWithExcludes | Select-Object id,displayName
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <Name>Exclusions usage</Name>
+        <Summary>Policies should all have an exclusion (User/Group/Role)</Summary>
+        <Recommendation>Exclude at least one group from every policy</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $policiesWithExcludedUsersOnly = @($enabledCAPolicies | Where-Object {
+                @($_.conditions.users.excludeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }) -gt 0 -or `
+                $_.conditions.users.excludeGroups.Count -eq 0 -or `
+                $_.conditions.users.excludeRoles.Count -eq 0
+            })
+
+            $res.Priority = "Passed"
+            if ($policiesWithExcludedUsersOnly.Count -gt 0) {
+                $res.Priority = "P3"
+            }
+
+            $res.Data = $policiesWithExcludedUsersOnly | Select-Object id,displayName
+            
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <Name>Only Users Excluded</Name>
+        <Summary>Excluding groups provide more flexibility to manage exclusions</Summary>
+        <Recommendation>Put excluded users in a group and exclude the group</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $policiesWithExcludedUsersandGroups = @($enabledCAPolicies | Where-Object {
+                @($_.conditions.users.excludeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }) -gt 0 -and `
+                $_.conditions.users.excludeGroups.Count -gt 0
+            })
+            
+            $res.Priority = "Passed"
+            if ($policiesWithExcludedUsersandGroups.Count -gt 0) {
+                $res.Priority = "P3"
+            }
+
+            $res.Data = $policiesWithExcludedUsersandGroups | Select-Object id,displayName
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <Name>Groups and Users Excluded</Name>
+        <Summary>Excluding groups provide more flexibility to manage exclusions</Summary>
+        <Recommendation>Put excluded users in an existing excluded group or create a new group to be excluded</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $policiesWithOnlyUsersIncluded = @($enabledCAPolicies | Where-Object {
+                @($_.conditions.users.includeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }).Count -gt 0  -and `
+                @($_.conditions.users.includeGroups | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }).Count -eq 0
+            })
+            
+            $res.Priority = "Passed"
+            if ($policiesWithOnlyUsersIncluded.Count -gt 0) {
+                $res.Priority = "P3"
+            }
+
+            $res.Data = $policiesWithOnlyUsersIncluded | Select-Object id,displayName
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <Name>Only Users Included</Name>
+        <Summary>Including groups provide more flexibility to manage inclusions</Summary>
+        <Recommendation>Put included users in a group and include the group</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $policiesWithUsersandGroupsIncluded = @($enabledCAPolicies | Where-Object {
+                @($_.conditions.users.includeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }).Count -gt 0  -and `
+                @($_.conditions.users.includeGroups | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }).Count -gt 0
+            })
+            
+            $res.Priority = "Passed"
+            if ($policiesWithUsersandGroupsIncluded.Count -gt 0) {
+                $res.Priority = "P3"
+            }
+
+            $res.Data = $policiesWithUsersandGroupsIncluded | Select-Object id,displayName
+            
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <Name>Only Users Included</Name>
+        <Summary>Including groups provide more flexibility to manage inclusions</Summary>
+        <Recommendation>Put included users in an existing excluded group or create a new group to be included</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $policiesWithUsersOrGroupsExcluded = @($enabledCAPolicies | Where-Object {
+                @($_.conditions.users.excludeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }).Count -gt 0  -or `
+                @($_.conditions.users.excludeGroups | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }).Count -gt 0
+            })            
+            
+            $res.Priority = "Passed"
+            if ($policiesWithUsersOrGroupsExcluded.Count -eq 0) {
+                $res.Priority = "P1"
+                return $res
+            }
+
+            $commonUsers = @($policiesWithUsersOrGroupsExcluded[0].conditions.users.excludeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" })
+            $commonGroups = @($policiesWithUsersOrGroupsExcluded[0].conditions.users.excludeGroups | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" })
+            foreach($policy in $policiesWithUsersOrGroupsExcluded) {
+                if ($commonUsers.Count -gt 0) {
+                    $commonUsers = @(Compare-Object -ReferenceObject $commonUsers -DifferenceObject @($policy.conditions.users.excludeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }) -PassThru -IncludeEqual -ExcludeDifferent)
+                }
+                if ($commonGroups.Count -gt 0) {
+                    $commonGroups = @(Compare-Object -ReferenceObject $commonGroups -DifferenceObject @($policy.conditions.users.excludeGroups | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }) -PassThru -IncludeEqual -ExcludeDifferent)
+                }
+            }
+
+            # lookup commmon objects
+            $common = @()
+            $common += @($Data["groups.csv"] | Where-Object { $_.id -in $commonGroups } | select id,displayName,@{N="type";E={"group"}})
+            $common += @($Data["users.csv"] | Where-Object { $_.id -in $commonUsers } | select id,displayName,@{N="type";E={"user"}})
+
+            if ($common.Count -eq 0) {
+                $res.Priority = "P1"
+            }
+
+            $res.Data = $common
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <Name>Common Excluded Groups or Users</Name>
+        <Summary>A common set of users or groups should be excluded from the CA policies. These break glass accounts are meant to be used in case of lockout. Their usage should be monitored.</Summary>
+        <Recommendation>Create a group that is excluded from every CA policies</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $policiesWithUsersOrGroupsExcluded = @($enabledCAPolicies | Where-Object {
+                @($_.conditions.users.excludeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }).Count -gt 0  -or `
+                @($_.conditions.users.excludeGroups | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }).Count -gt 0
+            })            
+            
+            $res.Priority = "Passed"
+            if ($policiesWithUsersOrGroupsExcluded.Count -eq 0) {
+                $res.Priority = "P1"
+                return $res
+            }
+
+            $commonUsers = @($policiesWithUsersOrGroupsExcluded[0].conditions.users.excludeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" })
+            $commonGroups = @($policiesWithUsersOrGroupsExcluded[0].conditions.users.excludeGroups | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" })
+            foreach($policy in $policiesWithUsersOrGroupsExcluded) {
+                if ($commonUsers.Count -gt 0) {
+                    $commonUsers = @(Compare-Object -ReferenceObject $commonUsers -DifferenceObject @($policy.conditions.users.excludeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }) -PassThru -IncludeEqual -ExcludeDifferent)
+                }
+                if ($commonGroups.Count -gt 0) {
+                    $commonGroups = @(Compare-Object -ReferenceObject $commonGroups -DifferenceObject @($policy.conditions.users.excludeGroups | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }) -PassThru -IncludeEqual -ExcludeDifferent)
+                }
+            }
+
+            # lookup commmon objects
+            $common = @()
+            $common += @($Data["groups.csv"] | Where-Object { $_.id -in $commonGroups } | select id,displayName,@{N="type";E={"group"}})
+            $common += @($Data["users.csv"] | Where-Object { $_.id -in $commonUsers } | select id,displayName,@{N="type";E={"user"}})
+
+            if ($commonUsers.Count -gt 0 -and $commonGroups -eq 0) {
+                $res.Priority = "P3"
+            }
+
+            $res.Data = $common
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <Name>Common Users excluded but not groups</Name>
+        <Summary>Excluding groups provide more flexibility to manage exclusions</Summary>
+        <Recommendation>Put common excluded users into a group and exclude this group</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $policiesWithUsersOrGroupsExcluded = @($enabledCAPolicies | Where-Object {
+                @($_.conditions.users.excludeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }).Count -gt 0  -or `
+                @($_.conditions.users.excludeGroups | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }).Count -gt 0
+            })            
+            
+            $res.Priority = "Passed"
+            if ($policiesWithUsersOrGroupsExcluded.Count -eq 0) {
+                $res.Priority = "P1"
+                return $res
+            }
+
+            $commonUsers = @($policiesWithUsersOrGroupsExcluded[0].conditions.users.excludeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" })
+            $commonGroups = @($policiesWithUsersOrGroupsExcluded[0].conditions.users.excludeGroups | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" })
+            foreach($policy in $policiesWithUsersOrGroupsExcluded) {
+                if ($commonUsers.Count -gt 0) {
+                    $commonUsers = @(Compare-Object -ReferenceObject $commonUsers -DifferenceObject @($policy.conditions.users.excludeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }) -PassThru -IncludeEqual -ExcludeDifferent)
+                }
+                if ($commonGroups.Count -gt 0) {
+                    $commonGroups = @(Compare-Object -ReferenceObject $commonGroups -DifferenceObject @($policy.conditions.users.excludeGroups | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }) -PassThru -IncludeEqual -ExcludeDifferent)
+                }
+            }
+
+            # lookup commmon objects
+            $common = @()
+            $common += @($Data["groups.csv"] | Where-Object { $_.id -in $commonGroups } | select id,displayName,@{N="type";E={"group"}})
+            $common += @($Data["users.csv"] | Where-Object { $_.id -in $commonUsers } | select id,displayName,@{N="type";E={"user"}})
+
+            if ($commonUsers.Count -gt 0 -and $commonGroups -gt 0) {
+                $res.Priority = "P3"
+            }
+
+            $res.Data = $common
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <Name>Common Users and Groups are excluded</Name>
+        <Summary>Excluding groups provide more flexibility to manage exclusions</Summary>
+        <Recommendation>Put common excluded users into a group and exclude this group</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            # filter CA blocking legacy authentication
+            $legacyBlockCAPolicies = @($enabledCAPolicies | Where-Object {
+                # grantControls is block
+                $null -ne $_.grantControls -and 
+                $_.grantControls.builtInControls -contains "block" -and 
+                # clientApps are active sync and other clients
+                $null -ne $_.conditions.clientAppTypes -and (
+                    $_.conditions.clientAppTypes -contains "other" -and (
+                        $_.conditions.clientAppTypes -contains "easSupported" -or `
+                        $_.conditions.clientAppTypes -contains "exchangeActiveSync"
+                    )
+                ) -and ( # users or groups are included
+                    @($_.conditions.users.includeUsers | Where-Object { $_ -ne "None" }).Count -gt 0 -or `
+                    $_.conditions.users.includeGroups.Count -gt 0
+                )
+            })
+
+            $res.Priority = "Passed"
+            if ($legacyBlockCAPolicies.Count -eq 0) {
+                $res.Priority = "P1"
+            }
+            
+            $res.Data = $legacyBlockCAPolicies | Select-Object id,displayName
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <Name>Block Legacy Authentication</Name>
+        <Summary>Legacy authentication should be blocked in Conditional Access as well as locked down at the source</Summary>
+        <Recommendation>Create a conditonal access to block legacy authentication</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $blockAllPolicies = @($enabledCAPolicies | Where-Object {
+                # grantControls is block
+                $null -ne $_.grantControls -and 
+                $_.grantControls.builtInControls -contains "block" -and 
+                $_.conditions.applications.includeApplications -contains "All" -and
+                $_.conditions.users.includeUsers -contains "All"
+            })
+
+            # filter out legacy auth policies
+            $blockAllPoliciesNotLegacy = @($blockAllPolicies | Where-Object {
+                # clientApps are not active sync or other clients
+                $null -eq $_.conditions.clientAppTypes -or (
+                    $_.conditions.clientAppTypes -notcontains "other" -or (
+                        $_.conditions.clientAppTypes -notcontains "easSupported" -and `
+                        $_.conditions.clientAppTypes -notcontains "exchangeActiveSync"
+                    )
+                )
+            })
+
+            $res.Priority =  "Passed"
+            if ($blockAllPoliciesNotLegacy.Count -gt 0) {
+                $res.Priority = "P1"
+            }
+
+            $res.Data =  $blockAllPoliciesNotLegacy | Select-Object id,displayName
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <Name>Block policies for all cloud apps and all users</Name>
+        <Summary>Policies that block all users and all cloud apps pose a risk of locking out the your entire organisation</Summary>
+        <Recommendation>Review these policies</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $deviceStatenAllPolicies = @($enabledCAPolicies | Where-Object {
+                # grantControls requires a device condition
+                $null -ne $_.grantControls -and
+                $_.grantControls.builtInControls -contains "compliantDevice" -and 
+                $_.conditions.applications.includeApplications -contains "All" -and
+                $_.conditions.users.includeUsers -contains "All"
+            })
+
+            $res.Priority =  "Passed"
+            if ($deviceStatenAllPolicies.Count -gt 0) {
+                $res.Priority = "P1"
+            }
+
+            $res.Data = $deviceStatenAllPolicies | Select-Object id,displayName
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <Name>Policies for all cloud apps and all users requiring compliant devices</Name>
+        <Summary>Policies that require a compliant device for all users and all cloud apps pose a risk of locking out the users who have not enrolled their deviece yet</Summary>
+        <Recommendation>Review these policies</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $deviceStatenAllPolicies = @($enabledCAPolicies | Where-Object {
+                # grantControls requires a device condition
+                $null -ne $_.grantControls -and
+                $_.grantControls.builtInControls -contains "domainJoinedDevice" -and 
+                $_.conditions.applications.includeApplications -contains "All" -and
+                $_.conditions.users.includeUsers -contains "All"
+            })
+
+            $res.Priority = "Passed"
+            if ($deviceStatenAllPolicies.Count -gt 0) {
+                $res.Priority = "P1"
+            }
+
+            $res.Data = $deviceStatenAllPolicies | Select-Object id,displayName
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <Name>Policies for all cloud apps and all users requiring hybird azure ad joined device</Name>
+        <Summary>Policies that require hybrid azure ad join for all users and all cloud apps pose a risk of locking out the users who have not domain joined their deviece yet</Summary>
+        <Recommendation>Review these policies</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $deviceStatenAllPolicies = @($enabledCAPolicies | Where-Object {
+                # grantControls requires a device condition
+                $null -ne $_.grantControls -and
+                $_.grantControls.builtInControls -contains "compliantApplication" -and 
+                $_.conditions.applications.includeApplications -contains "All" -and
+                $_.conditions.users.includeUsers -contains "All"
+            })
+
+            $res.Priority = "Passed"
+            if ($deviceStatenAllPolicies.Count -gt 0) {
+                $res.Priority = "P1"
+            }
+
+            $res.Data = $deviceStatenAllPolicies | Select-Object id,displayName
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <Name>Policies for all cloud apps and all users requiring app protection policy</Name>
+        <Summary>Policies that require app protection for all users and all cloud apps pose a risk of locking out the users</Summary>
+        <Recommendation>Review these policies</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)    
+            $res =  "" | select Priority,Data      
+
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $blockAllAppsPolicies = @($enabledCAPolicies | Where-Object {
+                # grantControls is block
+                $null -ne $_.grantControls -and 
+                $_.grantControls.builtInControls -contains "block" -and 
+                $_.conditions.applications.includeApplications -contains "All"
+            })
+
+            # filter out legacy auth policies
+            $blockAllAppsPoliciesNotLegacy = @($blockAllAppsPolicies | Where-Object {
+                # clientApps are not active sync or other clients
+                $null -eq $_.conditions.clientAppTypes -or (
+                    $_.conditions.clientAppTypes -notcontains "other" -or (
+                        $_.conditions.clientAppTypes -notcontains "easSupported" -and `
+                        $_.conditions.clientAppTypes -notcontains "exchangeActiveSync"
+                    )
+                )
+            })
+
+            $res.Priority = "Passed"
+            if ($blockAllAppsPoliciesNotLegacy.Count -gt 0) {
+                $res.Priority = "P1"
+            }
+
+            $res.Data =  $blockAllAppsPoliciesNotLegacy | Select-Object id,displayName
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <Name>Block policies with all apps filter</Name>
+        <Summary>Block policies targeted at all apps may lock user out</Summary>
+        <Recommendation>Review these policies</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $externalPolicies = @($enabledCAPolicies | Where-Object {
+                $_.conditions.users.includeUsers -contains "GuestsOrExternalUsers"
+            })
+
+            $res.Priority = "Passed"
+            if ($externalPolicies.Count -gt 0) {
+                $res.Priority = "P2"
+            }
+
+            $res.Data =  $externalPolicies | Select-Object id,displayName
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <Name>Guest targeted policies</Name>
+        <Summary>A least one policy targetting guest should be present</Summary>
+        <Recommendation>Create at least one policy targeting guests</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $externalPolicies = @($enabledCAPolicies | Where-Object {
+                $null -ne $_.grantControls -and 
+                $_.grantControls.builtInControls -contains "mfa" -and  
+                $_.conditions.applications.includeApplications -contains "All" -and (
+                    $_.conditions.users.includeUsers -contains "GuestsOrExternalUsers" -or
+                    $_.conditions.users.includeUsers -contains "All"
+                )
+            })
+
+            $res.Priority = "Passed"
+            if ($externalPolicies.Count -gt 0) {
+                $res.Priority = "P2"
+            }
+
+            $res.Data = $externalPolicies | Select-Object id,displayName
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <Name>Guest targeted policies to all apss requiring mfa</Name>
+        <Summary>Guest should be required to MFA to access applications</Summary>
+        <Recommendation>Create a policy targetting guest on all apps with mfa requirement</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $deviceStatenAllorGuestPolicies = @($enabledCAPolicies | Where-Object {
+                # grantControls requires a device condition
+                $null -ne $_.grantControls -and (
+                    $_.grantControls.builtInControls -contains "compliantDevice" -or 
+                    $_.grantControls.builtInControls -contains "domainJoinedDevice"
+                ) -and (
+                    $_.conditions.users.includeUsers -contains "All" -or
+                    $_.conditions.users.includeUsers -contains "GuestsOrExternalUsers" 
+                )
+            })
+
+            $res.Priority = "Passed"
+            if ($deviceStatenAllorGuestPolicies.Count -gt 0) {
+                $res.Priority = "P1"
+            }
+
+            $res.Data = $deviceStatenAllorGuestPolicies | Select-Object id,displayName
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <Name>Policies requring domain joined or compliant targetting guest users</Name>
+        <Summary>Policies that require hybrid azure ad join or compliant device targetting guests pose a risk of locking out the guests</Summary>
+        <Recommendation>Review these policies</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $office365policies = @($enabledCAPolicies | Where-Object {
+                $_.conditions.applications.includeApplications -contains "Office365"
+            })
+
+            $res.Priority = "Passed"
+            if ($office365policies.Count -eq 0) {
+                $res.Priority = "P2"
+            }
+
+            $res.Data = $office365policies | Select-Object id,displayName
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <Name>Policies explicitly targetting Office 365</Name>
+        <Summary>Office 365 applications are interdependent. Targeting Office 365 as a group of applications will avoid some access issues</Summary>
+        <Recommendation>Create at least one policy targetting Office 365</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            # list of Office 365 apps in conditional access
+
+            # 00000002-0000-0ff1-ce00-000000000000 Office 365 Exchange Online
+            # 00000003-0000-0ff1-ce00-000000000000 Office 365 SharePoint Online
+            # 00000004-0000-0ff1-ce00-000000000000 Skype for Business Online
+            # cc15fd57-2c6c-4117-a88c-83b1d56b4bbe Microsoft Teams Services
+            # 2634dd23-5e5a-431c-81ca-11710d9079f4 Microsoft Stream Service
+            # 00000005-0000-0ff1-ce00-000000000000 Office 365 Yammer
+            # 905fcf26-4eb7-48a0-9ff0-8dcc7194b5ba Sway
+            # 09abbdfd-ed23-44ee-a2d9-a627aa1c90f3 ProjectWorkManagement
+            # 94c63fef-13a3-47bc-8074-75af8c65887a Office Delve
+            # c9a559d2-7aab-4f13-a6ed-e7e9c52aec87 Microsoft Forms
+            # 95de633a-083e-42f5-b444-a4295d8e9314 Microsoft Whiteboard Services
+
+            $office365apps = @(
+                "00000002-0000-0ff1-ce00-000000000000", "00000003-0000-0ff1-ce00-000000000000", "00000004-0000-0ff1-ce00-000000000000",
+                "cc15fd57-2c6c-4117-a88c-83b1d56b4bbe", "2634dd23-5e5a-431c-81ca-11710d9079f4", "00000005-0000-0ff1-ce00-000000000000",
+                "905fcf26-4eb7-48a0-9ff0-8dcc7194b5ba", "09abbdfd-ed23-44ee-a2d9-a627aa1c90f3", "94c63fef-13a3-47bc-8074-75af8c65887a",
+                "c9a559d2-7aab-4f13-a6ed-e7e9c52aec87", "95de633a-083e-42f5-b444-a4295d8e9314"
+            )
+
+            $office365apppolicies = @($enabledCAPolicies | Where-Object {
+                @(Compare-Object -ReferenceObject $_.conditions.applications.includeApplications -DifferenceObject $office365apps -PassThru -IncludeEqual -ExcludeDifferent).Count -gt 0
+            })
+
+            $res.Priority = "Passed"
+            if ($office365apppolicies.Count -eq 0) {
+                $res.Priority = "P2"
+            }
+            
+            $res.Data = $office365apppolicies | Select-Object id,displayName
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <Name>Policies targetting individual Office Applications</Name>
+        <Summary>Office 365 applications are interdependent. Targeting specific Office 365 applications can generate some access issues</Summary>
+        <Recommendation>Target Office 365 as a group in place of specific applications</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            # list policies using aproved app wihtout app policy
+            $approvedAppPoliciesWithoutMAM = @($enabledCAPolicies | Where-Object {
+                $null -ne $_.grantControls -and
+                $_.grantControls.builtInControls -contains "approvedApplication" -and
+                $_.grantControls.builtInControls -notcontains "compliantApplication"
+            })
+
+            $res.Priority = "Passed"
+            if ($approvedAppPoliciesWithoutMAM.Count -eq 0) {
+                $res.Priority = "P2"
+            }
+            
+            $res.Data = $approvedAppPoliciesWithoutMAM | Select-Object id,displayName
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <Name>Policies requiring approved app and not MAM policies</Name>
+        <Summary>Approved applications do support MAM policies, adding Intune policies targetting them as well as requiring them to be protected by such policies will increase security</Summary>
+        <Recommendation>Require Intune protection policies for approved applications and enforce them via Conditional Access</Recommendation>
+    </recommendation>
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            # list policies using aproved app wihtout app policy
+            $countriesBlock = @($enabledCAPolicies | Where-Object {
+                $null -ne $_.grantControls -and
+                $_.grantControls.builtInControls -contains "block" -and
+                $null -ne $_.conditions.locations -and 
+                $_.conditions.locations.psobject.properties.match('includedLocations').Count -and (
+                    $_.conditions.locations.includedLocations.Count -gt 0 -or (
+                        $_.conditions.locations.psobject.properties.match('excludedLocations').Count -and 
+                        $_.conditions.locations.includedLocations -contains "All" -and 
+                        $_.conditions.locations.excludedLocations.Count -gt 0
+                    )
+                )
+            })
+
+            $res.Priority = "Passed"
+            if ($countriesBlock.Count -eq 0) {
+                $res.Priority = "P2"
+            }
+
+            $res.Data = $countriesBlock | Select-Object id,displayName
+            
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <Name>Block countries</Name>
+        <Summary>If you don't expect sign-in from some countries they can be blocked in conditional access</Summary>
+        <Recommendation>Block countries from where your users don't sign-in</Recommendation>
+    </recommendation>
+    <!--
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            return $res
+        </PowerShell>
+        <Category></Category>
+        <Area></Area>
+        <Name></Name>
+        <Summary></Summary>
+        <Recommendation></Recommendation>
+    </recommendation>
+    -->
+</recommendations>
