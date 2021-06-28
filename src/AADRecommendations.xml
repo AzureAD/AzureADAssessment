@@ -33,7 +33,7 @@
             $trustedNetworks = @($Data["namedLocations.json"] | Where-Object { $_.psobject.properties.match('isTrusted').Count -and $_.isTrusted })
 
             # set the data
-            $res.Data = @($trustedNetworks | select-object Id,displayName)
+            $res.Data = $trustedNetworks | select-object Id,displayName
 
             # set the priority
             $res.Priority = "Passed"
@@ -84,10 +84,10 @@
 
             $res.Priority = "Passed"
             if ($matchedPolicies.Count -eq 0) {
-                res.Priority = "P1"
+                $res.Priority = "P1"
             }
 
-            $res.Data = $matchedPolicies
+            $res.Data = $matchedPolicies | select id,displayName
 
             # return result
             return $res
@@ -110,7 +110,7 @@
                 $res.Priority = "P2"
             }
             
-            $res.Data = $passwordAppOrSP | Group-Object -Property "displayName" | select Name,PasswordCount
+            $res.Data = $passwordAppOrSP | Group-Object -Property "displayName" | select Name,@{N="PasswordCount";E={$_.Count}}
 
             # return result
             return $res
