@@ -92,8 +92,10 @@ function New-AADAssessmentRecommendations {
         $recommendations = Select-Xml -Path (Join-Path $PSScriptRoot "AADRecommendations.xml") -XPath "/recommendations"
         foreach($recommendationDef in $recommendations.Node.recommendation) {
             $scriptblock = [Scriptblock]::Create($recommendationDef.PowerShell)
-            $recommendation = $recommendationDef | select-object Category,Area,Name,Summary,Recommendation,Priority
-            $recommendation.Priority = Invoke-Command -ScriptBlock $scriptblock -ArgumentList $Data
+            $recommendation = $recommendationDef | select-object Category,Area,Name,Summary,Recommendation,Priority,Data
+            $result = Invoke-Command -ScriptBlock $scriptblock -ArgumentList $Data
+            $recommendation.Priority = $result.Priority
+            $recommendation.Data = $result.Data
             $recommendation
         }
         # generate Trusted network locations
