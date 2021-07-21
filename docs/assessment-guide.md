@@ -50,7 +50,7 @@ Complete-AADAssessmentReports `
 
 # Interview
 
-- Set up a 1-2 hour call with the customer and complete the [AzureADAssessment Survey](https://github.com/AzureAD/AzureADAssessment/blob/master/assets/AzureADAssessment-Survey.xlsx) worksheet.
+- Set up a 1-2 hour call with the customer and complete the [AzureADAssessment Survey](https://github.com/AzureAD/AzureADAssessment/raw/master/assets/AzureADAssessment-Survey.xlsx) worksheet.
 
 # Post-Interview
 
@@ -70,7 +70,7 @@ Expand-AADAssessAADConnectConfig -CustomerName 'Woodgrove' `
 
 ## Generate AD FS App Migration Report (If applicable)
 
-If customer provided ADFS data follow the instructions to generate the ADFS to Azure AD Migration report as explained in the [official documentation](https://github.com/AzureAD/Deployment-Plans/tree/master/ADFS%20to%20AzureAD%20App%20Migration#instructions-if-you-want-to-run-the-analysis-from-another-server).
+If customer provided ADFS data follow the instructions to generate the ADFS to Azure AD Migration report as explained in [this guide](https://github.com/AzureAD/Deployment-Plans/tree/master/ADFS%20to%20AzureAD%20App%20Migration#instructions-if-you-want-to-run-the-analysis-from-another-server).
 
 # Report Write Up
 
