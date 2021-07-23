@@ -105,6 +105,7 @@ NestedModules = @(
     '.\AzureADAssessmentPortable.psm1'
     '.\Complete-AADAssessmentReports.ps1'
     '.\Connect-AADAssessment.ps1'
+    '.\Disconnect-AADAssessment.ps1'
     '.\Expand-AADAssessAADConnectConfig.ps1'
     '.\Export-AADAssessmentPortableModule.ps1'
     '.\Export-AADAssessConditionalAccessData.ps1'
@@ -119,6 +120,7 @@ NestedModules = @(
 FunctionsToExport = @(
     'Complete-AADAssessmentReports'
     'Connect-AADAssessment'
+    'Disconnect-AADAssessment'
     'Expand-AADAssessAADConnectConfig'
     'Export-AADAssessmentPortableModule'
     'Get-AADAssessAppAssignmentReport'
