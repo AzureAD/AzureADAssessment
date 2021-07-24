@@ -30,14 +30,17 @@ function Use-Progress {
         [Parameter(Mandatory = $false)]
         [int] $Total,
         # Script block to execute for each object in array.
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $false)]
         [scriptblock] $ScriptBlock,
         # Property name to use for current operation
         [Parameter(Mandatory = $false)]
         [string] $Property,
         # Minimum timespan between each progress update.
         [Parameter(Mandatory = $false)]
-        [timespan] $MinimumUpdateFrequency = (New-TimeSpan -Seconds 1)
+        [timespan] $MinimumUpdateFrequency = (New-TimeSpan -Seconds 1),
+        # Output input objects as they are processed.
+        [Parameter(Mandatory = $false)]
+        [switch] $PassThru
     )
 
     begin {
@@ -51,7 +54,10 @@ function Use-Progress {
                 if ($Property) { $CurrentOperation = $InputObject.$Property }
                 else { $CurrentOperation = $InputObject }
                 Update-Progress $ProgressState -IncrementBy 1 -CurrentOperation $CurrentOperation
-                Invoke-Command -ScriptBlock $ScriptBlock -ArgumentList $InputObject
+                if ($ScriptBlock) {
+                    Invoke-Command -ScriptBlock $ScriptBlock -ArgumentList $InputObject
+                }
+                if ($PassThru) { $InputObject }
             }
         }
         catch {
@@ -93,7 +99,7 @@ function Start-Progress {
     ## Progress Bar
     [timespan] $TimeElapsed = New-TimeSpan
     if ($Total) {
-        Write-Progress -Status ("{0:P0} Completed ({1} of {2}) in {3:c}" -f 0, 0, $Total, $TimeElapsed) -PercentComplete 0 @paramWriteProgress
+        Write-Progress -Status ("{0:P0} Completed ({1:N0} of {2:N0}) in {3:c}" -f 0, 0, $Total, $TimeElapsed) -PercentComplete 0 @paramWriteProgress
     }
     # else {
     #     Write-Progress -Status ("Completed {0} in {1:c}" -f 0, $TimeElapsed) @paramWriteProgress
@@ -136,10 +142,16 @@ function Update-Progress {
             $PercentComplete = $InputObject.CurrentIteration / $InputObject.Total
             $PercentCompleteRoundDown = [System.Math]::Truncate([decimal]($PercentComplete * 100))
             if ($PercentComplete -gt 0) { $SecondsRemaining = $InputObject.TimeElapsed.TotalSeconds / $PercentComplete - $InputObject.TimeElapsed.TotalSeconds }
-            Write-Progress -Status ("{0:P0} Completed ({1} of {2}) in {3:c}" -f ($PercentCompleteRoundDown / 100), $InputObject.CurrentIteration, $InputObject.Total, $InputObject.TimeElapsed.Subtract($InputObject.TimeElapsed.Ticks % [TimeSpan]::TicksPerSecond)) -PercentComplete $PercentCompleteRoundDown -SecondsRemaining $SecondsRemaining @paramWriteProgress
+            Write-Progress -Status ("{0:P0} Completed ({1:N0} of {2:N0}) in {3:c}" -f ($PercentCompleteRoundDown / 100), $InputObject.CurrentIteration, $InputObject.Total, $InputObject.TimeElapsed.Subtract($InputObject.TimeElapsed.Ticks % [TimeSpan]::TicksPerSecond)) -PercentComplete $PercentCompleteRoundDown -SecondsRemaining $SecondsRemaining @paramWriteProgress
+        }
+        elseif ($InputObject.TimeElapsed.TotalSeconds -gt 0 -and ($InputObject.CurrentIteration / $InputObject.TimeElapsed.TotalSeconds) -ge 1) {
+            Write-Progress -Status ("Completed {0:N0} in {1:c} ({2:N0}/sec)" -f $InputObject.CurrentIteration, $InputObject.TimeElapsed.Subtract($InputObject.TimeElapsed.Ticks % [TimeSpan]::TicksPerSecond), ($InputObject.CurrentIteration / $InputObject.TimeElapsed.TotalSeconds)) @paramWriteProgress
+        }
+        elseif ($InputObject.TimeElapsed.TotalMinutes -gt 0 -and ($InputObject.CurrentIteration / $InputObject.TimeElapsed.TotalMinutes) -ge 1) {
+            Write-Progress -Status ("Completed {0:N0} in {1:c} ({2:N0}/min)" -f $InputObject.CurrentIteration, $InputObject.TimeElapsed.Subtract($InputObject.TimeElapsed.Ticks % [TimeSpan]::TicksPerSecond), ($InputObject.CurrentIteration / $InputObject.TimeElapsed.TotalMinutes)) @paramWriteProgress
         }
         else {
-            Write-Progress -Status ("Completed {0} in {1:c}" -f $InputObject.CurrentIteration, $InputObject.TimeElapsed.Subtract($InputObject.TimeElapsed.Ticks % [TimeSpan]::TicksPerSecond)) @paramWriteProgress
+            Write-Progress -Status ("Completed {0:N0} in {1:c}" -f $InputObject.CurrentIteration, $InputObject.TimeElapsed.Subtract($InputObject.TimeElapsed.Ticks % [TimeSpan]::TicksPerSecond)) @paramWriteProgress
         }
     }
 
