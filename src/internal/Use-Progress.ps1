@@ -40,7 +40,10 @@ function Use-Progress {
         [timespan] $MinimumUpdateFrequency = (New-TimeSpan -Seconds 1),
         # Output input objects as they are processed.
         [Parameter(Mandatory = $false)]
-        [switch] $PassThru
+        [switch] $PassThru,
+        # Write summary to host
+        [Parameter(Mandatory = $false)]
+        [switch] $WriteSummary
     )
 
     begin {
@@ -67,7 +70,7 @@ function Use-Progress {
     }
 
     end {
-        Stop-Progress $ProgressState
+        Stop-Progress $ProgressState -WriteSummary:$WriteSummary
     }
 }
 
@@ -163,7 +166,10 @@ function Stop-Progress {
     param (
         # Progress State Object
         [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
-        [psobject] $InputObject
+        [psobject] $InputObject,
+        # Write summary to host
+        [Parameter(Mandatory = $false)]
+        [switch] $WriteSummary
     )
 
     if ($InputObject -and $InputObject.Stopwatch.IsRunning) {
@@ -171,6 +177,9 @@ function Stop-Progress {
         $InputObject.Stopwatch.Stop()
         [hashtable] $paramWriteProgress = $InputObject.WriteProgressParameters
         Write-Progress -Completed @paramWriteProgress
+        if ($WriteSummary) {
+            $Completed = if ($InputObject.Total -gt 0) { $InputObject.Total } else { $InputObject.CurrentIteration }
+            Write-Host ("{2}: Completed {0:N0} in {1:c}" -f $Completed, $InputObject.TimeElapsed.Subtract($InputObject.TimeElapsed.Ticks % [TimeSpan]::TicksPerSecond), $InputObject.WriteProgressParameters.Activity)
+        }
     }
-
 }

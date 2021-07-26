@@ -14,51 +14,51 @@ function Export-AADAssessmentReportData {
     $LookupCache = New-LookupCache
 
     Import-Clixml -Path (Join-Path $SourceDirectory "applicationData.xml") `
-    | Use-Progress -Activity 'Exporting applications' -Property displayName -PassThru `
+    | Use-Progress -Activity 'Exporting applications' -Property displayName -PassThru -WriteSummary `
     | Export-JsonArray (Join-Path $OutputDirectory "applications.json") -Depth 5 -Compress
 
     Import-Clixml -Path (Join-Path $SourceDirectory "directoryRoleData.xml") `
-    | Use-Progress -Activity 'Exporting directoryRoles' -Property displayName -PassThru `
+    | Use-Progress -Activity 'Exporting directoryRoles' -Property displayName -PassThru -WriteSummary `
     | Export-JsonArray (Join-Path $OutputDirectory "directoryRoles.json") -Depth 5 -Compress
 
     Set-Content -Path (Join-Path $OutputDirectory "appRoleAssignments.csv") -Value 'id,appRoleId,createdDateTime,principalDisplayName,principalId,principalType,resourceDisplayName,resourceId'
     Import-Clixml -Path (Join-Path $SourceDirectory "appRoleAssignmentData.xml") `
-    | Use-Progress -Activity 'Exporting appRoleAssignments' -Property id -PassThru `
+    | Use-Progress -Activity 'Exporting appRoleAssignments' -Property id -PassThru -WriteSummary `
     | Format-Csv `
     | Export-Csv (Join-Path $OutputDirectory "appRoleAssignments.csv") -NoTypeInformation
 
     Set-Content -Path (Join-Path $OutputDirectory "oauth2PermissionGrants.csv") -Value 'id,consentType,clientId,principalId,resourceId,scope'
     Import-Clixml -Path (Join-Path $SourceDirectory "oauth2PermissionGrantData.xml") `
-    | Use-Progress -Activity 'Exporting oauth2PermissionGrants' -Property id -PassThru `
+    | Use-Progress -Activity 'Exporting oauth2PermissionGrants' -Property id -PassThru -WriteSummary `
     | Export-Csv (Join-Path $OutputDirectory "oauth2PermissionGrants.csv") -NoTypeInformation
 
     Import-Clixml -Path (Join-Path $SourceDirectory "servicePrincipalData.xml") `
-    | Use-Progress -Activity 'Exporting servicePrincipals' -Property displayName -PassThru `
+    | Use-Progress -Activity 'Exporting servicePrincipals' -Property displayName -PassThru -WriteSummary `
     | Export-JsonArray (Join-Path $OutputDirectory "servicePrincipals.json") -Depth 5 -Compress
 
     Set-Content -Path (Join-Path $OutputDirectory "servicePrincipals.csv") -Value 'id,appId,servicePrincipalType,displayName,accountEnabled,appOwnerOrganizationId,appRoles,oauth2PermissionScopes,keyCredentials,passwordCredentials'
     Import-Clixml -Path (Join-Path $SourceDirectory "servicePrincipalData.xml") `
-    | Use-Progress -Activity 'Exporting servicePrincipals' -Property displayName -PassThru `
+    | Use-Progress -Activity 'Exporting servicePrincipals' -Property displayName -PassThru -WriteSummary `
     | Select-Object -Property id, appId, servicePrincipalType, displayName, accountEnabled, appOwnerOrganizationId `
     | Export-Csv (Join-Path $OutputDirectory "servicePrincipals.csv") -NoTypeInformation
 
     # Import-Clixml -Path (Join-Path $SourceDirectory "userData.xml") `
-    # | Use-Progress -Activity 'Exporting users' -Property displayName -PassThru `
+    # | Use-Progress -Activity 'Exporting users' -Property displayName -PassThru -WriteSummary `
     # | Export-JsonArray (Join-Path $OutputDirectory "users.json") -Depth 5 -Compress
 
     Set-Content -Path (Join-Path $OutputDirectory "users.csv") -Value 'id,userPrincipalName,userType,displayName,accountEnabled,mail,otherMails'
     Import-Clixml -Path (Join-Path $SourceDirectory "userData.xml") `
-    | Use-Progress -Activity 'Exporting users' -Property displayName -PassThru `
+    | Use-Progress -Activity 'Exporting users' -Property displayName -PassThru -WriteSummary `
     | Select-Object -Property id, userPrincipalName, userType, displayName, accountEnabled, mail, @{ Name = "otherMails"; Expression = { $_.otherMails -join ';' } } `
     | Export-Csv (Join-Path $OutputDirectory "users.csv") -NoTypeInformation
 
     # Import-Clixml -Path (Join-Path $SourceDirectory "groupData.xml") `
-    # | Use-Progress -Activity 'Exporting groups' -Property displayName -PassThru `
+    # | Use-Progress -Activity 'Exporting groups' -Property displayName -PassThru -WriteSummary `
     # | Export-JsonArray (Join-Path $OutputDirectory "groups.json") -Depth 5 -Compress
 
     Set-Content -Path (Join-Path $OutputDirectory "groups.csv") -Value 'id,groupTypes,displayName,mail'
     Import-Clixml -Path (Join-Path $SourceDirectory "groupData.xml") `
-    | Use-Progress -Activity 'Exporting groups' -Property displayName -PassThru `
+    | Use-Progress -Activity 'Exporting groups' -Property displayName -PassThru -WriteSummary `
     | Select-Object -Property id, groupTypes, displayName, mail `
     | Export-Csv (Join-Path $OutputDirectory "groups.csv") -NoTypeInformation
 
@@ -67,7 +67,7 @@ function Export-AADAssessmentReportData {
     Import-Clixml -Path (Join-Path $SourceDirectory "userData.xml") | Add-AadObjectToLookupCache -Type user -LookupCache $LookupCache
     Import-Clixml -Path (Join-Path $SourceDirectory "groupData.xml") | Add-AadObjectToLookupCache -Type group -LookupCache $LookupCache
     Get-AADAssessNotificationEmailsReport -Offline -OrganizationData $OrganizationData -UserData $LookupCache.user -GroupData $LookupCache.group -DirectoryRoleData $DirectoryRoleData `
-    | Use-Progress -Activity 'Exporting NotificationsEmailsReport' -Property recipientEmail -PassThru `
+    | Use-Progress -Activity 'Exporting NotificationsEmailsReport' -Property recipientEmail -PassThru -WriteSummary `
     | Export-Csv -Path (Join-Path $OutputDirectory "NotificationsEmailsReport.csv") -NoTypeInformation
     Remove-Variable DirectoryRoleData
     $LookupCache.group.Clear()
@@ -75,20 +75,20 @@ function Export-AADAssessmentReportData {
     [array] $ApplicationData = Import-Clixml -Path (Join-Path $SourceDirectory "applicationData.xml")
     Import-Clixml -Path (Join-Path $SourceDirectory "servicePrincipalData.xml") | Add-AadObjectToLookupCache -Type servicePrincipal -LookupCache $LookupCache
     Get-AADAssessAppCredentialExpirationReport -Offline -ApplicationData $ApplicationData -ServicePrincipalData $LookupCache.servicePrincipal `
-    | Use-Progress -Activity 'Exporting AppCredentialsReport' -Property displayName -PassThru `
+    | Use-Progress -Activity 'Exporting AppCredentialsReport' -Property displayName -PassThru -WriteSummary `
     | Format-Csv `
     | Export-Csv -Path (Join-Path $OutputDirectory "AppCredentialsReport.csv") -NoTypeInformation
     Remove-Variable ApplicationData
 
     [array] $AppRoleAssignmentData = Import-Clixml -Path (Join-Path $SourceDirectory "appRoleAssignmentData.xml")
     # Get-AADAssessAppAssignmentReport -Offline -AppRoleAssignmentData $AppRoleAssignmentData `
-    # | Use-Progress -Activity 'Exporting AppAssignmentsReport' -Property id -PassThru `
+    # | Use-Progress -Activity 'Exporting AppAssignmentsReport' -Property id -PassThru -WriteSummary `
     # | Format-Csv `
     # | Export-Csv -Path (Join-Path $OutputDirectory "AppAssignmentsReport.csv") -NoTypeInformation
 
     [array] $OAuth2PermissionGrantData = Import-Clixml -Path (Join-Path $OutputDirectory "oauth2PermissionGrantData.xml")
     Get-AADAssessConsentGrantReport -Offline -AppRoleAssignmentData $AppRoleAssignmentData -OAuth2PermissionGrantData $OAuth2PermissionGrantData -UserData $LookupCache.user -ServicePrincipalData $LookupCache.servicePrincipal `
-    | Use-Progress -Activity 'Exporting ConsentGrantReport' -Property id -PassThru `
+    | Use-Progress -Activity 'Exporting ConsentGrantReport' -Property clientDisplayName -PassThru -WriteSummary `
     | Export-Csv -Path (Join-Path $OutputDirectory "ConsentGrantReport.csv") -NoTypeInformation
 
 }
