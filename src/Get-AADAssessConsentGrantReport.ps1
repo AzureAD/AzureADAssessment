@@ -82,10 +82,10 @@ function Get-AADAssessConsentGrantReport {
                             permission           = $scope
                             permissionType       = 'Delegated'
                             clientId             = $oauth2PermissionGrant.clientId
-                            clientDisplayName    = $client.displayName
-                            clientOwnerTenantId  = $client.appOwnerOrganizationId
+                            clientDisplayName    = if ($client) { $client.displayName } else { $null }
+                            clientOwnerTenantId  = if ($client) { $client.appOwnerOrganizationId } else { $null }
                             resourceObjectId     = $oauth2PermissionGrant.resourceId
-                            resourceDisplayName  = $resource.displayName
+                            resourceDisplayName  = if ($resource) { $resource.displayName } else { $null }
                             consentType          = $oauth2PermissionGrant.consentType
                             principalObjectId    = $oauth2PermissionGrant.principalId
                             principalDisplayName = if ($oauth2PermissionGrant.principalId -and $principal) { $principal.displayName } else { $null }
@@ -111,18 +111,18 @@ function Get-AADAssessConsentGrantReport {
             process {
                 $appRoleAssignment = $InputObject
                 if ($appRoleAssignment.principalType -eq "ServicePrincipal") {
-                    $client = Get-AadObjectById $appRoleAssignment.PrincipalId -Type $appRoleAssignment.PrincipalType -LookupCache $LookupCache -UseLookupCacheOnly:$UseLookupCacheOnly -Properties 'id,displayName,appOwnerOrganizationId,appRoles'
+                    $client = Get-AadObjectById $appRoleAssignment.principalId -Type $appRoleAssignment.principalType -LookupCache $LookupCache -UseLookupCacheOnly:$UseLookupCacheOnly -Properties 'id,displayName,appOwnerOrganizationId,appRoles'
                     $resource = Get-AadObjectById $appRoleAssignment.resourceId -Type servicePrincipal -LookupCache $LookupCache -UseLookupCacheOnly:$UseLookupCacheOnly -Properties 'id,displayName,appOwnerOrganizationId,appRoles'
                     $appRole = $resource.appRoles | Where-Object id -EQ $appRoleAssignment.appRoleId
 
                     [PSCustomObject]@{
-                        permission           = Get-ObjectPropertyValue $appRole 'value'
+                        permission           = if ($appRole) { $appRole.value } else { $null }
                         permissionType       = 'Application'
                         clientId             = $appRoleAssignment.principalId
-                        clientDisplayName    = $client.displayName
-                        clientOwnerTenantId  = $client.appOwnerOrganizationId
+                        clientDisplayName    = if ($client) { $client.displayName } else { $null }
+                        clientOwnerTenantId  = if ($client) { $client.appOwnerOrganizationId } else { $null }
                         resourceObjectId     = $appRoleAssignment.ResourceId
-                        resourceDisplayName  = $resource.displayName
+                        resourceDisplayName  = if ($resource) { $resource.displayName } else { $null }
                         consentType          = $null
                         principalObjectId    = $null
                         principalDisplayName = $null
