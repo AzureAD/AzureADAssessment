@@ -1,0 +1,87 @@
+# PowerShell Module Package Pipeline Template
+# https://aka.ms/yaml
+
+parameters:
+- name: moduleName
+  type: string
+  default:
+- name: pipelineId
+  type: string
+  default:
+- name: artifactInput
+  type: string
+  default: 'PSModule'
+- name: artifactOutput
+  type: string
+  default: 'PSModuleSigned'
+- name: SigningCertificateSecretName
+  type: string
+  default:
+
+steps:
+#- download: none
+- checkout: self
+
+- task: CopyFiles@2
+  displayName: 'Copy PowerShell Module to Staging'
+  inputs:
+    SourceFolder: '$(Pipeline.Workspace)/${{ parameters.pipelineId }}/${{ parameters.artifactInput }}'
+    Contents: '**'
+    TargetFolder: '$(Pipeline.Workspace)/${{ parameters.artifactOutput }}'
+    CleanTargetFolder: true
+    preserveTimestamp: true
+
+- ${{ if ne(parameters.SigningCertificateSecretName,'') }}:
+  - task: AzureKeyVault@1
+    displayName: 'Download Signing Certificate'
+    inputs:
+      azureSubscription: 'GTP - Architecture (980e0e9f-178a-4c38-9372-f17806c6b944)'
+      KeyVaultName: 'codesign-kv'
+      SecretsFilter: '${{ parameters.SigningCertificateSecretName }}'
+      RunAsPreJob: false
+
+  - task: PowerShell@2
+    displayName: 'Sign PowerShell Module Files'
+    inputs:
+      filePath: '$(System.DefaultWorkingDirectory)/build/Sign-PSModule.ps1'
+      arguments: '-ModuleManifestPath "$(Pipeline.Workspace)/${{ parameters.artifactOutput }}/*" -SigningCertificate "$(${{ parameters.SigningCertificateSecretName }})"'
+      pwsh: true
+
+- ${{ if eq(parameters.SigningCertificateSecretName,'') }}:
+  - task: EsrpCodeSigning@1
+    displayName: 'Sign PowerShell Module Files'
+    inputs:
+      ConnectedServiceName: 'ESRP - MSFT Identity - Community Projects'
+      FolderPath: $(Pipeline.Workspace)/${{ parameters.artifactOutput }}
+      Pattern: '*.psm1,*.ps1'
+      signConfigType: inlineSignParams
+      inlineOperation: >-
+        [
+          {
+              "KeyCode" : "CP-230012",
+              "OperationCode" : "SigntoolSign",
+              "Parameters" : {
+                  "OpusName" : "Microsoft",
+                  "OpusInfo" : "http://www.microsoft.com",
+                  "FileDigest" : "/fd \"SHA256\"",
+                  "PageHash" : "/PH",
+                  "TimeStamp" : "/tr \"http://rfc3161.gtm.corp.microsoft.com/TSS/HttpTspServer\" /td sha256"
+              },
+              "ToolName" : "sign",
+              "ToolVersion" : "1.0"
+          },
+          {
+              "KeyCode" : "CP-230012",
+              "OperationCode" : "SigntoolVerify",
+              "Parameters" : {},
+              "ToolName" : "sign",
+              "ToolVersion" : "1.0"
+          }
+        ]
+
+- task: PublishPipelineArtifact@1
+  displayName: 'Publish PowerShell Module Artifact'
+  inputs:
+    targetPath: '$(Pipeline.Workspace)/${{ parameters.artifactOutput }}'
+    artifact: '${{ parameters.artifactOutput }}'
+    publishLocation: 'pipeline'

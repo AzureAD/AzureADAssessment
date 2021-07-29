@@ -1,0 +1,192 @@
+# Continuous Delivery Pipeline
+# https://aka.ms/yaml
+
+resources:
+  pipelines:
+  - pipeline: 'CI'
+    source: 'AzureAD.AzureADAssessment.CI'
+    trigger: 
+      branches:
+        include:
+        - master
+        - preview
+
+parameters:
+- name: vmImage
+  displayName: 'Pool Image'
+  type: string
+  default: windows-latest
+  values:
+  - windows-latest
+  - ubuntu-latest
+  - macOS-latest
+
+trigger: none
+pr: none
+
+variables:
+  #moduleName: 'AzureADAssessment'
+  vmImage: '${{ parameters.vmImage }}'
+  artifactModule: 'PSModule'
+  artifactModuleSigned: 'PSModuleSigned'
+  artifactModulePackage: 'PSModulePackage'
+
+pool:
+  vmImage: $(vmImage)
+
+stages:
+- stage: Build
+  displayName: 'Finalize Build'
+  jobs: 
+  - job: Prepare
+    variables:
+      skipComponentGovernanceDetection: true
+    steps:
+    #- checkout: none
+    - download: CI
+      artifact: '$(artifactModule)'
+    - task: PowerShell@2
+      name: ModuleInfo
+      displayName: 'Get PowerShell Module Information'
+      inputs:
+        filePath: '$(System.DefaultWorkingDirectory)/build/Get-PSModuleInfo.ps1'
+        arguments: '-ModuleManifestPath "$(Pipeline.Workspace)/CI/$(artifactModule)/*/*.psd1"'
+        pwsh: true
+
+  - job: Sign
+    dependsOn:
+    - Prepare
+    variables:
+      moduleName: '$[ dependencies.Prepare.outputs[''ModuleInfo.moduleName''] ]'
+      skipComponentGovernanceDetection: true
+    pool:
+      vmImage: 'windows-latest'
+    steps:
+    - download: 'CI'
+      artifact: '$(artifactModule)'
+    - template: template-psmodule-sign.yml
+      parameters:
+        moduleName: '$(moduleName)'
+        pipelineId: 'CI'
+
+- stage: Package
+  displayName: 'Standalone Package'
+  dependsOn: Build
+  jobs: 
+  - job: Prepare
+    variables:
+      skipComponentGovernanceDetection: true
+    steps:
+    - download: current
+      artifact: '$(artifactModuleSigned)'
+    - task: PowerShell@2
+      name: ModuleInfo
+      displayName: 'Get PowerShell Module Information'
+      inputs:
+        filePath: '$(System.DefaultWorkingDirectory)/build/Get-PSModuleInfo.ps1'
+        arguments: '-ModuleManifestPath "$(Pipeline.Workspace)/$(artifactModuleSigned)/*/*.psd1"'
+        pwsh: true
+
+  - deployment: Package
+    dependsOn: Prepare
+    environment: Standalone
+    variables:
+      moduleName: '$[ dependencies.Prepare.outputs[''ModuleInfo.moduleName''] ]'
+      moduleVersion: '$[ dependencies.Prepare.outputs[''ModuleInfo.moduleVersion''] ]'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - template: template-psmodule-package.yml
+            parameters:
+              moduleName: '$(moduleName)'
+              moduleVersion: '$(moduleVersion)'
+
+- stage: DeployTest
+  displayName: 'Deploy Test'
+  dependsOn:
+  - Build
+  jobs: 
+  - job: Prepare
+    variables:
+      skipComponentGovernanceDetection: true
+    steps:
+    - download: current
+      artifact: '$(artifactModuleSigned)'
+    - task: PowerShell@2
+      name: ModuleInfo
+      displayName: 'Get PowerShell Module Information'
+      inputs:
+        filePath: '$(System.DefaultWorkingDirectory)/build/Get-PSModuleInfo.ps1'
+        arguments: '-ModuleManifestPath "$(Pipeline.Workspace)/$(artifactModuleSigned)/*/*.psd1"'
+        pwsh: true
+
+  - deployment: Publish
+    environment: Test
+    dependsOn: Prepare
+    variables:
+      moduleName: '$[ dependencies.Prepare.outputs[''ModuleInfo.moduleName''] ]'
+      moduleVersion: '$[ dependencies.Prepare.outputs[''ModuleInfo.moduleVersion''] ]'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - template: template-psmodule-publish.yml
+            parameters:
+              moduleName: '$(moduleName)'
+              RepositorySourceLocation: 'https://www.poshtestgallery.com/api/v2'
+              NuGetApiKeyAzureConnection: 'GTP - Architecture (980e0e9f-178a-4c38-9372-f17806c6b944)'
+              NuGetApiKeyVaultName: 'codesign-kv'
+              NuGetApiKeySecretName: 'PSTestGallery-API-Key'
+              Unlist: true
+
+- stage: Production
+  displayName: 'Deploy Production'
+  dependsOn:
+  - Build
+  - Package
+  jobs: 
+  - job: Prepare
+    variables:
+      skipComponentGovernanceDetection: true
+    steps:
+    - download: current
+      artifact: '$(artifactModuleSigned)'
+    - task: PowerShell@2
+      name: ModuleInfo
+      displayName: 'Get PowerShell Module Information'
+      inputs:
+        filePath: '$(System.DefaultWorkingDirectory)/build/Get-PSModuleInfo.ps1'
+        arguments: '-ModuleManifestPath "$(Pipeline.Workspace)/$(artifactModuleSigned)/*/*.psd1"'
+        pwsh: true
+
+  - deployment: Publish
+    environment: Production
+    dependsOn: Prepare
+    variables:
+      moduleName: '$[ dependencies.Prepare.outputs[''ModuleInfo.moduleName''] ]'
+      moduleVersion: '$[ dependencies.Prepare.outputs[''ModuleInfo.moduleVersion''] ]'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - template: template-psmodule-publish.yml
+            parameters:
+              moduleName: '$(moduleName)'
+              RepositorySourceLocation: 'https://www.powershellgallery.com/api/v2'
+              NuGetApiKeyAzureConnection: 'GTP - Architecture (980e0e9f-178a-4c38-9372-f17806c6b944)'
+              NuGetApiKeyVaultName: 'codesign-kv'
+              NuGetApiKeySecretName: 'PSGallery-API-Key'
+              Unlist: true
+          # - task: GitHubRelease@1
+          #   displayName: 'Create Release on GitHub'
+          #   inputs:
+          #     gitHubConnection: 'GitHub jasoth'
+          #     repositoryName: '$(Build.Repository.Name)'
+          #     action: 'create'
+          #     target: '$(Build.SourceVersion)'
+          #     tagSource: 'userSpecifiedTag'
+          #     tag: 'v$(moduleVersion)'
+          #     title: '$(moduleName) v$(moduleVersion)'
+          #     assets: '$(Pipeline.Workspace)/$(artifactModulePackage)/*'
+          #     addChangeLog: false
