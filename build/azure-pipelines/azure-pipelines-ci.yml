@@ -27,6 +27,8 @@ variables:
   vmImage: '${{ parameters.vmImage }}'
   ${{ if eq(variables['Build.SourceBranchName'], 'master') }}:
     moduleName: 'AzureADAssessment'
+    prereleaseTag: 
+    moduleGuid: 
   ${{ if ne(variables['Build.SourceBranchName'], 'master') }}:
     moduleName: 'AzureADAssessmentPreview'
     prereleaseTag: 'preview'
