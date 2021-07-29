@@ -178,15 +178,16 @@ stages:
               NuGetApiKeyVaultName: 'codesign-kv'
               NuGetApiKeySecretName: 'PSGallery-API-Key'
               Unlist: true
-          # - task: GitHubRelease@1
-          #   displayName: 'Create Release on GitHub'
-          #   inputs:
-          #     gitHubConnection: 'GitHub jasoth'
-          #     repositoryName: '$(Build.Repository.Name)'
-          #     action: 'create'
-          #     target: '$(Build.SourceVersion)'
-          #     tagSource: 'userSpecifiedTag'
-          #     tag: 'v$(moduleVersion)'
-          #     title: '$(moduleName) v$(moduleVersion)'
-          #     assets: '$(Pipeline.Workspace)/$(artifactModulePackage)/*'
-          #     addChangeLog: false
+          - task: GitHubRelease@1
+            displayName: 'Create Release on GitHub'
+            condition: eq(variables['Build.SourceBranchName'], 'master')
+            inputs:
+              gitHubConnection: 'AzureAD'
+              repositoryName: '$(Build.Repository.Name)'
+              action: 'create'
+              target: '$(Build.SourceVersion)'
+              tagSource: 'userSpecifiedTag'
+              tag: 'v$(moduleVersion)'
+              title: '$(moduleName) v$(moduleVersion)'
+              assets: '$(Pipeline.Workspace)/$(artifactModulePackage)/*'
+              addChangeLog: false
