@@ -177,7 +177,6 @@ stages:
               NuGetApiKeyAzureConnection: 'GTP - Architecture (980e0e9f-178a-4c38-9372-f17806c6b944)'
               NuGetApiKeyVaultName: 'codesign-kv'
               NuGetApiKeySecretName: 'PSGallery-API-Key'
-              Unlist: true
           - task: GitHubRelease@1
             displayName: 'Create Release on GitHub'
             condition: and(succeeded(), eq(variables['Build.SourceBranchName'], 'master'))
