@@ -54,13 +54,7 @@ Invoke-AADAssessmentHybridDataCollection
 Once data collection is complete, provide the output packages to whoever is completing the assessment.
 
 ## Complete Assessment Reports
-As the assessor, run the following command using the output package from data collection to complete generation of the assessment reports.
-```PowerShell
-## Output Assessment Reports to "C:\AzureADAssessment" and "C:\AzureADAssessment\PowerBI".
-Complete-AADAssessmentReports "C:\AzureADAssessment\AzureADAssessmentData-<TenantName>.onmicrosoft.com.zip"
-```
-
-The generated reports and PowerBI templates can now be used to assess the tenant.
+If you are generating and reviewing the output yourself, please see the Wiki for the [Assessment Guide](https://github.com/AzureAD/AzureADAssessment/wiki).
 
 ## Alternate Ways to Run The Assessment
 ```PowerShell
@@ -70,7 +64,6 @@ Connect-AADAssessment -ClientId <ClientId> -ClientCertificate (Get-Item 'Cert:\C
 ## If you would like to specify a different directory, use the OutputDirectory parameter.
 Invoke-AADAssessmentDataCollection "C:\Temp"
 Invoke-AADAssessmentHybridDataCollection "C:\Temp"
-Complete-AADAssessmentReports "C:\AzureADAssessment\AzureADAssessmentData-<TenantName>.onmicrosoft.com.zip" -OutputDirectory "C:\Temp"
 ```
 
 ## <h2 id="faq">Frequently Asked Questions</h2>
