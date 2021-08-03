@@ -20,6 +20,18 @@ Import-Module "$PSScriptRoot\CommonFunctions.psm1" -Force -WarningAction Silentl
 
 [System.IO.FileInfo] $ModuleManifestFileInfo = Get-PathInfo $ModuleManifestPath -DefaultFilename "*.psd1" -ErrorAction Stop | Select-Object -Last 1
 
+## Read Module Manifest
+$ModuleManifest = Import-PowerShellDataFile $ModuleManifestFileInfo.FullName
+
+## Install Module Dependencies
+foreach ($Module in $ModuleManifest.RequiredModules) {
+    if ($Module -is [hashtable]) { $ModuleName = $Module.ModuleName }
+    else { $ModuleName = $Module }
+    if ($ModuleName -notin $ModuleManifest.PrivateData.PSData['ExternalModuleDependencies'] -and !(Get-Module $ModuleName -ListAvailable)) {
+        Install-Module $ModuleName -Force -SkipPublisherCheck -Repository PSGallery -AcceptLicense
+    }
+}
+
 ## Publish
 $PSRepositoryAll = Get-PSRepository
 $PSRepository = $PSRepositoryAll | Where-Object SourceLocation -like "$RepositorySourceLocation*"
@@ -41,6 +53,10 @@ else {
 
 ## Unlist the Package
 if ($Unlist) {
-    $ModuleManifest = Import-PowerShellDataFile $ModuleManifestFileInfo.FullName
-    Invoke-RestMethod -Method Delete -Uri ("{0}/{1}/{2}" -f $PSRepository.PublishLocation, $ModuleManifestFileInfo.BaseName, $ModuleManifest.ModuleVersion) -Headers @{ 'X-NuGet-ApiKey' = ConvertFrom-SecureString $NuGetApiKey -AsPlainText }
+    if ($ModuleManifest.PrivateData.PSData['Prerelease']) {
+        Invoke-RestMethod -Method Delete -Uri ("{0}/{1}/{2}-{3}" -f $PSRepository.PublishLocation, $ModuleManifestFileInfo.BaseName, $ModuleManifest.ModuleVersion, $ModuleManifest.PrivateData.PSData['Prerelease']) -Headers @{ 'X-NuGet-ApiKey' = ConvertFrom-SecureString $NuGetApiKey -AsPlainText }
+    }
+    else {
+        Invoke-RestMethod -Method Delete -Uri ("{0}/{1}/{2}" -f $PSRepository.PublishLocation, $ModuleManifestFileInfo.BaseName, $ModuleManifest.ModuleVersion) -Headers @{ 'X-NuGet-ApiKey' = ConvertFrom-SecureString $NuGetApiKey -AsPlainText }
+    }
 }

@@ -44,7 +44,7 @@ function Connect-AADAssessment {
     try {
 
         ## Update WebSession User Agent String with Module Info
-        $script:MsGraphSession.UserAgent = $script:MsGraphSession.UserAgent -replace 'AzureADAssessment', ('{0}/{1}' -f $PSCmdlet.MyInvocation.MyCommand.Module.Name, $MyInvocation.MyCommand.Module.Version)
+        $script:MsGraphSession.UserAgent = $script:MsGraphSession.UserAgent -replace 'AzureADAssessment(/[0-9.]*)?', ('{0}/{1}' -f $PSCmdlet.MyInvocation.MyCommand.Module.Name, $MyInvocation.MyCommand.Module.Version)
 
         ## Create Client Application
         switch ($PSCmdlet.ParameterSetName) {

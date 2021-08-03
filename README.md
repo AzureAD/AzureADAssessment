@@ -2,6 +2,9 @@
 
 [![PSGallery Version](https://img.shields.io/powershellgallery/v/AzureADAssessment.svg?style=flat&logo=powershell&label=PSGallery%20Version)](https://www.powershellgallery.com/packages/AzureADAssessment) [![PSGallery Downloads](https://img.shields.io/powershellgallery/dt/AzureADAssessment.svg?style=flat&logo=powershell&label=PSGallery%20Downloads)](https://www.powershellgallery.com/packages/AzureADAssessment) [![PSGallery Platform](https://img.shields.io/powershellgallery/p/AzureADAssessment.svg?style=flat&logo=powershell&label=PSGallery%20Platform)](https://www.powershellgallery.com/packages/AzureADAssessment)
 
+## Assessor Guide
+If you are a Microsoft employee or partner performing the assessment for a customer please see the Wiki for the [Assessment Guide](https://github.com/AzureAD/AzureADAssessment/wiki). 
+
 ## Install from the PowerShell Gallery
 If you run into any errors please see the [FAQ section](#faq) at the end of this document.
 
