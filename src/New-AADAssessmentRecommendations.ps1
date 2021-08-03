@@ -71,6 +71,7 @@ function New-AADAssessmentRecommendations {
         # Generate AAD data path
         $AADPath = Join-Path $TenantDirectoryData "AAD-$($AssessmentDetail.AssessmentTenantDomain)"
         $data = @{}
+        <# do not load file before hand but only when necessary
         $files = get-childitem -Path $AADPath -File
         foreach($file in $files) {
             switch -Wildcard ($file.Name) {
@@ -87,10 +88,41 @@ function New-AADAssessmentRecommendations {
                     Write-Warning "Unsupported data file format: $($file.Name)"
                 }
             }
-        }
+        }#>
         ### Load configuration file
         $recommendations = Select-Xml -Path (Join-Path $PSScriptRoot "AADRecommendations.xml") -XPath "/recommendations"
         foreach($recommendationDef in $recommendations.Node.recommendation) {
+            # make sure necessary files are loaded
+            $fileMissing = $false
+            foreach($fileName in $recommendationDef.Sources.File) {
+                $filePath = Join-Path $AADPath $fileName
+                if (!(Test-Path -Path $filePath)) {
+                    Write-Warning "File not found: $filePath"
+                    $fileMissing = $true
+                    break
+                }
+                if ($fileName -in $data.Keys) {
+                    continue
+                }
+                switch -Wildcard ($fileName) {
+                    "*.json" {
+                        $data[$fileName] = get-content -Path $filePath | ConvertFrom-Json
+                    }
+                    "*.csv" {
+                        $data[$fileName] = Import-Csv -Path $filePath
+                    }
+                    "*.xml" {
+                        $data[$fileName] = Import-Clixml -Path $filePath
+                    }
+                    default {
+                        Write-Warning "Unsupported data file format: $($fileName)"
+                    }
+                }
+            }
+            if ($fileMissing) {
+                write-warning "A necessary file is missing"
+                continue
+            }
             $scriptblock = [Scriptblock]::Create($recommendationDef.PowerShell)
             $recommendation = $recommendationDef | select-object Category,Area,Name,Summary,Recommendation,Priority,Data
             $result = Invoke-Command -ScriptBlock $scriptblock -ArgumentList $Data

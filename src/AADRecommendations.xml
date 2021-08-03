@@ -7,6 +7,9 @@
             * Priority: the priority of the recommendation (P1, P2, P3) or Passed if the recommendation is already met.
             * Data: any identifiable data to corobore the result (faulty elements or positive result)
         -->
+        <Sources>
+            <File>emailOTPMethodPolicy.json</File>
+        </Sources>
         <Powershell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -25,6 +28,9 @@
         <Recommendation>Enable email OTP</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>namedLocations.json</File>
+        </Sources>
         <Powershell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -51,6 +57,9 @@
         <Recommendation>Define trusted networks</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
         <Powershell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -99,6 +108,9 @@
         <Recommendation>Design conditional access to include risk, device and/or netowrk location conditions</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>AppCredentialsReport.csv</File>
+        </Sources>
         <Powershell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -122,6 +134,9 @@
         <Recommendation>Use managed identities, Windows Integrated Authentication or certificate whenever possible</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>AppCredentialsReport.csv</File>
+        </Sources>
         <Powershell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -147,6 +162,9 @@
         <Recommendation>Review application or service principals with expired credentials</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>ConsentGrantReport.csv</File>
+        </Sources>
         <Powershell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -173,6 +191,9 @@
         <Recommendation>Review applications having high permissions and remove unnecessary grants</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>ConsentGrantReport.csv</File>
+        </Sources>
         <Powershell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -197,6 +218,9 @@
         <Recommendation>Review applications relying on these resources and review potential migration path with developer</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>appRoleAssignments.csv</File>
+        </Sources>
         <PowerShell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -221,6 +245,9 @@
         <Recommendation>Assign application roles to groups to have more flexibility</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>appRoleAssignments.csv</File>
+        </Sources>
         <PowerShell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -244,6 +271,9 @@
         <Recommendation>Fix the entittlements by creating the right groups (e.g. "all members")</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
         <PowerShell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -270,6 +300,9 @@
         <Recommendation>Configure authentication policies to leverage MFA requirement via conditional access</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
         <PowerShell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -302,6 +335,9 @@
         <Recommendation>Use hybrid azure ad joined or compliant devices as a control in conditional access policies</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
         <PowerShell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -331,6 +367,9 @@
         <Recommendation>Use sign-in or user risk controls in conditional access policies</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
         <PowerShell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -363,6 +402,9 @@
         <Recommendation>Deploy application MAM policies to manage application configuration. Update Conditional Access policies to only allow access from MAM capables clients.</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
         <PowerShell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -393,6 +435,9 @@
         <Recommendation>Exclude at least one group from every policy</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
         <PowerShell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -423,6 +468,9 @@
         <Recommendation>Put excluded users in a group and exclude the group</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
         <PowerShell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -452,6 +500,9 @@
         <Recommendation>Put excluded users in an existing excluded group or create a new group to be excluded</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
         <PowerShell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -481,6 +532,9 @@
         <Recommendation>Put included users in a group and include the group</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
         <PowerShell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -510,6 +564,9 @@
         <Recommendation>Put included users in an existing excluded group or create a new group to be included</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
         <PowerShell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -560,6 +617,9 @@
         <Recommendation>Create a group that is excluded from every CA policies</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
         <PowerShell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -610,6 +670,9 @@
         <Recommendation>Put common excluded users into a group and exclude this group</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
         <PowerShell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -660,6 +723,9 @@
         <Recommendation>Put common excluded users into a group and exclude this group</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
         <PowerShell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -701,6 +767,9 @@
         <Recommendation>Create a conditonal access to block legacy authentication</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
         <PowerShell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -744,6 +813,9 @@
         <Recommendation>Review these policies</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
         <PowerShell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -776,6 +848,9 @@
         <Recommendation>Review these policies</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
         <PowerShell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -808,6 +883,9 @@
         <Recommendation>Review these policies</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
         <PowerShell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -840,6 +918,9 @@
         <Recommendation>Review these policies</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
         <PowerShell>
             param($Data)    
             $res =  "" | select Priority,Data      
@@ -882,6 +963,9 @@
         <Recommendation>Review these policies</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
         <PowerShell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -910,6 +994,9 @@
         <Recommendation>Create at least one policy targeting guests</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
         <PowerShell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -943,6 +1030,9 @@
         <Recommendation>Create a policy targetting guest on all apps with mfa requirement</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
         <PowerShell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -978,6 +1068,9 @@
         <Recommendation>Review these policies</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
         <PowerShell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -1006,6 +1099,9 @@
         <Recommendation>Create at least one policy targetting Office 365</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
         <PowerShell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -1055,6 +1151,9 @@
         <Recommendation>Target Office 365 as a group in place of specific applications</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
         <PowerShell>
             param($Data)
             $res =  "" | select Priority,Data
@@ -1086,6 +1185,9 @@
         <Recommendation>Require Intune protection policies for approved applications and enforce them via Conditional Access</Recommendation>
     </recommendation>
     <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
         <PowerShell>
             param($Data)
             $res =  "" | select Priority,Data
