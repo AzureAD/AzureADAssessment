@@ -5,7 +5,7 @@ parameters:
 - name: vmImage
   displayName: 'Pool Image'
   type: string
-  default: 'windows-latest'
+  default: 'ubuntu-latest'
   values:
   - windows-latest
   - ubuntu-latest
