@@ -74,7 +74,7 @@ function Get-MsGraphResults {
         [int] $BatchSize = 20,
         # Base URL for Microsoft Graph API.
         [Parameter(Mandatory = $false)]
-        [uri] $GraphBaseUri = 'https://graph.microsoft.com/'
+        [uri] $GraphBaseUri = $script:mapMgEnvironmentToMgEndpoint[$script:ConnectState.CloudEnvironment]
     )
 
     begin {

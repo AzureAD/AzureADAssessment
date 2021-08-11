@@ -56,6 +56,13 @@ $script:mapMgEnvironmentToAzureEnvironment = @{
     'USGov'    = 'AzureUSGovernment'
     'USGovDoD' = 'AzureUsGovernment'
 }
+$script:mapMgEnvironmentToMgEndpoint = @{
+    'Global'   = 'https://graph.microsoft.com/'
+    'China'    = 'https://microsoftgraph.chinacloudapi.cn/'
+    'Germany'  = 'https://graph.microsoft.de/'
+    'USGov'    = 'https://graph.microsoft.us/'
+    'USGovDoD' = 'https://dod-graph.microsoft.us/'
+}
 
 ## Initialize Application Insights for Anonymous Telemetry
 $script:AppInsightsRuntimeState = [PSCustomObject]@{
