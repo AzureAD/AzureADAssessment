@@ -341,7 +341,7 @@ function Get-MsGraphResults {
             if ($Select) { $QueryParametersFinal['$select'] = $Select -join ',' }
             if ($Filter) { $QueryParametersFinal['$filter'] = $Filter }
             if ($Top) { $QueryParametersFinal['$top'] = $Top }
-            if ($PSBoundParameters.ContainsKey('Count')) { $QueryParametersFinal['$count'] = $Count }
+            if ($PSBoundParameters.ContainsKey('Count')) { $QueryParametersFinal['$count'] = ([string]$Count).ToLower() }
             $uriQueryEndpoint.Query = ConvertTo-QueryString $QueryParametersFinal
 
             ## Expand with UniqueIds
