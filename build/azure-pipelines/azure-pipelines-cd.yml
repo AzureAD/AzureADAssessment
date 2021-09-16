@@ -54,7 +54,7 @@ stages:
         pwsh: true
     - task: PSScriptAnalyzer@1
       inputs:
-        Path: '$(Build.SourcesDirectory)'
+        Path: '$(Pipeline.Workspace)/CI/$(artifactModule)'
         Settings: 'required'
         Recurse: true
         
