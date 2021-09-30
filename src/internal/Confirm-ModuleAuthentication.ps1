@@ -34,6 +34,8 @@ function Confirm-ModuleAuthentication {
             'Policy.Read.All'
             'Directory.Read.All'
             #'SecurityEvents.Read.All'
+            #'Reports.Read.All'
+            #'AuditLog.Read.All'
         )
     )
 
