@@ -85,7 +85,7 @@ function Invoke-AADAssessmentDataCollection {
 
         ### Licenses - 1
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Subscribed SKU' -PercentComplete 6
-        Get-MsGraphResults "subscribedSkus" -Select "prepaidunits","consumedunits","skuPartNumber","servicePlans" `
+        Get-MsGraphResults "subscribedSkus" -Select "prepaidunits", "consumedunits", "skuPartNumber", "servicePlans" `
         | Export-JsonArray (Join-Path $OutputDirectoryAAD "subscribedSkus.json") -Depth 5 -Compress
 
         ### Conditional Access policies - 2
@@ -103,7 +103,7 @@ function Invoke-AADAssessmentDataCollection {
         ### EOTP Policy - 4
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Email Auth Method Policy' -PercentComplete 24
         Get-MsGraphResults "policies/authenticationMethodsPolicy/authenticationMethodConfigurations/email" -ErrorAction SilentlyContinue `
-        | ConvertTo-Json -Depth 5 -Compress | Set-Content -Path (Join-Path $OutputDirectoryAAD "emailOTPMethodPolicy.json") 
+        | ConvertTo-Json -Depth 5 -Compress | Set-Content -Path (Join-Path $OutputDirectoryAAD "emailOTPMethodPolicy.json")
         if (-not (Test-Path -PathType Leaf -Path (Join-Path $OutputDirectoryAAD "emailOTPMethodPolicy.json"))) {
             Write-Warning "Getting Email Authentication Method Configuration requires the Global Administrator role. The policy information will be omitted"
         }
@@ -181,23 +181,28 @@ function Invoke-AADAssessmentDataCollection {
         # add technical notifications groups
         if ($OrganizationData) {
             $OrganizationData.technicalNotificationMails | Get-MsGraphResults 'groups?$select=id' -Filter "proxyAddresses/any(c:c eq 'smtp:{0}')" `
-            | Foreach-Object { [void]$ReferencedIdCache.group.Add($_.id) }
+            | ForEach-Object { [void]$ReferencedIdCache.group.Add($_.id) }
         }
         $ReferencedIdCache.group | Get-MsGraphResults 'groups?$select=id,groupTypes,displayName,mail,proxyAddresses' -TotalRequests $ReferencedIdCache.group.Count -DisableUniqueIdDeduplication `
         | Select-Object -Property "*" -ExcludeProperty '@odata.type' `
         | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "groupData.xml")
-        
 
         ### Group Transitive members - 14
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Group Transitive Membership' -PercentComplete 84
-        $ReferencedIdCache.group | ForEach-Object {
-            $groupTransitiveMembers = "" | select-object id,transitiveMembers
-            $groupTransitiveMembers.id = [string]$_
-            $groupTransitiveMembers.transitiveMembers = @(Get-MsGraphResults "groups/$_/transitivemembers/microsoft.graph.user" -Count -Select "id" -Top 999 | Select-Object -ExpandProperty id)
-            $groupTransitiveMembers.transitiveMembers | ForEach-Object { [void]$ReferencedIdCache.user.Add($_) }
-            $groupTransitiveMembers
+        $ReferencedIdCache.group | Get-MsGraphResults 'groups/{0}/transitiveMembers/microsoft.graph.user?$select=id' -Top 999 -IncapsulateReferenceListInParentObject -DisableUniqueIdDeduplication `
+        | ForEach-Object {
+            $groupId = $_.id
+            #$membersDirect = Get-MsGraphResults 'groups/{0}/members/microsoft.graph.user?$select=id' -UniqueId $groupId -Top 999 -DisableUniqueIdDeduplication | Select-Object -ExpandProperty id
+            foreach ($member in $_.transitiveMembers) {
+                [void]$ReferencedIdCache.user.Add($member.id)
+                $member | Select-Object -Property @(
+                    @{ Name = 'id'; Expression = { $groupId } }
+                    @{ Name = 'memberId'; Expression = { $_.id } }
+                    #@{ Name = 'direct'; Expression = { $membersDirect -and $membersDirect.Contains($_.id) } }
+                )
+            }
         } `
-        | Export-JsonArray (Join-Path $OutputDirectoryAAD "groupTransitiveMembers.json") -Depth 1 -Compress
+        | Export-Csv (Join-Path $OutputDirectoryAAD "groupTransitiveMembers.csv") -NoTypeInformation
         $ReferencedIdCache.group.Clear()
 
         ### User Data - 15
@@ -205,7 +210,7 @@ function Invoke-AADAssessmentDataCollection {
         # add technical notifications users
         if ($OrganizationData) {
             $OrganizationData.technicalNotificationMails | Get-MsGraphResults 'users?$select=id' -Filter "proxyAddresses/any(c:c eq 'smtp:{0}') or otherMails/any(c:c eq '{0}')" `
-            | Foreach-Object { [void]$ReferencedIdCache.user.Add($_.id) }
+            | ForEach-Object { [void]$ReferencedIdCache.user.Add($_.id) }
         }
         #Get-MsGraphResults 'users?$select=id,userPrincipalName,displayName,mail,otherMails,proxyAddresses' `
         #| Where-Object { $ReferencedIdCache.user.Contains($_.id) } `

@@ -54,6 +54,12 @@ function Get-MsGraphResults {
         # Add OData Type to each result value.
         [Parameter(Mandatory = $false)]
         [switch] $AddODataType,
+        # Incapsulate member and owner reference calls with a parent object.
+        [Parameter(Mandatory = $false)]
+        [switch] $IncapsulateReferenceListInParentObject,
+        # Group results in array by request.
+        [Parameter(Mandatory = $false)]
+        [switch] $GroupOutputByRequest,
         # Disable deduplication of UniqueId values.
         [Parameter(Mandatory = $false)]
         [switch] $DisableUniqueIdDeduplication,
@@ -190,8 +196,16 @@ function Get-MsGraphResults {
                     [array] $resultsBatch = $resultsBatch.responses | Sort-Object -Property { [int]$_.id }
                     foreach ($results in ($resultsBatch)) {
                         if (!(Test-MsGraphBatchError $results)) {
-                            #Expand-MsGraphResult $results.body $DisablePaging $KeepODataContext
-                            Complete-MsGraphResult $results.body -DisablePaging:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType -Request $listRequests[$results.id] -GraphBaseUri $GraphBaseUri
+                            if ($IncapsulateReferenceListInParentObject -and $listRequests[$results.id].url -match '.*/(.+)/(.+)/((?:transitive)?members|owners)') {
+                                [PSCustomObject]@{
+                                    id            = $Matches[2]
+                                    '@odata.type' = '#{0}' -f (Get-MsGraphEntityType $GraphBaseUri.AbsoluteUri -EntityName $Matches[1])
+                                    $Matches[3]   = Complete-MsGraphResult $results.body -DisablePaging:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType -GroupOutputByRequest -Request $listRequests[$results.id] -GraphBaseUri $GraphBaseUri
+                                }
+                            }
+                            else {
+                                Complete-MsGraphResult $results.body -DisablePaging:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType -GroupOutputByRequest:$GroupOutputByRequest -Request $listRequests[$results.id] -GraphBaseUri $GraphBaseUri
+                            }
                         }
                     }
                 }
@@ -241,8 +255,16 @@ function Get-MsGraphResults {
                 try {
                     # [hashtable] $results = Invoke-MgGraphRequest -Method $Request.method -Uri $uriEndpoint.AbsoluteUri -Headers $Request.headers
                     $results = Invoke-RestMethod -WebSession $MsGraphSession -UseBasicParsing @paramInvokeRestMethod -ErrorAction Stop
-                    #Expand-MsGraphResult $results $DisablePaging $KeepODataContext
-                    Complete-MsGraphResult $results -DisablePaging:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType -Request $Request -GraphBaseUri $GraphBaseUri
+                    if ($IncapsulateReferenceListInParentObject -and $Request.url -match '.*/(.+)/(.+)/((?:transitive)?members|owners)') {
+                        [PSCustomObject]@{
+                            id            = $Matches[2]
+                            '@odata.type' = '#{0}' -f (Get-MsGraphEntityType $GraphBaseUri.AbsoluteUri -EntityName $Matches[1])
+                            $Matches[3]   = Complete-MsGraphResult $results -DisablePaging:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType -GroupOutputByRequest -Request $Request -GraphBaseUri $GraphBaseUri
+                        }
+                    }
+                    else {
+                        Complete-MsGraphResult $results -DisablePaging:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType -GroupOutputByRequest:$GroupOutputByRequest -Request $Request -GraphBaseUri $GraphBaseUri
+                    }
                 }
                 catch { Catch-MsGraphError $_ }
                 finally {
@@ -268,6 +290,9 @@ function Get-MsGraphResults {
                 # Add ODataType to each result value.
                 [Parameter(Mandatory = $false)]
                 [switch] $AddODataType,
+                # Group results in array by request.
+                [Parameter(Mandatory = $false)]
+                [switch] $GroupOutputByRequest,
                 # MS Graph request object.
                 [Parameter(Mandatory = $false)]
                 [psobject] $Request,
@@ -276,9 +301,15 @@ function Get-MsGraphResults {
                 [uri] $GraphBaseUri = 'https://graph.microsoft.com/'
             )
 
+            begin {
+                [System.Collections.Generic.List[object]] $listOutput = New-Object 'System.Collections.Generic.List[object]'
+            }
+
             process {
                 foreach ($Result in $Results) {
-                    Expand-MsGraphResult $Result -RawOutput:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType
+                    $Output = Expand-MsGraphResult $Result -RawOutput:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType
+                    if ($GroupOutputByRequest -and $Output) { $listOutput.AddRange([array]$Output) }
+                    else { $Output }
 
                     if (!$DisablePaging -and $Result) {
                         if (Get-ObjectPropertyValue $Result '@odata.nextLink') {
@@ -299,7 +330,9 @@ function Get-MsGraphResults {
                                     catch { Catch-MsGraphError $_ }
                                     #$Request.url = $Result.'@odata.nextLink'
                                     #$Result = Invoke-MsGraphRequest $Request -NoAppInsights -GraphBaseUri $GraphBaseUri
-                                    Expand-MsGraphResult $Result -RawOutput:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType
+                                    $Output = Expand-MsGraphResult $Result -RawOutput:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType
+                                    if ($GroupOutputByRequest -and $Output) { $listOutput.AddRange([array]$Output) }
+                                    else { $Output }
                                 }
                             }
                             finally {
@@ -308,6 +341,10 @@ function Get-MsGraphResults {
                         }
                     }
                 }
+            }
+
+            end {
+                if ($GroupOutputByRequest) { Write-Output $listOutput.ToArray() -NoEnumerate }
             }
         }
     }
@@ -551,13 +588,14 @@ function Get-MsGraphMetadata {
     param (
         # Metadata URL for Microsoft Graph API.
         [Parameter(Mandatory = $false, Position = 0, ValueFromPipeline = $true)]
-        [uri] $Uri = 'https://graph.microsoft.com/$metadata',
+        [uri] $Uri = 'https://graph.microsoft.com/v1.0/$metadata',
         # Force a refresh of metadata.
         [Parameter(Mandatory = $false)]
         [switch] $ForceRefresh
     )
 
     if (!(Get-Variable MsGraphMetadataCache -Scope Script -ErrorAction SilentlyContinue)) { New-Variable -Name MsGraphMetadataCache -Scope Script -Value (New-Object 'System.Collections.Generic.Dictionary[string,xml]') }
+    if (!$Uri.AbsolutePath.EndsWith('$metadata')) { $Uri = ([IO.Path]::Combine($Uri.AbsoluteUri, '$metadata')) }
     [string] $BaseUri = $Uri.AbsoluteUri
     if ($Uri.AbsoluteUri -match ('^.+{0}' -f ([regex]::Escape($Uri.AbsolutePath)))) { $BaseUri = $Matches[0] }
 
@@ -575,7 +613,7 @@ function Get-MsGraphEntityType {
     param (
         # Metadata URL for Microsoft Graph API.
         [Parameter(Mandatory = $false, Position = 0, ValueFromPipeline = $true)]
-        [uri] $Uri = 'https://graph.microsoft.com/$metadata',
+        [uri] $Uri = 'https://graph.microsoft.com/v1.0/$metadata',
         # Name of endpoint.
         [Parameter(Mandatory = $false)]
         [string] $EntityName
@@ -584,7 +622,7 @@ function Get-MsGraphEntityType {
     process {
         $MsGraphMetadata = Get-MSGraphMetadata $Uri
 
-        if (!$EntityName -and $Uri.Fragment -match '^#(.+?)(\(.+\))?$') { $EntityName = $Matches[1] }
+        if (!$EntityName -and $Uri.Fragment -match '^#(.+?)(\(.+\))?(/\$entity)?$') { $EntityName = $Matches[1] }
 
         foreach ($Schema in $MsGraphMetadata.Edmx.DataServices.Schema) {
             foreach ($EntitySet in $Schema.EntityContainer.EntitySet) {

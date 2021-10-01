@@ -51,20 +51,21 @@ function Add-AadReferencesToCache {
                 break
             }
             aadRoleAssignment {
-                switch ($InputObject.subject.Type) {
-                    User {
-                        [void] $ReferencedIdCache.user.Add($InputObject.subject.id)
-                        break
-                    }
-                    Group {
-                        [void] $ReferencedIdCache.group.Add($InputObject.subject.id)
-                        break
-                    }
-                    ServicePrincipal {
-                        [void] $ReferencedIdCache.servicePrincipal.Add($InputObject.subject.id)
-                        break
-                    }
-                }
+                [void] $ReferencedIdCache.$($InputObject.subject.Type).Add($InputObject.subject.id)
+                # switch ($InputObject.subject.Type) {
+                #     User {
+                #         [void] $ReferencedIdCache.user.Add($InputObject.subject.id)
+                #         break
+                #     }
+                #     Group {
+                #         [void] $ReferencedIdCache.group.Add($InputObject.subject.id)
+                #         break
+                #     }
+                #     ServicePrincipal {
+                #         [void] $ReferencedIdCache.servicePrincipal.Add($InputObject.subject.id)
+                #         break
+                #     }
+                # }
                 break
             }
         }
