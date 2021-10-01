@@ -53,8 +53,7 @@ function Connect-AADAssessment {
                 break
             }
             'PublicClient' {
-                #$script:ConnectState.ClientApplication = New-MsalClientApplication -ClientId $ClientId -TenantId $TenantId -AzureCloudInstance $script:mapMgEnvironmentToAzureCloudInstance[$CloudEnvironment] -RedirectUri 'http://localhost'
-                $script:ConnectState.ClientApplication = New-MsalClientApplication -ClientId $ClientId -TenantId $TenantId -AzureCloudInstance $script:mapMgEnvironmentToAzureCloudInstance[$CloudEnvironment] -RedirectUri 'https://login.microsoftonline.com/common/oauth2/nativeclient'
+                $script:ConnectState.ClientApplication = New-MsalClientApplication -ClientId $ClientId -TenantId $TenantId -AzureCloudInstance $script:mapMgEnvironmentToAzureCloudInstance[$CloudEnvironment] -RedirectUri $script:mapMgEnvironmentToAadRedirectUri[$CloudEnvironment]
                 break
             }
             'ConfidentialClientCertificate' {

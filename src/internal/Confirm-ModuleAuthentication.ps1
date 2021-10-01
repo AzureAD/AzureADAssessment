@@ -28,7 +28,7 @@ function Confirm-ModuleAuthentication {
         [string[]] $MsGraphScopes = @(
             'Organization.Read.All'
             'RoleManagement.Read.Directory'
-            #'Application.Read.All'
+            'Application.Read.All'
             'User.Read.All'
             'Group.Read.All'
             'Policy.Read.All'
