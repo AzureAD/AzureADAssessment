@@ -28,7 +28,7 @@ if ($PSBoundParameters.ContainsKey('ModuleConfiguration')) { Set-Config $ModuleC
 ## Initialize Module Variables
 $script:ConnectState = @{
     ClientApplication = $null
-    CloudEnvironment  = $null
+    CloudEnvironment  = 'Global'
     MsGraphToken      = $null
     AadGraphToken     = $null
 }
