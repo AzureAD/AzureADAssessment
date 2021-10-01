@@ -26,7 +26,9 @@ else {
         param ([string]$ModulePath, [scriptblock]$PostImportScriptBlock)
         ## Force WindowsPowerShell to load correct version of built-in modules when launched from PowerShell 6+
         if ($PSVersionTable.PSEdition -eq 'Desktop') { Import-Module 'Microsoft.PowerShell.Management', 'Microsoft.PowerShell.Utility', 'CimCmdlets' -MaximumVersion 5.9.9.9 }
-        Import-Module $ModulePath -PassThru
+        Import-Module $ModulePath -PassThru -ArgumentList @{
+            'ai.instrumentationKey' = 'f7c43a96-9493-41e3-ad62-4320f5835ce2'
+        }
         Invoke-Command -ScriptBlock $PostImportScriptBlock -NoNewScope
     }
     $strScriptBlock = 'Invoke-Command -ScriptBlock {{ {0} }} -ArgumentList {1}, {{ {2} }}' -f $ScriptBlock, $ModuleManifestPath, $PostImportScriptBlock
