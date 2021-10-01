@@ -114,6 +114,8 @@ NestedModules = @(
     '.\Invoke-AADAssessmentDataCollection.ps1'
     '.\New-AADAssessmentRecommendations.ps1'
     '.\Export-AADASsessmentRecommendations.ps1'
+    '.\Import-AADAssessmentEvidence.ps1'
+    '.\analysis\AccessManagement\AuthenticationExperience\Test-AADAssessmentEmailOtp.ps1'
 )
 
 # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
@@ -138,6 +140,7 @@ FunctionsToExport = @(
     'Get-MsGraphResults'
     'New-AADAssessmentRecommendations'
     'Export-AADAssessmentRecommendations'
+    'Test-AADAssessmentEmailOtp'
 )
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
