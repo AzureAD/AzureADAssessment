@@ -125,7 +125,7 @@ function Invoke-AADAssessmentDataCollection {
 
         ### Privileged Access AAD role Assignments - 7
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'PIM AAD Roles' -PercentComplete 42
-        Get-MsGraphResults 'privilegedAccess/aadRoles/roleAssignments' -Select 'id,startDateTime,endDateTime,assignmentState,roleDefinitionId' -Filter "resourceId eq '$($OrganizationData.id)'" -Top 999 -ApiVersion 'beta' -QueryParameters @{ '$expand' = 'subject($select=id,type)' } `
+        Get-MsGraphResults 'privilegedAccess/aadRoles/roleAssignments' -Select 'id,startDateTime,endDateTime,assignmentState,roleDefinitionId,linkedEligibleRoleAssignmentId' -Filter "resourceId eq '$($OrganizationData.id)'" -Top 999 -ApiVersion 'beta' -QueryParameters @{ '$expand' = 'subject($select=id,type)' } `
         | Select-Object -Property "*" -ExcludeProperty '@odata.type' `
         | Add-AadReferencesToCache -Type aadRoleAssignment -ReferencedIdCache $ReferencedIdCache -PassThru `
         | Export-JsonArray (Join-Path $OutputDirectoryAAD "aadRoleAssignments.json") -Depth 5 -Compress
