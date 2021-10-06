@@ -82,7 +82,6 @@ function Complete-AADAssessmentReports {
         ## Generate Recommendations
         if($IncludeRecommendations) {
             Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Complete Reports - {0}' -f $AssessmentDetail.AssessmentTenantDomain) -Status 'Generating Recommendations' -PercentComplete 30
-            $OutputDirectory
             New-AADAssessmentRecommendations -Path $OutputDirectory -OutputDirectory $OutputDirectory -InterviewSpreadsheetPath $InterviewSpreadsheetPath -SkipExpand
         }
         ## Report Complete
