@@ -22,7 +22,13 @@ function Complete-AADAssessmentReports {
         [string] $OutputDirectory = (Join-Path $env:SystemDrive 'AzureADAssessment'),
         # Skip copying data and PowerBI dashboards to "C:\AzureADAssessment\PowerBI"
         [Parameter(Mandatory = $false)]
-        [switch] $SkipPowerBIWorkingDirectory
+        [switch] $SkipPowerBIWorkingDirectory,
+        # Includes the new recommendations report in the output
+        [Parameter(Mandatory = $false)]
+        [switch] $IncludeRecommendations,
+        # Path to the spreadsheet with the interview answers
+        [Parameter(Mandatory = $false)]
+        [string] $InterviewSpreadsheetPath
     )
 
     Start-AppInsightsRequest $MyInvocation.MyCommand.Name
@@ -73,6 +79,12 @@ function Complete-AADAssessmentReports {
             Remove-Item -Path (Join-Path $OutputDirectoryAAD "*") -Include "*Data.xml" -ErrorAction Ignore
         }
 
+        ## Generate Recommendations
+        if($IncludeRecommendations) {
+            Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Complete Reports - {0}' -f $AssessmentDetail.AssessmentTenantDomain) -Status 'Generating Recommendations' -PercentComplete 30
+            $OutputDirectory
+            New-AADAssessmentRecommendations -Path $OutputDirectory -OutputDirectory $OutputDirectory -InterviewSpreadsheetPath $InterviewSpreadsheetPath -SkipExpand
+        }
         ## Report Complete
         Write-AppInsightsEvent 'AAD Assessment Report Generation Complete' -OverrideProperties -Properties @{
             AssessmentId       = $AssessmentDetail.AssessmentId

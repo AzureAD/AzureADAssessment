@@ -77,8 +77,8 @@
                 ) -or ( # device condition
                     $_.conditions.psobject.properties.match('devices').Count -and
                     $null -ne $_.conditions.devices -and (
-                        $_.conditions.devices.excludeDevices.Count -gt 0 -or 
-                        $_.conditions.devices.excludeDevicesStates.Count -gt 0
+                        ($_.conditions.devices.psobject.properties.match('excludeDevices').Count -and $_.conditions.devices.excludeDevices.Count -gt 0) -or 
+                        ($_.conditions.devices.psobject.properties.match('excludeDevicesStates').Count -and $_.conditions.devices.excludeDevicesStates.Count -gt 0)
                     )
                 ) -or ( # risk level condition
                     $_.conditions.signInRiskLevels.Count -gt 0 -or
@@ -598,8 +598,8 @@
 
             # lookup commmon objects
             $common = @()
-            $common += @($Data["groups.csv"] | Where-Object { $_.id -in $commonGroups } | select id,displayName,@{N="type";E={"group"}})
-            $common += @($Data["users.csv"] | Where-Object { $_.id -in $commonUsers } | select id,displayName,@{N="type";E={"user"}})
+            $common += @($Data["groups.csv"] | Where-Object { (Get-ObjectPropertyValue $_ 'id') -and $_.id -and ($_.id -in $commonGroups) } | select id,displayName,@{N="type";E={"group"}})
+            $common += @($Data["users.csv"] | Where-Object { (Get-ObjectPropertyValue $_ 'id') -and $_.id -and ($_.id -in $commonUsers)} | select id,displayName,@{N="type";E={"user"}})
 
             if ($common.Count -eq 0) {
                 $res.Priority = "P1"
@@ -651,8 +651,8 @@
 
             # lookup commmon objects
             $common = @()
-            $common += @($Data["groups.csv"] | Where-Object { $_.id -in $commonGroups } | select id,displayName,@{N="type";E={"group"}})
-            $common += @($Data["users.csv"] | Where-Object { $_.id -in $commonUsers } | select id,displayName,@{N="type";E={"user"}})
+            $common += @($Data["groups.csv"] | Where-Object { (Get-ObjectPropertyValue $_ 'id') -and $_.id -in $commonGroups } | select id,displayName,@{N="type";E={"group"}})
+            $common += @($Data["users.csv"] | Where-Object { (Get-ObjectPropertyValue $_ 'id') -and $_.id -in $commonUsers } | select id,displayName,@{N="type";E={"user"}})
 
             if ($commonUsers.Count -gt 0 -and $commonGroups -eq 0) {
                 $res.Priority = "P3"
@@ -704,8 +704,8 @@
 
             # lookup commmon objects
             $common = @()
-            $common += @($Data["groups.csv"] | Where-Object { $_.id -in $commonGroups } | select id,displayName,@{N="type";E={"group"}})
-            $common += @($Data["users.csv"] | Where-Object { $_.id -in $commonUsers } | select id,displayName,@{N="type";E={"user"}})
+            $common += @($Data["groups.csv"] | Where-Object { (Get-ObjectPropertyValue $_ 'id') -and $_.id -in $commonGroups } | select id,displayName,@{N="type";E={"group"}})
+            $common += @($Data["users.csv"] | Where-Object { (Get-ObjectPropertyValue $_ 'id') -and $_.id -in $commonUsers } | select id,displayName,@{N="type";E={"user"}})
 
             if ($commonUsers.Count -gt 0 -and $commonGroups -gt 0) {
                 $res.Priority = "P3"
