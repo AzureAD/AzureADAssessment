@@ -28,7 +28,7 @@ if ($PSBoundParameters.ContainsKey('ModuleConfiguration')) { Set-Config $ModuleC
 ## Initialize Module Variables
 $script:ConnectState = @{
     ClientApplication = $null
-    CloudEnvironment  = $null
+    CloudEnvironment  = 'Global'
     MsGraphToken      = $null
     AadGraphToken     = $null
 }
@@ -55,6 +55,20 @@ $script:mapMgEnvironmentToAzureEnvironment = @{
     'Germany'  = 'AzureGermanyCloud'
     'USGov'    = 'AzureUSGovernment'
     'USGovDoD' = 'AzureUsGovernment'
+}
+$script:mapMgEnvironmentToAadRedirectUri = @{
+    'Global'   = 'https://login.microsoftonline.com/common/oauth2/nativeclient'
+    'China'    = 'https://login.partner.microsoftonline.cn/common/oauth2/nativeclient'
+    'Germany'  = 'https://login.microsoftonline.com/common/oauth2/nativeclient'
+    'USGov'    = 'https://login.microsoftonline.us/common/oauth2/nativeclient'
+    'USGovDoD' = 'https://login.microsoftonline.us/common/oauth2/nativeclient'
+}
+$script:mapMgEnvironmentToMgEndpoint = @{
+    'Global'   = 'https://graph.microsoft.com/'
+    'China'    = 'https://microsoftgraph.chinacloudapi.cn/'
+    'Germany'  = 'https://graph.microsoft.de/'
+    'USGov'    = 'https://graph.microsoft.us/'
+    'USGovDoD' = 'https://dod-graph.microsoft.us/'
 }
 
 ## Initialize Application Insights for Anonymous Telemetry

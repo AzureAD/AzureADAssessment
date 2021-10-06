@@ -49,7 +49,9 @@ function Export-AADAssessmentReportData {
     Set-Content -Path (Join-Path $OutputDirectory "users.csv") -Value 'id,userPrincipalName,userType,displayName,accountEnabled,mail,otherMails'
     Import-Clixml -Path (Join-Path $SourceDirectory "userData.xml") `
     | Use-Progress -Activity 'Exporting users' -Property displayName -PassThru -WriteSummary `
-    | Select-Object -Property id, userPrincipalName, userType, displayName, accountEnabled, mail, @{ Name = "otherMails"; Expression = { $_.otherMails -join ';' } } `
+    | Select-Object -Property id, userPrincipalName, userType, displayName, accountEnabled, mail, `
+        @{ Name = "otherMails"; Expression = { $_.otherMails -join ';' } }, `
+        @{ Name = "AADLicense"; Expression = {$plans = $_.assignedPlans | foreach-object { $_.servicePlanId }; if ($plans -contains "eec0eb4f-6444-4f95-aba0-50c24d67f998") { "AADP2" } elseif ($plans -contains "41781fb2-bc02-4b7c-bd55-b576c07bb09d") { "AADP1" } else { "None" }}} `
     | Export-Csv (Join-Path $OutputDirectory "users.csv") -NoTypeInformation
 
     # Import-Clixml -Path (Join-Path $SourceDirectory "groupData.xml") `

@@ -34,7 +34,7 @@ $paramUpdateModuleManifest['AliasesToExport'] = $ModuleManifest.AliasesToExport
 [System.IO.DirectoryInfo] $ModuleOutputDirectoryInfo = $ModuleManifestFileInfo.Directory
 
 ## Get Module Output FileList
-$ModuleFileListFileInfo = Get-ChildItem $ModuleOutputDirectoryInfo.FullName -Recurse -File -Exclude '*.dll'
+$ModuleFileListFileInfo = Get-ChildItem $ModuleOutputDirectoryInfo.FullName -Recurse -File
 $ModuleRequiredAssembliesFileInfo = $ModuleFileListFileInfo | Where-Object Extension -eq '.dll'
 
 ## Get Paths Relative to Module Base Directory
@@ -50,8 +50,6 @@ if (!$SkipRequiredAssemblies -and $ModuleRequiredAssembliesFileInfo) {
 ## Clear RequiredAssemblies
 (Get-Content $ModuleManifestFileInfo.FullName -Raw) -replace "(?s)RequiredAssemblies\ =\ @\([^)]*\)", "# RequiredAssemblies = @()" | Set-Content $ModuleManifestFileInfo.FullName
 (Get-Content $ModuleManifestFileInfo.FullName -Raw) -replace "(?s)FileList\ =\ @\([^)]*\)", "# FileList = @()" | Set-Content $ModuleManifestFileInfo.FullName
-
-Install-Module MSAL.PS -Force -SkipPublisherCheck -Repository PSGallery -AcceptLicense
 
 ## Install Module Dependencies
 foreach ($Module in $ModuleManifest.RequiredModules) {

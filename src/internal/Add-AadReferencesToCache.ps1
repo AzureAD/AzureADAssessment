@@ -7,7 +7,7 @@ function Add-AadReferencesToCache {
         #
         [Parameter(Mandatory = $true)]
         [Alias('Type')]
-        [ValidateSet('appRoleAssignment', 'oauth2PermissionGrants', 'servicePrincipal', 'directoryRoles', 'conditionalAccessPolicy')]
+        [ValidateSet('appRoleAssignment', 'oauth2PermissionGrants', 'servicePrincipal', 'directoryRoles', 'conditionalAccessPolicy', 'aadRoleAssignment')]
         [string] $ObjectType,
         #
         [Parameter(Mandatory = $true)]
@@ -48,6 +48,24 @@ function Add-AadReferencesToCache {
                 $InputObject.conditions.users.excludeGroups | ForEach-Object { [void]$ReferencedIdCache.group.Add($_) }
                 $InputObject.conditions.applications.includeApplications | Where-Object { $_ -notin 'None', 'All', 'Office365' } | ForEach-Object { [void]$ReferencedIdCache.appId.Add($_) }
                 $InputObject.conditions.applications.excludeApplications | Where-Object { $_ -notin 'Office365' } | ForEach-Object { [void]$ReferencedIdCache.appId.Add($_) }
+                break
+            }
+            aadRoleAssignment {
+                [void] $ReferencedIdCache.$($InputObject.subject.Type).Add($InputObject.subject.id)
+                # switch ($InputObject.subject.Type) {
+                #     User {
+                #         [void] $ReferencedIdCache.user.Add($InputObject.subject.id)
+                #         break
+                #     }
+                #     Group {
+                #         [void] $ReferencedIdCache.group.Add($InputObject.subject.id)
+                #         break
+                #     }
+                #     ServicePrincipal {
+                #         [void] $ReferencedIdCache.servicePrincipal.Add($InputObject.subject.id)
+                #         break
+                #     }
+                # }
                 break
             }
         }
