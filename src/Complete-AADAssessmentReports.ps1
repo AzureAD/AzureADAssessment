@@ -33,19 +33,22 @@ function Complete-AADAssessmentReports {
 
     Start-AppInsightsRequest $MyInvocation.MyCommand.Name
     try {
-
-        if (!$script:ConnectState.MsGraphToken) {
-            #Connect-AADAssessment
-            if (!$script:ConnectState.ClientApplication) {
-                $script:ConnectState.ClientApplication = New-MsalClientApplication -ClientId $script:ModuleConfig.'aad.clientId' -ErrorAction Stop
-                $script:ConnectState.CloudEnvironment = 'Global'
+        ## Return Immediately when Telemetry is Disabled
+        if(!($script:ModuleConfig.'ai.disabled'))
+        {
+            if (!$script:ConnectState.MsGraphToken) {
+                #Connect-AADAssessment
+                if (!$script:ConnectState.ClientApplication) {
+                    $script:ConnectState.ClientApplication = New-MsalClientApplication -ClientId $script:ModuleConfig.'aad.clientId' -ErrorAction Stop
+                    $script:ConnectState.CloudEnvironment = 'Global'
+                }
+                $CorrelationId = New-Guid
+                if ($script:AppInsightsRuntimeState.OperationStack.Count -gt 0) {
+                    $CorrelationId = $script:AppInsightsRuntimeState.OperationStack.Peek().Id
+                }
+                ## Authenticate with Lightweight Consent
+                $script:ConnectState.MsGraphToken = Get-MsalToken -PublicClientApplication $script:ConnectState.ClientApplication -Scopes 'openid' -UseEmbeddedWebView:$true -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
             }
-            $CorrelationId = New-Guid
-            if ($script:AppInsightsRuntimeState.OperationStack.Count -gt 0) {
-                $CorrelationId = $script:AppInsightsRuntimeState.OperationStack.Peek().Id
-            }
-            ## Authenticate with Lightweight Consent
-            $script:ConnectState.MsGraphToken = Get-MsalToken -PublicClientApplication $script:ConnectState.ClientApplication -Scopes 'openid' -UseEmbeddedWebView:$true -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
         }
 
         if ($MyInvocation.CommandOrigin -eq 'Runspace') {
