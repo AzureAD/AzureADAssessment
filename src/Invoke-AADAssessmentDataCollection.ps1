@@ -130,6 +130,21 @@ function Invoke-AADAssessmentDataCollection {
         | Add-AadReferencesToCache -Type aadRoleAssignment -ReferencedIdCache $ReferencedIdCache -PassThru `
         | Export-JsonArray (Join-Path $OutputDirectoryAAD "aadRoleAssignments.json") -Depth 5 -Compress
 
+        # Getting role assignments via unified role API 
+        #Get-MsGraphResults 'roleManagement/directory/roleAssignmentSchedules' -Select 'id,roleDefinitionId,directoryScopeId,memberType,scheduleInfo,status,assignmentType' -ApiVersion 'beta' -QueryParameters @{ '$expand' = 'principal($select=id)' } `
+        #| Where-Object { $_.status -eq 'Provisioned' -and $_.assignmentType -eq 'Assigned'} `
+        #| Select-Object -Property id,roleDefinitionId,directoryScopeId,memberType, `
+        #@{ Name = 'EndDateTime'; Expression = {
+        #    $_.scheduleInfo.expiration.endDateTime
+        #}}, `
+        #@{ Name = 'principalId'; Expression = {
+        #    $_.principal.id
+        #}}, `
+        #@{ Name = 'principalType'; Expression = {
+        #    $_.principal.'@odata.type' -replace '#microsoft.graph.',''
+        #}} `
+        #| Export-Csv (Join-Path $OutputDirectoryAAD "roleAssignement.csv") -NoTypeInformation
+
         ### Application Data - 8
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Applications' -PercentComplete 48
         Get-MsGraphResults 'applications?$select=id,appId,displayName,appRoles,keyCredentials,passwordCredentials' -Top 999 `
