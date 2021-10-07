@@ -94,6 +94,11 @@ function Get-MsGraphResults {
         function Catch-MsGraphError ($ErrorRecord) {
             if ($_.Exception -is [System.Net.WebException]) {
                 if ($_.Exception.Response) {
+                    Write-Verbose "Graph Error: response URI=$($_.Exception.Response.ResponseUri)"
+                    Write-Verbose "Graph Error: status code=$([int]$_.Exception.Response.StatusCode) ($($_.Exception.Response.StatusCode))"
+                    foreach($key in $_.Exception.Response.Headers.Keys | Where-Object {$_ -in ("timestamp","Date","request-id","client-request-id","x-ms-ags-diagnostic")}) {
+                        Write-Verbose "Graph Error: $key=$($_.Exception.Response.Headers[$key])"
+                    }
                     $StreamReader = New-Object System.IO.StreamReader -ArgumentList $_.Exception.Response.GetResponseStream()
                     try { $responseBody = ConvertFrom-Json $StreamReader.ReadToEnd() }
                     finally { $StreamReader.Close() }
