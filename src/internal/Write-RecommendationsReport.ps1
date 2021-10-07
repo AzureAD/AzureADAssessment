@@ -72,7 +72,9 @@ function Set-SortOrder($reco){
         'P1' { $reco.SortOrder = 1 }
         'P2' { $reco.SortOrder = 2 }
         'P3' { $reco.SortOrder = 3 }
-        Default { $reco.SortOrder = 4 }
+        'To Do' { $reco.SortOrder = 4 }
+        'Missing' { $reco.SortOrder = 5 }
+        Default { $reco.SortOrder = 6 }
     }
 }
 function Get-PriorityIcon($reco){
