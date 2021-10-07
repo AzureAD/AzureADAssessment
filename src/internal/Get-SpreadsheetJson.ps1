@@ -45,7 +45,7 @@ function Get-SpreadsheetJson {
         }
         Remove-Item -Path $tempFolder -Recurse -Force #Clean up
 
-        $nrValues = @()
+        $nrValues = @{}
         foreach($nr in $xmlWb.workbook.definedNames.ChildNodes){
             $name = $nr.name
             $range = $nr.InnerText
@@ -55,7 +55,7 @@ function Get-SpreadsheetJson {
                 Range = $range
                 Value = ''
             }
-            $nrValues += $nrValue
+            $nrValues[$name] = $nrValue
         
             $rangeValue = $range -Split '!'
             $sheet = $rangeValue[0].Replace("'", "")

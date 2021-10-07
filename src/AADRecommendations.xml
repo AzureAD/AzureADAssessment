@@ -23,7 +23,8 @@
         </Powershell>
         <Category>Access Management</Category>
         <Area>Authentication Experience</Area>
-        <Name>Email OTP</Name>
+        <ID>AR0001</ID>
+        <Name>Enable Email OTP</Name>
         <Summary>With email OTP, org members can collaborate with anyone in the world by simply sharing a link or sending an invitation via email. Invited users prove their identity by using a verification code sent to their email account</Summary>
         <Recommendation>Enable email OTP</Recommendation>
     </recommendation>
@@ -52,7 +53,8 @@
         </Powershell>
         <Category>Access Management</Category>
         <Area>Access Policies</Area>
-        <Name>Trusted networks</Name>
+        <ID>AR0002</ID>
+        <Name>Definte Trusted networks</Name>
         <Summary>Trusted network is a signal leveraged by identity protection to improve risk detection. Defining your trusted networks will improve detection of risk events</Summary>
         <Recommendation>Define trusted networks</Recommendation>
     </recommendation>
@@ -103,6 +105,7 @@
         </Powershell>
         <Category>Access Management</Category>
         <Area>Access Policies</Area>
+        <ID>AR0003</ID>
         <Name>Conditional Access Controls (network, device and/or risks)</Name>
         <Summary>Protect your users sign-ins by applying conditional access policies including risk, device or network location controls to improve your security</Summary>
         <Recommendation>Design conditional access to include risk, device and/or netowrk location conditions</Recommendation>
@@ -129,6 +132,7 @@
         </Powershell>
         <Category>Access Management</Category>
         <Area>Credentials Management</Area>
+        <ID>AR0004</ID>
         <Name>Programatic usage of password credentials</Name>
         <Summary>Application or Service Principals using password is discouraged to enforce the lifecycle of credentials</Summary>
         <Recommendation>Use managed identities, Windows Integrated Authentication or certificate whenever possible</Recommendation>
@@ -157,6 +161,7 @@
         </Powershell>
         <Category>Access Management</Category>
         <Area>Credentials Management</Area>
+        <ID>AR0005</ID>
         <Name>Application or Service Principals with expired credentials</Name>
         <Summary>Application or Service Principals credential lifecycle should be managed</Summary>
         <Recommendation>Review application or service principals with expired credentials</Recommendation>
@@ -186,6 +191,7 @@
         </Powershell>
         <Category>Access Management</Category>
         <Area>Access Surface Area</Area>
+        <ID>AR0006</ID>
         <Name>Grants for high level permissions</Name>
         <Summary>Application can request high level permission trough fishing. Such permissions include those allowing "ReadWrite" actions or "Mail" operations. Regular reviews should be in place and non-necessary grants should be removed</Summary>
         <Recommendation>Review applications having high permissions and remove unnecessary grants</Recommendation>
@@ -213,6 +219,7 @@
         </Powershell>
         <Category>Access Management</Category>
         <Area>Access Surface Area</Area>
+        <ID>AR0007</ID>
         <Name>Grants to legacy resources</Name>
         <Summary>Grants are present to resources that are being deprected (Azure AD Graph)</Summary>
         <Recommendation>Review applications relying on these resources and review potential migration path with developer</Recommendation>
@@ -240,6 +247,7 @@
         </PowerShell>
         <Category>Access Management</Category>
         <Area>Application Authentication and Assignment</Area>
+        <ID>AR0008</ID>
         <Name>User App Assignments</Name>
         <Summary>Direct assignment to user is not advisable when attestation (Access Reviews) to applications is not used</Summary>
         <Recommendation>Assign application roles to groups to have more flexibility</Recommendation>
@@ -266,6 +274,7 @@
         </PowerShell>
         <Category>Identity Management</Category>
         <Area>Entitlement Management</Area>
+        <ID>AR0009</ID>
         <Name>Assignment of Apps with "All users" group</Name>
         <Summary>The "All users" group contains both Members and Guests. Resource owners might misunderstand this group to contain only members. As a result, special condsideration should be takeb when using this group for application assignment or grant access tor resource such as SharePoint Content or Azure resources</Summary>
         <Recommendation>Fix the entittlements by creating the right groups (e.g. "all members")</Recommendation>
@@ -295,6 +304,7 @@
         </PowerShell>
         <Category>Access Management</Category>
         <Area>Credentials Management</Area>
+        <ID>AR0010</ID>
         <Name>Control MFA trough Conditional Access</Name>
         <Summary>MFA can be condigured per user or on a federated Identity Provider. Applying MFA protection trough Conditional Access provides more flexibility</Summary>
         <Recommendation>Configure authentication policies to leverage MFA requirement via conditional access</Recommendation>
@@ -330,6 +340,7 @@
         </PowerShell>
         <Category>Access Management</Category>
         <Area>Authentication Experience</Area>
+        <ID>AR0011</ID>
         <Name>Device Trust Access Policies</Name>
         <Summary>Authenticating devices and account for its trust type improves your security posture and usability by avoiding friction (e.g. MFA) and blocking access to untrusted devices</Summary>
         <Recommendation>Use hybrid azure ad joined or compliant devices as a control in conditional access policies</Recommendation>
@@ -362,6 +373,7 @@
         </PowerShell>
         <Category>Access Management</Category>
         <Area>Access Policies</Area>
+        <ID>AR0012</ID>
         <Name>Risk-Based Access Policies</Name>
         <Summary>Azure AD Calculates risk for every sign-in and every user. Using risk as criteria in access policies can provide a better user experience (fewer authentication prompts), better security (only prompt user when needed) and automate remediation.</Summary>
         <Recommendation>Use sign-in or user risk controls in conditional access policies</Recommendation>
@@ -397,6 +409,7 @@
         </PowerShell>
         <Category>Access Management</Category>
         <Area>Access Policies</Area>
+        <ID>AR0013</ID>
         <Name>Client Application Access Policies</Name>
         <Summary>Microsoft Intune Appliucation Management (MAM) provides the ability to push data protection controls to compatible client mobile applications such as Outlook. Conditional Access can enforce policies that will restrict access to cloud services from approved and/or compatible apps</Summary>
         <Recommendation>Deploy application MAM policies to manage application configuration. Update Conditional Access policies to only allow access from MAM capables clients.</Recommendation>
@@ -430,6 +443,7 @@
         </PowerShell>
         <Category>Access Management</Category>
         <Area>Conditional Access</Area>
+        <ID>AR0014</ID>
         <Name>Exclusions usage</Name>
         <Summary>Policies should all have an exclusion (User/Group/Role)</Summary>
         <Recommendation>Exclude at least one group from every policy</Recommendation>
@@ -463,6 +477,7 @@
         </PowerShell>
         <Category>Access Management</Category>
         <Area>Conditional Access</Area>
+        <ID>AR0015</ID>
         <Name>Only Users Excluded</Name>
         <Summary>Excluding groups provide more flexibility to manage exclusions</Summary>
         <Recommendation>Put excluded users in a group and exclude the group</Recommendation>
@@ -495,6 +510,7 @@
         </PowerShell>
         <Category>Access Management</Category>
         <Area>Conditional Access</Area>
+        <ID>AR0016</ID>
         <Name>Groups and Users Excluded</Name>
         <Summary>Excluding groups provide more flexibility to manage exclusions</Summary>
         <Recommendation>Put excluded users in an existing excluded group or create a new group to be excluded</Recommendation>
@@ -527,6 +543,7 @@
         </PowerShell>
         <Category>Access Management</Category>
         <Area>Conditional Access</Area>
+        <ID>AR0017</ID>
         <Name>Only Users Included</Name>
         <Summary>Including groups provide more flexibility to manage inclusions</Summary>
         <Recommendation>Put included users in a group and include the group</Recommendation>
@@ -559,6 +576,7 @@
         </PowerShell>
         <Category>Access Management</Category>
         <Area>Conditional Access</Area>
+        <ID>AR0018</ID>
         <Name>Only Users Included</Name>
         <Summary>Including groups provide more flexibility to manage inclusions</Summary>
         <Recommendation>Put included users in an existing excluded group or create a new group to be included</Recommendation>
@@ -612,6 +630,7 @@
         </PowerShell>
         <Category>Access Management</Category>
         <Area>Conditional Access</Area>
+        <ID>AR0019</ID>
         <Name>Common Excluded Groups or Users</Name>
         <Summary>A common set of users or groups should be excluded from the CA policies. These break glass accounts are meant to be used in case of lockout. Their usage should be monitored.</Summary>
         <Recommendation>Create a group that is excluded from every CA policies</Recommendation>
@@ -665,6 +684,7 @@
         </PowerShell>
         <Category>Access Management</Category>
         <Area>Conditional Access</Area>
+        <ID>AR0020</ID>
         <Name>Common Users excluded but not groups</Name>
         <Summary>Excluding groups provide more flexibility to manage exclusions</Summary>
         <Recommendation>Put common excluded users into a group and exclude this group</Recommendation>
@@ -718,6 +738,7 @@
         </PowerShell>
         <Category>Access Management</Category>
         <Area>Conditional Access</Area>
+        <ID>AR0021</ID>
         <Name>Common Users and Groups are excluded</Name>
         <Summary>Excluding groups provide more flexibility to manage exclusions</Summary>
         <Recommendation>Put common excluded users into a group and exclude this group</Recommendation>
@@ -762,6 +783,7 @@
         </PowerShell>
         <Category>Access Management</Category>
         <Area>Conditional Access</Area>
+        <ID>AR0022</ID>
         <Name>Block Legacy Authentication</Name>
         <Summary>Legacy authentication should be blocked in Conditional Access as well as locked down at the source</Summary>
         <Recommendation>Create a conditonal access to block legacy authentication</Recommendation>
@@ -808,6 +830,7 @@
         </PowerShell>
         <Category>Access Management</Category>
         <Area>Conditional Access</Area>
+        <ID>AR0022</ID>
         <Name>Block policies for all cloud apps and all users</Name>
         <Summary>Policies that block all users and all cloud apps pose a risk of locking out the your entire organisation</Summary>
         <Recommendation>Review these policies</Recommendation>
@@ -843,6 +866,7 @@
         </PowerShell>
         <Category>Access Management</Category>
         <Area>Conditional Access</Area>
+        <ID>AR0023</ID>
         <Name>Policies for all cloud apps and all users requiring compliant devices</Name>
         <Summary>Policies that require a compliant device for all users and all cloud apps pose a risk of locking out the users who have not enrolled their deviece yet</Summary>
         <Recommendation>Review these policies</Recommendation>
@@ -878,6 +902,7 @@
         </PowerShell>
         <Category>Access Management</Category>
         <Area>Conditional Access</Area>
+        <ID>AR0024</ID>
         <Name>Policies for all cloud apps and all users requiring hybird azure ad joined device</Name>
         <Summary>Policies that require hybrid azure ad join for all users and all cloud apps pose a risk of locking out the users who have not domain joined their deviece yet</Summary>
         <Recommendation>Review these policies</Recommendation>
@@ -913,6 +938,7 @@
         </PowerShell>
         <Category>Access Management</Category>
         <Area>Conditional Access</Area>
+        <ID>AR0025</ID>
         <Name>Policies for all cloud apps and all users requiring app protection policy</Name>
         <Summary>Policies that require app protection for all users and all cloud apps pose a risk of locking out the users</Summary>
         <Recommendation>Review these policies</Recommendation>
@@ -958,6 +984,7 @@
         </PowerShell>
         <Category>Access Management</Category>
         <Area>Conditional Access</Area>
+        <ID>AR0026</ID>
         <Name>Block policies with all apps filter</Name>
         <Summary>Block policies targeted at all apps may lock user out</Summary>
         <Recommendation>Review these policies</Recommendation>
@@ -989,6 +1016,7 @@
         </PowerShell>
         <Category>Access Management</Category>
         <Area>Conditional Access</Area>
+        <ID>AR0027</ID>
         <Name>Guest targeted policies</Name>
         <Summary>A least one policy targetting guest should be present</Summary>
         <Recommendation>Create at least one policy targeting guests</Recommendation>
@@ -1025,6 +1053,7 @@
         </PowerShell>
         <Category>Access Management</Category>
         <Area>Conditional Access</Area>
+        <ID>AR0028</ID>
         <Name>Guest targeted policies to all apss requiring mfa</Name>
         <Summary>Guest should be required to MFA to access applications</Summary>
         <Recommendation>Create a policy targetting guest on all apps with mfa requirement</Recommendation>
@@ -1063,6 +1092,7 @@
         </PowerShell>
         <Category>Access Management</Category>
         <Area>Conditional Access</Area>
+        <ID>AR0029</ID>
         <Name>Policies requring domain joined or compliant targetting guest users</Name>
         <Summary>Policies that require hybrid azure ad join or compliant device targetting guests pose a risk of locking out the guests</Summary>
         <Recommendation>Review these policies</Recommendation>
@@ -1094,6 +1124,7 @@
         </PowerShell>
         <Category>Access Management</Category>
         <Area>Conditional Access</Area>
+        <ID>AR0030</ID>
         <Name>Policies explicitly targetting Office 365</Name>
         <Summary>Office 365 applications are interdependent. Targeting Office 365 as a group of applications will avoid some access issues</Summary>
         <Recommendation>Create at least one policy targetting Office 365</Recommendation>
@@ -1146,6 +1177,7 @@
         </PowerShell>
         <Category>Access Management</Category>
         <Area>Conditional Access</Area>
+        <ID>AR0031</ID>
         <Name>Policies targetting individual Office Applications</Name>
         <Summary>Office 365 applications are interdependent. Targeting specific Office 365 applications can generate some access issues</Summary>
         <Recommendation>Target Office 365 as a group in place of specific applications</Recommendation>
@@ -1180,6 +1212,7 @@
         </PowerShell>
         <Category>Access Management</Category>
         <Area>Conditional Access</Area>
+        <ID>AR0032</ID>
         <Name>Policies requiring approved app and not MAM policies</Name>
         <Summary>Approved applications do support MAM policies, adding Intune policies targetting them as well as requiring them to be protected by such policies will increase security</Summary>
         <Recommendation>Require Intune protection policies for approved applications and enforce them via Conditional Access</Recommendation>
@@ -1221,9 +1254,58 @@
         </PowerShell>
         <Category>Access Management</Category>
         <Area>Conditional Access</Area>
+        <ID>AR0033</ID>
         <Name>Block countries</Name>
         <Summary>If you don't expect sign-in from some countries they can be blocked in conditional access</Summary>
         <Recommendation>Block countries from where your users don't sign-in</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($data)
+
+            $qna = $data['QnA.json']
+    
+            $res =  "" | select Priority,Data
+            $item = $qna['IdMgmt_Do_you_have_owners_defined_for_the_following_tasks_in_your_organization']
+            $answer = Get-ObjectPropertyValue $item  'value'
+            switch ($answer) {
+                'Yes' { $res.Priority = "Passed" }
+                'Yes - Partially' { $res.Priority = "P2" }
+                Default { $res.Priority = "P1" }
+            }
+    
+            return $res
+        </PowerShell>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0034</ID>
+        <Name>Define Key Operational Processes</Name>
+        <Summary>Managing Azure AD requires the continuous execution of key operational tasks and processes which are not necessarily mapped to a rollout project. Nonetheless, it is important to establish them for an optimized operation of customer's environment.</Summary>
+        <Recommendation>Operationalize process per the suggestions in the table below:
+
+            | **If you find …** | **We recommend …** | **With this suggested priority …** |
+            | --- | --- | --- |
+            | **..tasks that miss owners** | Assign an owner | P1 |
+            | **..tasks with owners that are not aligned with the reference below** | Adjust ownership | P2 |
+
+            | **Task** | **Microsoft Recommendation** |
+            | --- | --- |
+            | **Define process how to create Azure subscriptions** | (Varies by customer) |
+            | **Decide who gets EMS licenses** | IAM Team |
+            | **Decide who gets Office 365 Licenses** | Productivity Team |
+            | **Decide who gets Other Licenses (Dynamics, VSO, etc.)** | Application Owner |
+            | **Assign Licenses** | IAM Operations Team |
+            | **Troubleshoot and Remediate license assignment errors** | IAM Operations Team |
+            | **Provision Identities to Applications in Azure AD** | IAM Operations Team |
+
+            #### Learn More
+            
+            - [Assigning administrator roles in Azure Active Directory | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/active-directory-assign-admin-roles-azure-portal)
+            - [Governance in Azure | Microsoft Docs](https://docs.microsoft.com/en-us/azure/security/governance-in-azure)
+            </Recommendation>
     </recommendation>
     <!--
     <recommendation>

@@ -11,6 +11,15 @@
     Collect and package assessment data from "C:\Temp" and generate recommendations in the same folder.
 #>
 
+function Get-RecoTitle($reco){
+    return "$($reco.ID) - $($reco.Name)"
+}
+
+function Get-RecoTitleLink($reco){
+    $title = Get-RecoTitle $reco
+    return $title.ToLower().Replace(" ", "-").Replace('"', '')
+}
+
 function Get-PriorityIcon($reco){
     $priority = Get-ObjectPropertyValue $reco 'Priority'
     $icon = "✅"
@@ -39,7 +48,7 @@ function Write-RecommendationsReport($recommendationsList) {
     $rowIndex = 0
     foreach ($reco in $recommendationsList) {
         $rowIndex += 1
-        $md += "   | $($reco.Category) | $($reco.Area)  | [$($reco.Name)](#$($reco.Name.ToLower().Replace(" ", "-").Replace('"', '')))  | $(Get-PriorityIcon($reco)) $($reco.Priority)  |`n"
+        $md += "   | $($reco.Category) | $($reco.Area)  | [$(Get-RecoTitle $reco)](#$(Get-RecoTitleLink $reco)) | $(Get-PriorityIcon($reco)) $($reco.Priority)  |`n"
     }
 
     $md += "## Assessment Recommendations`n"
@@ -48,7 +57,7 @@ function Write-RecommendationsReport($recommendationsList) {
         $rowIndex += 1
         $priority = Get-ObjectPropertyValue $reco 'Priority'
         if($priority -ne "Passed"){    
-            $md += "### $($reco.Name)`n"
+            $md += "### $(Get-RecoTitle $reco)`n"
             $md += "#### Priority = $(Get-PriorityIcon($reco)) $($reco.Priority)`n"
             $md += "$($reco.Category) >  $($reco.Area)`n`n"
             $md += "$($reco.Summary)`n"
@@ -138,21 +147,24 @@ function New-AADAssessmentRecommendations {
 
     # Generate recommendations from tenant data
     if (![String]::IsNullOrWhiteSpace($TenantDirectoryData)) {
+        $data = @{}
+        ### Load all the data on AAD
+
         # Load Interview questions
         if($null -ne $InterviewSpreadsheetPath){
             $interviewQna = Get-SpreadsheetJson $InterviewSpreadsheetPath
             $interviewQnaPath = Join-Path $TenantDirectoryData "QnA.json"
             $interviewQna | ConvertTo-Json | Out-File $interviewQnaPath
+            $data['QnA.json'] = $interviewQna
         }
-
-        ### Load all the data on AAD
+        
         # Prepare paths
         $AssessmentDetailPath = Join-Path $TenantDirectoryData "AzureADAssessment.json"
         # Read assessment data
         $AssessmentDetail = Get-Content $AssessmentDetailPath -Raw | ConvertFrom-Json
         # Generate AAD data path
         $AADPath = Join-Path $TenantDirectoryData "AAD-$($AssessmentDetail.AssessmentTenantDomain)"
-        $data = @{}
+        
         <# do not load file before hand but only when necessary
         $files = get-childitem -Path $AADPath -File
         foreach($file in $files) {
@@ -207,7 +219,7 @@ function New-AADAssessmentRecommendations {
                 continue
             }
             $scriptblock = [Scriptblock]::Create($recommendationDef.PowerShell)
-            $recommendation = $recommendationDef | select-object Category,Area,Name,Summary,Recommendation,Priority,Data
+            $recommendation = $recommendationDef | select-object ID,Category,Area,Name,Summary,Recommendation,Priority,Data
             $result = Invoke-Command -ScriptBlock $scriptblock -ArgumentList $Data
             $recommendation.Priority = $result.Priority
             $recommendation.Data = $result.Data
