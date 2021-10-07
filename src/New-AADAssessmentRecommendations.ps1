@@ -22,10 +22,14 @@ function Get-RecoTitleLink($reco){
 
 function Get-PriorityIcon($reco){
     $priority = Get-ObjectPropertyValue $reco 'Priority'
-    $icon = "✅"
-    if($priority -ne "Passed"){
-        $icon = "❗️"
+    switch ($priority) {
+        'Passed' { $icon = "✅" }
+        'P1' { $icon = "🟥" }
+        'P2' { $icon = "🟧" }
+        'P3' { $icon = "🟨" }
+        Default { $icon = "🟦" }
     }
+
     return $icon
 }
 function Write-RecommendationsReport($recommendationsList) {
