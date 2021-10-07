@@ -117,8 +117,15 @@ function Get-MsGraphResults {
             else { throw $ErrorRecord }
         }
 
-        function Test-MsGraphBatchError ($BatchResponse) {
+        function Test-MsGraphBatchError ($BatchResponse, $Url) {
             if ($BatchResponse.status -ne '200') {
+                Write-Verbose "Graph Batch Error: URL=$Url"
+                Write-Verbose "Graph Batch Error: Status Code=$($BatchResponse.status)"
+                if ($BatchResponse.body.error.innerError) {
+                    foreach($prop in $BatchResponse.body.error.innerError.PSObject.properties) {
+                        Write-Verbose "Graph Batch Error: $($prop.Name)=$($prop.Value)"
+                    }
+                }
                 if ($BatchResponse.body.error.code -eq 'Authentication_ExpiredToken' -or $BatchResponse.body.error.code -eq 'Service_ServiceUnavailable') {
                     Write-Error -Message $BatchResponse.body.error.message -ErrorId $BatchResponse.body.error.code -ErrorAction Stop
                 }
@@ -200,7 +207,7 @@ function Get-MsGraphResults {
 
                     [array] $resultsBatch = $resultsBatch.responses | Sort-Object -Property { [int]$_.id }
                     foreach ($results in ($resultsBatch)) {
-                        if (!(Test-MsGraphBatchError $results)) {
+                        if (!(Test-MsGraphBatchError $results $listRequests[$results.id].url)) {
                             if ($IncapsulateReferenceListInParentObject -and $listRequests[$results.id].url -match '.*/(.+)/(.+)/((?:transitive)?members|owners)') {
                                 [PSCustomObject]@{
                                     id            = $Matches[2]
