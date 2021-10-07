@@ -86,6 +86,7 @@ NestedModules = @(
     '.\internal\Format-Csv.ps1'
     '.\internal\Get-AadObjectById.ps1'
     '.\internal\Get-ObjectPropertyValue.ps1'
+    '.\internal\Get-SpreadsheetJson.ps1'
     '.\internal\Import-Config.ps1'
     '.\internal\New-AadReferencedIdCache.ps1'
     '.\internal\New-AppInsightsTelemetry.ps1'

@@ -22,7 +22,6 @@ function Get-PriorityIcon($reco){
 function Write-RecommendationsReport($recommendationsList) {
     $html = @'
     <head><title>Azure AD Assessment - Recommendations</title></head>
-    <script src="https://cdn.jsdelivr.net/npm/@webcomponents/webcomponentsjs@2/webcomponents-loader.min.js"></script>    
     <script type="module" src="https://cdn.jsdelivr.net/gh/zerodevx/zero-md@1/src/zero-md.min.js"></script>
     <zero-md>
         <script type="text/markdown">
@@ -139,6 +138,13 @@ function New-AADAssessmentRecommendations {
 
     # Generate recommendations from tenant data
     if (![String]::IsNullOrWhiteSpace($TenantDirectoryData)) {
+        # Load Interview questions
+        if($null -ne $InterviewSpreadsheetPath){
+            $interviewQna = Get-SpreadsheetJson $InterviewSpreadsheetPath
+            $interviewQnaPath = Join-Path $TenantDirectoryData "QnA.json"
+            $interviewQna | ConvertTo-Json | Out-File $interviewQnaPath
+        }
+
         ### Load all the data on AAD
         # Prepare paths
         $AssessmentDetailPath = Join-Path $TenantDirectoryData "AzureADAssessment.json"
