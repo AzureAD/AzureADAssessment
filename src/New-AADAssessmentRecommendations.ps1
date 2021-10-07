@@ -11,90 +11,6 @@
     Collect and package assessment data from "C:\Temp" and generate recommendations in the same folder.
 #>
 
-function Get-RecoTitle($reco){
-    return "$($reco.ID) - $($reco.Name)"
-}
-
-function Get-RecoTitleLink($reco){
-    $title = Get-RecoTitle $reco
-    return $title.ToLower().Replace(" ", "-").Replace('"', '')
-}
-
-function Get-PriorityIcon($reco){
-    $priority = Get-ObjectPropertyValue $reco 'Priority'
-    switch ($priority) {
-        'Passed' { $icon = "✅" }
-        'P1' { $icon = "🟥" }
-        'P2' { $icon = "🟧" }
-        'P3' { $icon = "🟨" }
-        Default { $icon = "🟦" }
-    }
-
-    return $icon
-}
-function Write-RecommendationsReport($recommendationsList) {
-    $html = @'
-    <head><title>Azure AD Assessment - Recommendations</title></head>
-    <script type="module" src="https://cdn.jsdelivr.net/gh/zerodevx/zero-md@1/src/zero-md.min.js"></script>
-    <zero-md>
-        <script type="text/markdown">
-            @@MARKDOWN@@
-        </script>
-    </zero-md>
-'@
-    $md = "# Azure AD Assessment - Recommendations`n"
-    $md += "## Assessment Summary`n"
-
-    $md += "`n   |**Category**|**Area**|**Name**|**Status**|`n"
-    $md += "   | --- | --- | --- | --- |`n"
-    
-    $recommendationsList = $recommendationsList | Sort-Object Priority,Category,Area,Name
-    $rowIndex = 0
-    foreach ($reco in $recommendationsList) {
-        $rowIndex += 1
-        $md += "   | $($reco.Category) | $($reco.Area)  | [$(Get-RecoTitle $reco)](#$(Get-RecoTitleLink $reco)) | $(Get-PriorityIcon($reco)) $($reco.Priority)  |`n"
-    }
-
-    $md += "## Assessment Recommendations`n"
-    $rowIndex = 0
-    foreach ($reco in $recommendationsList) {
-        $rowIndex += 1
-        $priority = Get-ObjectPropertyValue $reco 'Priority'
-        if($priority -ne "Passed"){    
-            $md += "### $(Get-RecoTitle $reco)`n"
-            $md += "#### Priority = $(Get-PriorityIcon($reco)) $($reco.Priority)`n"
-            $md += "$($reco.Category) >  $($reco.Area)`n`n"
-            $md += "$($reco.Summary)`n"
-            $md += "#### Recommendation`n"
-            $md += "> $($reco.Recommendation)`n"
-            $md += "`n[⤴️ Back To Summary](#assessment-summary)`n"            
-            $md += "`n"
-            if($null -ne $reco.Data -and $reco.Data.Length -gt 0){
-                $md += "`n   |"
-                $hr = "`n   |"
-                foreach($prop in $reco.Data[0].PsObject.Properties){
-                    $md += "$($prop.Name)|"
-                    $hr += " --- |"
-                }
-                $md += $hr
-                foreach ($item in $reco.Data) {
-                    $md += "`n   |"
-                    foreach($prop in $item.PsObject.Properties){
-                        $md += "$($prop.Value)|"
-                    }
-                }
-                #$md += ConvertTo-Html -InputObject $reco.Data -Fragment
-            }
-            $md += "`n`n"
-        }
-    }
-    $md += "`n`n"
-
-    $html = $html.Replace("@@MARKDOWN@@", $md)
-    $htmlReportPath = Join-Path $OutputDirectory "AssessmentReport.html"
-    Set-Content -Path $htmlReportPath -Value $html
-    Invoke-Item $htmlReportPath
-}
 function New-AADAssessmentRecommendations {
     [CmdletBinding()]
     param (
@@ -191,42 +107,50 @@ function New-AADAssessmentRecommendations {
         $recommendations = Select-Xml -Path (Join-Path $PSScriptRoot "AADRecommendations.xml") -XPath "/recommendations"
         $recommendationList = @()
         foreach($recommendationDef in $recommendations.Node.recommendation) {
-            # make sure necessary files are loaded
-            $fileMissing = $false
-            foreach($fileName in $recommendationDef.Sources.File) {
-                $filePath = Join-Path $AADPath $fileName
-                if (!(Test-Path -Path $filePath)) {
-                    Write-Warning "File not found: $filePath"
-                    $fileMissing = $true
-                    break
+            if(Get-ObjectPropertyValue $recommendationDef 'Sources'){
+                # make sure necessary files are loaded
+                $fileMissing = $false
+                foreach($fileName in $recommendationDef.Sources.File) {
+                    $filePath = Join-Path $AADPath $fileName
+                    if (!(Test-Path -Path $filePath)) {
+                        Write-Warning "File not found: $filePath"
+                        $fileMissing = $true
+                        break
+                    }
+                    if ($fileName -in $data.Keys) {
+                        continue
+                    }
+                    switch -Wildcard ($fileName) {
+                        "*.json" {
+                            $data[$fileName] = get-content -Path $filePath | ConvertFrom-Json
+                        }
+                        "*.csv" {
+                            $data[$fileName] = Import-Csv -Path $filePath
+                        }
+                        "*.xml" {
+                            $data[$fileName] = Import-Clixml -Path $filePath
+                        }
+                        default {
+                            Write-Warning "Unsupported data file format: $($fileName)"
+                        }
+                    }
                 }
-                if ($fileName -in $data.Keys) {
+                if ($fileMissing) {
+                    write-warning "A necessary file is missing"
                     continue
                 }
-                switch -Wildcard ($fileName) {
-                    "*.json" {
-                        $data[$fileName] = get-content -Path $filePath | ConvertFrom-Json
-                    }
-                    "*.csv" {
-                        $data[$fileName] = Import-Csv -Path $filePath
-                    }
-                    "*.xml" {
-                        $data[$fileName] = Import-Clixml -Path $filePath
-                    }
-                    default {
-                        Write-Warning "Unsupported data file format: $($fileName)"
-                    }
-                }
             }
-            if ($fileMissing) {
-                write-warning "A necessary file is missing"
-                continue
+
+            # TODO: Check if recommendation visibility is MicrosoftOnly and exclude if user is not Microsoft user
+            $recommendation = $recommendationDef | select-object ID,Category,Area,Name,Summary,Recommendation,Priority,Data,SortOrder
+            # Manual checks won't have a PowerShell script to run
+            if(Get-ObjectPropertyValue $recommendationDef 'PowerShell'){
+                $scriptblock = [Scriptblock]::Create($recommendationDef.PowerShell)
+                $result = Invoke-Command -ScriptBlock $scriptblock -ArgumentList $Data
+                $recommendation.Priority = $result.Priority
+                $recommendation.Data = $result.Data    
             }
-            $scriptblock = [Scriptblock]::Create($recommendationDef.PowerShell)
-            $recommendation = $recommendationDef | select-object ID,Category,Area,Name,Summary,Recommendation,Priority,Data
-            $result = Invoke-Command -ScriptBlock $scriptblock -ArgumentList $Data
-            $recommendation.Priority = $result.Priority
-            $recommendation.Data = $result.Data
+            Set-SortOrder $recommendation
             $recommendationList += $recommendation
         }
 

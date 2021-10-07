@@ -1307,6 +1307,32 @@
             - [Governance in Azure | Microsoft Docs](https://docs.microsoft.com/en-us/azure/security/governance-in-azure)
             </Recommendation>
     </recommendation>
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0035</ID>
+        <Name>Patterns of Sync Issues</Name>
+        <Visibility>MicrosoftOnly</Visibility>
+        <Priority>To Do</Priority>
+        <Summary>
+            It is strongly recommended to have a good baseline and understanding of the issues in the on-premises forests that result in synchronization issues to the cloud. While automated tools such as IdFix and Azure AD Connect Health tend to generate high volume of false positives, some of the findings are going to be impactful and cause support incidents.
+        </Summary>
+        <Recommendation>
+            | **If you find …** | **We recommend …** | **With this suggested priority …** |
+            | --- | --- | --- |
+            | **...sync errors lingering for more than 100 days** | ..cleanup of objects in errors, since those objects might not even be relevant | P3 |
+
+            #### Where to find the data for this check?
+            - Power BI: Tab 'AADCH – Alerts', 'Sync Performance', and 'Sync – Object Count'
+
+            **Note:** Applicable to assessments performed by Microsoft Identity team
+
+            #### Learn More
+            
+            - [Prepare directory attributes for synchronization with Office 365 by using the IdFix tool - Office 365](https://support.office.com/en-us/article/prepare-directory-attributes-for-synchronization-with-office-365-by-using-the-idfix-tool-497593cf-24c6-491c-940b-7c86dcde9de0)
+            - [Azure AD Connect: Troubleshooting Errors during synchronization | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/connect/active-directory-aadconnect-troubleshoot-sync-errors)            
+        </Recommendation>
+    </recommendation>
     <!--
     <recommendation>
         <PowerShell>
