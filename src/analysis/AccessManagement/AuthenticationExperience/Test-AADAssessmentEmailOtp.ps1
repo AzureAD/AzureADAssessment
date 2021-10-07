@@ -36,6 +36,8 @@ function Test-AADAssessmentEmailOtp {
             "Recommandation" = "Enable email OTP"
             "Priority" = "Passed"
             "Data" = @()
+            "ID" = "AR0001"
+            "Visibility" = "All"
         }
 
         # check that we have a tenant
