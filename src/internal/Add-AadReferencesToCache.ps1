@@ -7,7 +7,7 @@ function Add-AadReferencesToCache {
         #
         [Parameter(Mandatory = $true)]
         [Alias('Type')]
-        [ValidateSet('appRoleAssignment', 'oauth2PermissionGrants', 'servicePrincipal', 'directoryRoles', 'conditionalAccessPolicy', 'aadRoleAssignment')]
+        [ValidateSet('appRoleAssignment', 'oauth2PermissionGrant', 'servicePrincipal', 'group', 'directoryRole', 'conditionalAccessPolicy', 'aadRoleAssignment')]
         [string] $ObjectType,
         #
         [Parameter(Mandatory = $true)]
@@ -17,6 +17,19 @@ function Add-AadReferencesToCache {
         [switch] $PassThru
     )
 
+    begin {
+        function Expand-PropertyToCache ($InputObject, $PropertyName) {
+            if ($InputObject.psobject.Properties.Name.Contains($PropertyName)) {
+                foreach ($Object in $InputObject.$PropertyName) {
+                    if ($Object.'@odata.type' -in ('#microsoft.graph.user', '#microsoft.graph.group', '#microsoft.graph.servicePrincipal')) {
+                        $ObjectType = $Object.'@odata.type' -replace '#microsoft.graph.', ''
+                        [void] $ReferencedIdCache.$ObjectType.Add($Object.id)
+                    }
+                }
+            }
+        }
+    }
+
     process {
         switch ($ObjectType) {
             appRoleAssignment {
@@ -24,21 +37,26 @@ function Add-AadReferencesToCache {
                 [void] $ReferencedIdCache.$($InputObject.principalType).Add($InputObject.principalId)
                 break
             }
-            oauth2PermissionGrants {
+            oauth2PermissionGrant {
                 [void] $ReferencedIdCache.servicePrincipal.Add($InputObject.clientId)
                 [void] $ReferencedIdCache.servicePrincipal.Add($InputObject.resourceId)
                 if ($InputObject.principalId) { [void] $ReferencedIdCache.user.Add($InputObject.principalId) }
                 break
             }
             servicePrincipal {
-                $InputObject.appRoleAssignedTo | Add-AadReferencesToCache -Type appRoleAssignment
+                if ($InputObject.psobject.Properties.Name.Contains('appRoleAssignedTo')) {
+                    $InputObject.appRoleAssignedTo | Add-AadReferencesToCache -Type appRoleAssignment
+                }
                 break
             }
-            directoryRoles {
-                foreach ($member in $InputObject.members) {
-                    $MemberType = $member.'@odata.type' -replace '#microsoft.graph.', ''
-                    [void] $ReferencedIdCache.$MemberType.Add($member.id)
-                }
+            group {
+                Expand-PropertyToCache $InputObject 'members'
+                Expand-PropertyToCache $InputObject 'transitiveMembers'
+                Expand-PropertyToCache $InputObject 'owners'
+                break
+            }
+            directoryRole {
+                Expand-PropertyToCache $InputObject 'members'
                 break
             }
             conditionalAccessPolicy {
@@ -52,20 +70,6 @@ function Add-AadReferencesToCache {
             }
             aadRoleAssignment {
                 [void] $ReferencedIdCache.$($InputObject.subject.Type).Add($InputObject.subject.id)
-                # switch ($InputObject.subject.Type) {
-                #     User {
-                #         [void] $ReferencedIdCache.user.Add($InputObject.subject.id)
-                #         break
-                #     }
-                #     Group {
-                #         [void] $ReferencedIdCache.group.Add($InputObject.subject.id)
-                #         break
-                #     }
-                #     ServicePrincipal {
-                #         [void] $ReferencedIdCache.servicePrincipal.Add($InputObject.subject.id)
-                #         break
-                #     }
-                # }
                 break
             }
         }

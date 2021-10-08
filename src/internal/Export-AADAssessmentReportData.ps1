@@ -64,6 +64,22 @@ function Export-AADAssessmentReportData {
     | Select-Object -Property id, groupTypes, displayName, mail `
     | Export-Csv (Join-Path $OutputDirectory "groups.csv") -NoTypeInformation
 
+    ## Option 1 from Data Collection: Expand Group Membership to get transitiveMembers.
+    # Set-Content -Path (Join-Path $OutputDirectory "groupTransitiveMembers.csv") -Value 'id,memberId,memberType'
+    # $LookupCache.group.Values `
+    # | Use-Progress -Activity 'Exporting group memberships' -Property displayName -Total $LookupCache.group.Count -PassThru -WriteSummary `
+    # | ForEach-Object {
+    #         $group = $_
+    #         Expand-GroupTransitiveMembership $group.id -LookupCache $LookupCache | Select-Object -Property @(
+    #             @{ Name = 'id'; Expression = { $group.id } }
+    #             #@{ Name = '@odata.type'; Expression = { $group.'@odata.type' } }
+    #             @{ Name = 'memberId'; Expression = { $_.id } }
+    #             @{ Name = 'memberType'; Expression = { $_.'@odata.type' -replace '#microsoft.graph.', '' } }
+    #             #@{ Name = 'direct'; Expression = { $group.members.id.Contains($_.id) } }
+    #         )
+    #     } `
+    # | Export-Csv (Join-Path $OutputDirectory "groupTransitiveMembers.csv") -NoTypeInformation
+
     $OrganizationData = Get-Content -Path (Join-Path $SourceDirectory "organization.json") -Raw | ConvertFrom-Json
     [array] $DirectoryRoleData = Import-Clixml -Path (Join-Path $SourceDirectory "directoryRoleData.xml")
     Import-Clixml -Path (Join-Path $SourceDirectory "userData.xml") | Add-AadObjectToLookupCache -Type user -LookupCache $LookupCache
