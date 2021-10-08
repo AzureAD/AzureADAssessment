@@ -1,19 +1,19 @@
 <#
 .SYNOPSIS
-
+    Expand and return transitive group membership based on group members data in cache.
 .EXAMPLE
-    PS C:\>
-
+    PS C:\>Expand-GroupTransitiveMembership 00000000-0000-0000-0000-000000000000 -LookupCache $LookupCache
+    Expand transitive group membership of group "00000000-0000-0000-0000-000000000000". Ensure all nested groups are in $LookupCache.
 .INPUTS
     System.Object
 #>
 function Expand-GroupTransitiveMembership {
     [CmdletBinding()]
     param (
-        #
+        # GroupId within Cache for which to calculate transitive member list.
         [Parameter(Mandatory = $true, Position = 1)]
         [System.Collections.Generic.Stack[guid]] $GroupId,
-        #
+        # Lookup Cache populated with all nested group objects necessary to calculate transitive members.
         [Parameter(Mandatory = $true)]
         [psobject] $LookupCache
     )
