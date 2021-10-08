@@ -1272,6 +1272,7 @@
                 '' { $res.Priority = "Not Answered" }
                 'Yes' { $res.Priority = "Passed" }
                 'Yes - Partially' { $res.Priority = "P2" }
+                'Not Applicable' { $res.Priority = "N/A" }
                 Default { $res.Priority = "P1" }
             }
     
@@ -1306,12 +1307,27 @@
         </Recommendation>
     </recommendation>
     <recommendation>
+        <PowerShell>
+            param($data)
+
+            $qna = $data['QnA.json']
+    
+            $res =  "" | select Priority,Data
+            $item = $qna['AADC_Are_there_sync_errors_lingering_for_more_than_100_days']
+            $answer = Get-ObjectPropertyValue $item  'value'
+            switch ($answer) {
+                '' { $res.Priority = "Not Answered" }
+                'No' { $res.Priority = "Passed" }
+                'Yes' { $res.Priority = "P3" }
+                'Not Applicable' { $res.Priority = "N/A" }
+            }
+    
+            return $res
+        </PowerShell>        
         <Category>Identity Management</Category>
         <Area>Operations</Area>
         <ID>AR0035</ID>
         <Name>Patterns of Sync Issues</Name>
-        <Visibility>MicrosoftOnly</Visibility>
-        <Priority>To Do</Priority>
         <Summary>
             It is strongly recommended to have a good baseline and understanding of the issues in the on-premises forests that result in synchronization issues to the cloud. While automated tools such as IdFix and Azure AD Connect Health tend to generate high volume of false positives, some of the findings are going to be impactful and cause support incidents.
         </Summary>
