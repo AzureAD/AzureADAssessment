@@ -1,4 +1,4 @@
-function Write-RecommendationsReport($data, $recommendationsList) {
+﻿function Write-RecommendationsReport($data, $recommendationsList) {
 
     $html = @'
     <head><title>Azure AD Assessment - Recommendations</title></head>
@@ -26,7 +26,7 @@ function Write-RecommendationsReport($data, $recommendationsList) {
     $md += "Click on the name of the check to learn more about the finding and how you can remediate the issue.`n`n"
     $md += "`n   |**Category**|**Area**|**Name**|**Status**|`n"
     $md += "   | --- | --- | --- | --- |`n"
-    
+
     $recommendationsList = $recommendationsList | Sort-Object SortOrder,Category,Area,ID,Name
 
     foreach ($reco in $recommendationsList) {
@@ -119,7 +119,7 @@ function Set-SortOrder($reco){
         'P1' { $reco.SortOrder = 1 }
         'P2' { $reco.SortOrder = 2 }
         'P3' { $reco.SortOrder = 3 }
-        
+
         Default { $reco.SortOrder = 7 }
     }
 }
@@ -149,7 +149,7 @@ function Get-PrioritySummaryTable {
     )
 
     $summary = $recommendationsList.Priority | Group-Object -NoElement | Select-Object Name, Count
-    
+
     $p0 = 0; $p1 = 0; $p2 = 0; $p3 = 0; $passed = 0
     foreach ($item in $summary) {
         switch ($item.Name) {
@@ -161,7 +161,7 @@ function Get-PrioritySummaryTable {
             Default {}
         }
     }
- 
+
     $md = "`n`n | $(Get-IconForPriority 'P0') P0 | $(Get-IconForPriority 'P1') P1 | $(Get-IconForPriority 'P2') P2 | $(Get-IconForPriority 'P3') P3 | $(Get-IconForPriority 'Passed') Passed |"
     foreach ($item in $summary) {
         if($item.Name -notin 'P0', 'P1', 'P2', 'P3', 'Passed', 'N/A' ){
