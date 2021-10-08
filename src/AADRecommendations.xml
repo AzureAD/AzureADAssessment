@@ -1342,20 +1342,58 @@
         <Category>Identity Management</Category>
         <Area>Operations</Area>
         <ID>AR0036</ID>
-        <Name>Azure AD Connect Sync Configuration</Name>
+        <Name>TODO</Name>
         <Priority>To Do</Priority>
         <Summary> 
-            **Active Directory Forest Synchronization**
+        </Summary>
+        <Recommendation>            
+        </Recommendation>
+    </recommendation>
 
-            In order to enable all hybrid experiences, device based security posture and integration with Azure AD, it is required synchronize the user account that employees use to login to their desktops.
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>AAD Connect</Area>
+        <ID>AR0037</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>IdMgmt_Do_you_synchronize_the_same_forest_where_users_log_in_to_their_Windows_devices</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>Synchronize same forest as Windows login</Name>
+        <Summary>
+            In order to enable all hybrid experiences, device based security posture and integration with Azure AD, it is required to synchronize the user account that employees use to login to their desktops.
+        </Summary>
+        <Recommendation>
+            Remediate the synchronization to ensure the forest being synchronized IS the same as the one users log in to their devices.
+        </Recommendation>
+    </recommendation>
 
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0038</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Are_there_too_many_objects_being_imported_that_are_not_exported_to_the_cloud</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P3"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>AAD Connect - Import too many objects</Name>
+        <Summary>
             **Synchronization Scope and Object Filtering**
-
-            Removing known buckets of objects that don&#39;t require to be synchronized has several operational benefits:
+            Removing known buckets of objects that don't require to be synchronized has several operational benefits:
 
             1. Less objects means less sources of sync errors
             2. Less objects means faster sync cycles
-            3. Less objects means less &quot;garbage&quot; to carry forward from on prem (e.g. pollution of GAL / people picker for service accounts on prem that don&#39;t make sense in the cloud)
+            3. Less objects means less 'garbage' to carry forward from on prem (e.g. pollution of GAL / people picker for service accounts on prem that don't make sense in the cloud)
+        </Summary>
+        <Recommendation>
+            Filtering by OU, or attributes if customer has a lot of objects imported that are not exported.
 
             Some examples of objects to exclude are:
 
@@ -1366,24 +1404,157 @@
             - Computer Accounts where employees are not meant to access cloud applications from (e.g. Servers)
 
             It is key to reach a balance between reducing the number of objects to synchronize and the complexity in the rules. Generally, a combination between OU/container filtering plus a simple attribute tagging mapping to cloudFiltered is an effective combination.
+        </Recommendation>
+    </recommendation>
 
-            **Failover / Disaster Recovery**
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0039</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>IdMgmt_Do_you_have_a_disaster_recovery_production_instance_of_AAD_Connect_deployed_in_Staging_Mode</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>AAD Connect - Disaster Recovery</Name>
+        <Summary>
+            Azure AD connect plays a key role in the provisioning process. If the Sync Server goes offline for any reason, changes to on-prem will not be updated in the cloud and cause access issues to users. 
+            It is important to define a failover strategy that allows administrators to quickly resume synchronization after the sync server goes offline. 
 
-            Azure AD connect plays a key role in the provisioning process. If the Sync Server goes offline for any reason, changes to on-prem will not be updated in the cloud and cause access issues to users. It is important to define a failover strategy that allows administrators to quickly resume synchronization after the sync server goes offline. Such strategies can follow into the following categories:
-
+        </Summary>
+        <Recommendation>
+            Implement one or both of these options.
             1. Deploy Azure AD Connect Server(s) in Staging Mode: This allows administrator to &quot;promote&quot; the staging server to production by a simple configuration switch.
             2. Use Virtualization: If the Azure AD connect is deployed in a virtual machine (VM), users can leverage their virtualization stack to live migrate or quickly re-deploy the VM and therefore resuming synchronization.
+        </Recommendation>
+    </recommendation>
 
-            **Stay current**
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0040</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>IdMgmt_If_yes_do_you_have_a_process_in_place_to_ensure_the_configuration_of_the_instances_are_kept_in_sync</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P3"/>
+            </Answers>
+        </QnA>
+        <Name>AAD Connect - Staging instance config sync strategy</Name>
+        <Summary>
+            Customer deployed Azure AD connect but there is no process to compare and sync changes between staging and production.
+        </Summary>
+        <Recommendation>
+            Operationalize Azure AD Config Documenter](https://github.com/Microsoft/AADConnectConfigDocumenter) to get details of your sync servers and compare between different sync servers.
+        </Recommendation>
+    </recommendation>
 
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0041</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Is_there_a_mismatch_between_the_production_and_staging_configuration</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P3"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>AAD Connect - Staging instance config mismatch</Name>
+        <Summary>
+            Mismatch between production and staging configuration
+        </Summary>
+        <Recommendation>
+            Re-baseline Azure AD Connect staging mode to match production configuration. This includes software versions and configurations.
+
+            #### Learn More
+            [Microsoft/AADConnectConfigDocumenter: AAD Connect configuration documenter is a tool to generate documentation of an AAD Connect installation.](https://github.com/Microsoft/AADConnectConfigDocumenter)
+
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0042</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Is_the_Azure_AD_Connect_version_more_than_6_months_behind_the_latest_release</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P3"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>AAD Connect - AADC version is more than 6 months behind</Name>
+        <Summary>
             Azure AD connect is updated on a regular basis. It is strongly recommended to stay current in order to take advantage of the performance improvements, bug fixes, and new capabilities that each new version provides.
+        </Summary>
+        <Recommendation>
+            Plan to upgrade to the most recent version of Azure AD Connect. Schedule and implement a quarterly plan to upgrade AAD Connect to the latest version.
+        </Recommendation>
+    </recommendation>
 
-            **Source Anchor**
-
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0043</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Is_ms_ds_ConsistencyGuid_used_as_the_source_anchor__instead_of_ObjectGuid</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P3"/>
+            </Answers>
+        </QnA>
+        <Name>AAD Connect - ms-ds-ConsistencyGuid as source anchor</Name>
+        <Summary>
             Using ms-ds-consistencyguid as the source anchor allows an easier migration of objects across forests and domains, which is a common situation with AD Domain consolidation/cleanup, mergers, acquisitions, and divestitures.
+        </Summary>
+        <Recommendation>
+            Use ms-ds-ConsistencyGuid as source anchor.
+        </Recommendation>
+    </recommendation>
 
-            **Custom Rules**
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0044</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Are_there_custom_rules_with_precedence_value_over_100</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>AAD Connect - Custom rules with precedence value over 100</Name>
+        <Summary>
+            Custom rules with precedence value over 100
+        </Summary>
+        <Recommendation>
+            Fix the rules so it is not at risk or conflict with the default set.
+        </Recommendation>
+    </recommendation>
 
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0045</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Are_there_custom_rules_with_precedence_value_over_100</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P3"/>
+            </Answers>
+        </QnA>
+        <Name>AAD Connect - Overly complex rules</Name>
+        <Summary>
             Azure AD Connect custom rules provide the ability to control the flow of attributes between on-premises objects and cloud objects. When misused/overused, you introduce the following risks:
 
             1. Troubleshooting complexity
@@ -1397,49 +1568,31 @@
             - One-off remediation of individual users: It is common to find rules that special case outliers, usually because of an issue with a particular user. (example: if &quot;SamAccountName&quot; equals &quot;jsmith&quot; then … )
             - Overcomplicated &quot;CloudFiltering&quot;: While reducing the number of objects is a good practice, there is a tradeoff between the &quot;precision&quot; to zero in every single object with sync rules. If there is complex logic to include/exclude objects beyond the OU filtering, it is recommended to deal with this logic outside of sync and decorate the objects with a simple &quot;cloudFiltered&quot; attribute that can flow with a very simple Sync Rule.
         </Summary>
-        <Recommendation>            
-            | **If you find …** | **We recommend …** | **With this suggested priority …** |
-            | --- | --- | --- |
-            | … **importing too many objects that are not exported to the cloud** | … filtering by OU, or attributes if customer has a lot of objects imported that are not exported | P3 |
-            | … **no disaster recovery/failover strategy for Sync** | ...deploy Azure AD Connect in Staging Mode | P2 |
-            | … **mismatch between production and staging configuration** | …re-baseline Azure AD Connect staging mode to match production configuration. This includes software versions and configurations. | P2 |
-            | … **customer deployed Azure AD connect but there is no process to compare changes between staging and production** | …operationalize [Azure AD Config Documenter](https://github.com/Microsoft/AADConnectConfigDocumenter) to get details of your sync servers and compare between different sync servers | P3 |
-            | … **Azure AD Connect version is more than 6 months behind** | … plan to upgrade to the most recent version of Azure AD Connect and | P2 |
-            | … **source anchor is ObjectGuid** | …Use ms-ds-ConsistencyGuid as source anchor | P3 |
-            | … **custom rules with precedence value over 100** | …fix the rules so it is not at risk or conflict with the default set | P2 |
-            | … **overly complex rules** | …Investigate reasons for complexity and identify simplification opportunities | P3 |
-            | … **Group Filtering is used in Production** | …Transition to another filtering approach | P2 |
-            
-            #### Where to find the data for this check?
-            - Azure AD Config Documenter Output
-            - Interview Questions
-
-            #### Learn More
-            
-            [Azure AD Connect sync: Configure filtering | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/connect/active-directory-aadconnectsync-configure-filtering)
-            
-            [Azure AD Connect: Design concepts | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/connect/active-directory-aadconnect-design-concepts)
-            
-            [Microsoft/AADConnectConfigDocumenter: AAD Connect configuration documenter is a tool to generate documentation of an AAD Connect installation.](https://github.com/Microsoft/AADConnectConfigDocumenter)            
+        <Recommendation>
+            Investigate reasons for complexity and identify simplification opportunities.
         </Recommendation>
     </recommendation>
 
     <recommendation>
         <Category>Identity Management</Category>
         <Area>Operations</Area>
-        <ID>AR0037</ID>
+        <ID>AR0046</ID>
         <Type>QnA</Type>
         <QnA>
-            <Name>IdMgmt_Do_you_synchronize_the_same_forest_where_users_log_in_to_their_Windows_devices</Name>
+            <Name>AADC_Is_Group_Filtering_used_in_Production?</Name>
             <Answers>
-                <Answer Value="Yes" Priority = "Passed"/>
-                <Answer Value="No" Priority = "P2"/>
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
             </Answers>
         </QnA>
-        <Name>Synchronize same forest as Windows login</Name>
-        <Summary>Forest being synchronized is NOT the same one users log in their devices</Summary>
+        <Name>AAD Connect - Group Filtering is used in Production</Name>
+        <Summary>Group Filtering is used in Production
+        </Summary>
         <Recommendation>
-            Remediate the synchronization to come from the proper forests
+            Transition to another filtering approach.
+
+            #### Learn More
+            [Azure AD Connect sync: Configure filtering | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/connect/active-directory-aadconnectsync-configure-filtering)
         </Recommendation>
     </recommendation>
     <!--

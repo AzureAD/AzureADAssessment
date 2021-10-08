@@ -19,7 +19,7 @@ function Write-RecommendationsReport($data, $recommendationsList) {
     $md += " |**Assessment Date**|$(Get-ObjectPropertyValue $qna['AD_AssessmentDate'] 'value')|`n"
 
     $md += "## Assessment Summary`n"
-    $md += "The table below lists a summary of the findings for this tenant.`n`n"
+    $md += "The table below lists a summary of the findings for this tenant.`n"
     $md += Get-PrioritySummaryTable $recommendationsList
 
     $md += "`n## Assessment Details`n"
@@ -162,7 +162,7 @@ function Get-PrioritySummaryTable {
         }
     }
  
-    $md += "`n`n | $(Get-IconForPriority 'P0') P0 | $(Get-IconForPriority 'P1') P1 | $(Get-IconForPriority 'P2') P2 | $(Get-IconForPriority 'P3') P3 | $(Get-IconForPriority 'Passed') Passed |"
+    $md = "`n`n | $(Get-IconForPriority 'P0') P0 | $(Get-IconForPriority 'P1') P1 | $(Get-IconForPriority 'P2') P2 | $(Get-IconForPriority 'P3') P3 | $(Get-IconForPriority 'Passed') Passed |"
     foreach ($item in $summary) {
         if($item.Name -notin 'P0', 'P1', 'P2', 'P3', 'Passed', 'N/A' ){
             $md += " $(Get-IconForPriority $item.Name) $($item.Name) | "
