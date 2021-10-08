@@ -1307,27 +1307,18 @@
         </Recommendation>
     </recommendation>
     <recommendation>
-        <PowerShell>
-            param($data)
-
-            $qna = $data['QnA.json']
-    
-            $res =  "" | select Priority,Data
-            $item = $qna['AADC_Are_there_sync_errors_lingering_for_more_than_100_days']
-            $answer = Get-ObjectPropertyValue $item  'value'
-            switch ($answer) {
-                '' { $res.Priority = "Not Answered" }
-                'No' { $res.Priority = "Passed" }
-                'Yes' { $res.Priority = "P3" }
-                'Not Applicable' { $res.Priority = "N/A" }
-            }
-    
-            return $res
-        </PowerShell>        
         <Category>Identity Management</Category>
         <Area>Operations</Area>
         <ID>AR0035</ID>
         <Name>Patterns of Sync Issues</Name>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Are_there_sync_errors_lingering_for_more_than_100_days</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P3"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>        
         <Summary>
             It is strongly recommended to have a good baseline and understanding of the issues in the on-premises forests that result in synchronization issues to the cloud. While automated tools such as IdFix and Azure AD Connect Health tend to generate high volume of false positives, some of the findings are going to be impactful and cause support incidents.
         </Summary>
@@ -1434,25 +1425,17 @@
     </recommendation>
 
     <recommendation>
-        <PowerShell>
-            param($data)
-
-            $qna = $data['QnA.json']
-    
-            $res =  "" | select Priority,Data
-            $item = $qna['IdMgmt_Do_you_synchronize_the_same_forest_where_users_log_in_to_their_Windows_devices']
-            $answer = Get-ObjectPropertyValue $item  'value'
-            switch ($answer) {
-                '' { $res.Priority = "Not Answered" }
-                'Yes' { $res.Priority = "Passed" }
-                Default { $res.Priority = "P2" }
-            }
-    
-            return $res
-        </PowerShell>
         <Category>Identity Management</Category>
         <Area>Operations</Area>
         <ID>AR0037</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>IdMgmt_Do_you_synchronize_the_same_forest_where_users_log_in_to_their_Windows_devices</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
         <Name>Synchronize same forest as Windows login</Name>
         <Summary>Forest being synchronized is NOT the same one users log in their devices</Summary>
         <Recommendation>
