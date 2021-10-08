@@ -52,7 +52,12 @@ stages:
         filePath: '$(System.DefaultWorkingDirectory)/build/Get-PSModuleInfo.ps1'
         arguments: '-ModuleManifestPath "$(Pipeline.Workspace)/CI/$(artifactModule)/*/*.psd1"'
         pwsh: true
-
+    - task: PSScriptAnalyzer@1
+      inputs:
+        Path: '$(Pipeline.Workspace)/CI/$(artifactModule)'
+        Settings: 'required'
+        Recurse: true
+        
   - job: Sign
     dependsOn:
     - Prepare

@@ -85,6 +85,14 @@ if (!$script:ModuleConfig.'ai.disabled') {
     Export-Config -Path 'AppInsightsState.json' -InputObject $script:AppInsightsState -IgnoreDefaultValues $null
 }
 
+## HashArray with already read evidence
+$script:Evidences =  @{
+    'Tenant' = @{} # tenant files 
+    'AADC' = @{} # aadconnect files indexed by server name
+    'ADFS' = @{} # ADFS files indexed by server name
+    'AADAP' = @{} # AAD Proxy Agent files indexed by server name
+}
+
 #Future
 #Get PIM data
 #Get Secure Score

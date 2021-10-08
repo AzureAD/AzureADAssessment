@@ -89,6 +89,7 @@ NestedModules = @(
     '.\internal\Format-Csv.ps1'
     '.\internal\Get-AadObjectById.ps1'
     '.\internal\Get-ObjectPropertyValue.ps1'
+    '.\internal\Get-SpreadsheetJson.ps1'
     '.\internal\Import-Config.ps1'
     '.\internal\New-AadReferencedIdCache.ps1'
     '.\internal\New-AppInsightsTelemetry.ps1'
@@ -103,6 +104,7 @@ NestedModules = @(
     '.\internal\Write-AppInsightsException.ps1'
     '.\internal\Write-AppInsightsRequest.ps1'
     '.\internal\Write-AppInsightsTrace.ps1'
+    '.\internal\Write-RecommendationsReport.ps1'
     '.\AzureADAssessmentPortable.psm1'
     '.\Complete-AADAssessmentReports.ps1'
     '.\Connect-AADAssessment.ps1'
@@ -115,6 +117,10 @@ NestedModules = @(
     '.\Get-AADAssessConsentGrantReport.ps1'
     '.\Get-AADAssessNotificationEmailsReport.ps1'
     '.\Invoke-AADAssessmentDataCollection.ps1'
+    '.\New-AADAssessmentRecommendations.ps1'
+    '.\Export-AADASsessmentRecommendations.ps1'
+    '.\Import-AADAssessmentEvidence.ps1'
+    '.\analysis\AccessManagement\AuthenticationExperience\Test-AADAssessmentEmailOtp.ps1'
 )
 
 # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
@@ -137,6 +143,9 @@ FunctionsToExport = @(
     'Get-AADAssessAppProxyConnectorLog'
     'Get-AADAssessPasswordWritebackAgentLog'
     'Get-MsGraphResults'
+    'New-AADAssessmentRecommendations'
+    'Export-AADAssessmentRecommendations'
+    'Test-AADAssessmentEmailOtp'
 )
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
