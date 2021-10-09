@@ -103,7 +103,7 @@ function Get-MsGraphResults {
                     try { $responseBody = ConvertFrom-Json $StreamReader.ReadToEnd() }
                     finally { $StreamReader.Close() }
 
-                    if ($responseBody.error.code -eq 'Authentication_ExpiredToken' -or $responseBody.error.code -eq 'Service_ServiceUnavailable') {
+                    if ($responseBody.error.code -eq 'Authentication_ExpiredToken' -or $responseBody.error.code -eq 'Service_ServiceUnavailable' -or $responseBody.error.code -eq 'Request_UnsupportedQuery') {
                         #Write-AppInsightsException $_.Exception
                         Write-Error -Exception $_.Exception -Message $responseBody.error.message -ErrorId $responseBody.error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorAction Stop
                     }
@@ -119,7 +119,7 @@ function Get-MsGraphResults {
 
         function Test-MsGraphBatchError ($BatchResponse) {
             if ($BatchResponse.status -ne '200') {
-                if ($BatchResponse.body.error.code -eq 'Authentication_ExpiredToken' -or $BatchResponse.body.error.code -eq 'Service_ServiceUnavailable') {
+                if ($BatchResponse.body.error.code -eq 'Authentication_ExpiredToken' -or $BatchResponse.body.error.code -eq 'Service_ServiceUnavailable' -or $BatchResponse.body.error.code -eq 'Request_UnsupportedQuery') {
                     Write-Error -Message $BatchResponse.body.error.message -ErrorId $BatchResponse.body.error.code -ErrorAction Stop
                 }
                 else {
@@ -195,7 +195,9 @@ function Get-MsGraphResults {
             end {
                 [array] $BatchRequests = New-MsGraphBatchRequest $listRequests -BatchSize $BatchSize
                 for ($iRequest = 0; $iRequest -lt $BatchRequests.Count; $iRequest++) {
-                    Update-Progress $ProgressState -CurrentOperation ('{0} {1}' -f $BatchRequests[$iRequest].method.ToUpper(), $BatchRequests[$iRequest].url) -IncrementBy $BatchRequests[$iRequest].body.requests.Count
+                    if ($ProgressState.Total -gt $BatchSize) {
+                        Update-Progress $ProgressState -CurrentOperation ('{0} {1}' -f $BatchRequests[$iRequest].method.ToUpper(), $BatchRequests[$iRequest].url) -IncrementBy $BatchRequests[$iRequest].body.requests.Count
+                    }
                     $resultsBatch = Invoke-MsGraphRequest $BatchRequests[$iRequest] -NoAppInsights -GraphBaseUri $GraphBaseUri
 
                     [array] $resultsBatch = $resultsBatch.responses | Sort-Object -Property { [int]$_.id }
@@ -703,6 +705,9 @@ function Get-MsGraphResultsCount {
         else {
             $uriEndpointCount = New-Object System.UriBuilder -ArgumentList $GraphBaseUri -ErrorAction Stop
         }
+        ## Remove $ref from path
+        $uriEndpointCount.Path = $uriEndpointCount.Path -replace '/\$ref$', ''
+        ## Add $count segment to path
         $uriEndpointCount.Path = ([IO.Path]::Combine($uriEndpointCount.Path, '$count'))
         ## $count is not supported with $expand parameter so remove it.
         [hashtable] $QueryParametersUpdated = ConvertFrom-QueryString $uriEndpointCount.Query -AsHashtable
