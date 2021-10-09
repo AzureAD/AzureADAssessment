@@ -1339,14 +1339,29 @@
         </Recommendation>
     </recommendation>
     <recommendation>
-        <Category>Identity Management</Category>
-        <Area>Operations</Area>
+        <Category>Entitlement Management</Category>
+        <Area>Applications</Area>
         <ID>AR0036</ID>
-        <Name>TODO</Name>
-        <Priority>To Do</Priority>
-        <Summary> 
+        <Type>QnA</Type>
+        <QnA>
+            <Name>EntMgmt_Do_you_use_Azure_AD_Outbound_provisioning_for_applications_in_your_environment_that_supports_Azure_AD_provisioning</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="Yes - Partially" Priority = "P2"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>App Provisioning</Name>
+        <Summary>
+            User provisioning to Apps using CSV files, JIT and other approaches may not address the full lifecycle consistently (e.g.Movers or Leavers).
+
+            Automated Provisioning to Applications is the best way to create a consistent provisioning, deprovisioning and lifecycle of identities across multiple systems.
         </Summary>
-        <Recommendation>            
+        <Recommendation>
+            Implement application provisioning with Azure AD for supported applications. Define a consistent pattern for applications that are not yet supported by Azure AD (would depend on what is supported by the apps).
+
+            #### Learn More
+            [Automated SaaS app user provisioning in Azure AD | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/app-provisioning/user-provisioning)
         </Recommendation>
     </recommendation>
 
@@ -1742,7 +1757,93 @@
             | … **mature process and tools to assign licenses to users (e.g. MIM / Oracle Access Manager, etc.), but rely on on-premises infrastructure** | … offload assignment from existing tools and deploy GBL, and define a group lifecycle management based on dynamic groups | P3 |
 
         </Recommendation>
-    </recommendation>    
+    </recommendation>
+
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0052</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Is_delta_sync_taking_over_30_minutes_for_95th_percentile</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Sync Perf - Over 30 minutes for 95 percentile</Name>
+        <Summary>
+            Delta sync is taking over 30 minutes for 95 percentile.
+        </Summary>
+        <Recommendation>
+            Deep dive and review setup against hardware [guidelines](https://aka.ms/aadconnectperf)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0053</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Are_there_significant_discrepancies_between_the_delta_sync_performance_of_staging_and_production</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Sync Perf - Staging vs Production discrepancy</Name>
+        <Summary>
+            Significant discrepancies were found between the delta sync performance of the staging and production servers.
+        </Summary>
+        <Recommendation>
+            Deep dive and review setup against hardware [guidelines](https://aka.ms/aadconnectperf)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0054</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Are_there_full_sync_cycles_that_are_not_needed</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Sync Perf - Frequent full sync cycles</Name>
+        <Summary>
+            Full sync cycles are being performed unnecessarily. 
+        </Summary>
+        <Recommendation>
+            Deep dive and understand why.
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0055</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Is_there_a_consistent_volume_trend_of_add_deletes_over_1__and_or_updates_is_over_10</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P3"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Sync Perf - High volume</Name>
+        <Summary>
+            Consistently high volume trend of add/deletes is over 1% and/or updates is over 10%.
+        </Summary>
+        <Recommendation>
+            Review of what's causing it, for example a script on prem touching all objects.
+        </Recommendation>
+    </recommendation>
+
+
     <!--
     <recommendation>
         <PowerShell>
