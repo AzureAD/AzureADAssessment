@@ -1,27 +1,27 @@
 <#
 .SYNOPSIS
-
+    Expand MS Graph relationship property on object.
 .EXAMPLE
-    PS C:\>
-
+    PS C:\>@{ id = "00000000-0000-0000-0000-000000000000" } | Expand-MsGraphRelationship -ObjectType groups -PropertyName members -References
+    Add and populate members property on input object using a references call for best performance.
 .INPUTS
     System.Object
 #>
 function Expand-MsGraphRelationship {
     [CmdletBinding()]
     param (
-        #
+        # MS Graph Object to expand with relationship property.
         [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
         [psobject] $InputObject,
-        #
+        # Type of object being expanded.
         [Parameter(Mandatory = $true)]
         [Alias('Type')]
         [ValidateSet('groups', 'directoryRoles')]
         [string] $ObjectType,
-        #
+        # Name of relationship property.
         [Parameter(Mandatory = $true)]
         [string] $PropertyName,
-        #
+        # Only retrieve relationship object references.
         [Parameter(Mandatory = $false)]
         [switch] $References,
         # Specify Batch size.
