@@ -134,7 +134,7 @@ function Get-MsGraphResults {
             else { throw $ErrorRecord }
         }
 
-        function Test-MsGraphBatchError ($BatchResponse, $Url) {
+        function Test-MsGraphBatchError ($BatchResponse) {
             if ($BatchResponse.status -ne '200') {
                 Write-Debug -Message (ConvertTo-Json $BatchResponse -Depth 3)
 
@@ -221,7 +221,7 @@ function Get-MsGraphResults {
 
                     [array] $resultsBatch = $resultsBatch.responses | Sort-Object -Property { [int]$_.id }
                     foreach ($results in ($resultsBatch)) {
-                        if (!(Test-MsGraphBatchError $results $listRequests[$results.id].url)) {
+                        if (!(Test-MsGraphBatchError $results)) {
                             if ($IncapsulateReferenceListInParentObject -and $listRequests[$results.id].url -match '.*/(.+)/(.+)/((?:transitive)?members|owners)') {
                                 [PSCustomObject]@{
                                     id            = $Matches[2]
