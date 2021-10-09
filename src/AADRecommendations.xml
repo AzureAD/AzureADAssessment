@@ -1579,7 +1579,7 @@
         <ID>AR0046</ID>
         <Type>QnA</Type>
         <QnA>
-            <Name>AADC_Is_Group_Filtering_used_in_Production?</Name>
+            <Name>AADC_Is_Group_Filtering_used_in_Production</Name>
             <Answers>
                 <Answer Value="Yes" Priority = "P2"/>
                 <Answer Value="No" Priority = "Passed"/>
@@ -1595,6 +1595,154 @@
             [Azure AD Connect sync: Configure filtering | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/connect/active-directory-aadconnectsync-configure-filtering)
         </Recommendation>
     </recommendation>
+
+    <recommendation>
+        <Category>Entitlement Management</Category>
+        <Area>License</Area>
+        <ID>AR0047</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>Lic_Are_there_outstanding_licensing_errors_shown_in_the_portal</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P1"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Outstanding licensing errors</Name>
+        <Summary>
+            User productivity may be impacted due to license errors. This results in users being in a licensing error state.
+            Some common license errors that require remediation include.
+            * Not enough licenses
+            * Conflicting service plans
+            * Other products depend on this license
+            * Usage location isn't allowed
+            * Duplicate proxy addresses
+            * Azure AD Mail and ProxyAddresses attribute change
+        </Summary>
+        <Recommendation>
+            Triage and remediate the root cause for the licensing error. 
+            Once fixed, force a group or user license processing to resolve errors.
+
+            #### Learn More
+            [Identify and resolve license assignment problems for a group in Azure Active Directory | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/enterprise-users/licensing-groups-resolve-problems)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Entitlement Management</Category>
+        <Area>License</Area>
+        <ID>AR0048</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>Lic_Do_you_have_a_defined_process_automated_or_manual_to_monitor_and_resolve_licensing_errors</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>License error monitoring</Name>
+        <Summary>
+            Current process does not monitor licensing errors.
+
+            User productivity may be impacted due to license errors. This results in users being in a licensing error state.
+            Some common license errors that require remediation include.
+            * Not enough licenses
+            * Conflicting service plans
+            * Other products depend on this license
+            * Usage location isn't allowed
+            * Duplicate proxy addresses
+            * Azure AD Mail and ProxyAddresses attribute change
+        </Summary>
+        <Recommendation>
+            Define improvements to the process to discover and address licensing errors.
+
+            #### Learn More
+            [Use Audit logs to monitor group-based licensing activity | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/enterprise-users/licensing-group-advanced#use-audit-logs-to-monitor-group-based-licensing-activity)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Entitlement Management</Category>
+        <Area>License</Area>
+        <ID>AR0049</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>Lic_Does_your_existing_license_assignment_strategy_fully_cover_Joiners_Movers_Leavers_consistently</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>Comprehensive licensing strategy</Name>
+        <Summary>
+            Existing process does not fully cover Joiners/Movers/Leavers consistently
+        </Summary>
+        <Recommendation>
+            Define lifecycle management improvements to the process. If GBL is deployed, define a group membership lifecycle.
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Entitlement Management</Category>
+        <Area>License</Area>
+        <ID>AR0050</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>Lic_If_yes__is_GBL_deployed_against_on_premises_groups_that_lack_lifecycle_management</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P3"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Group based licensing with on premises groups</Name>
+        <Summary>
+            GBL is deployed against on-premises groups that lack lifecycle management
+        </Summary>
+        <Recommendation>
+            Consider using cloud groups to enable capabilities such as delegated ownership, attribute based dynamic membership, etc.
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Entitlement Management</Category>
+        <Area>License</Area>
+        <ID>AR0051</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>Lic_If_GBL_is_not_used__how_would_you_rate_your_current_approach_to_licensing</Name>
+            <Answers>
+                <Answer Value="Ad hoc" Priority = "P1"/>
+                <Answer Value="Standardized" Priority = "P2"/>
+                <Answer Value="Mature" Priority = "P3"/>
+            </Answers>
+        </QnA>
+        <Name>Static license assignment</Name>
+        <Summary>
+            Licenses are assigned directly to users which can make large-scale management difficult.
+
+            Azure Active Directory streamlines the management of licenses through Group Based Licensing. This way, IAM provides the group infrastructure and delegated the management of those groups to the proper teams in the organizations. There are multiple ways to set up the membership of groups in Azure Active Directory:
+
+            - Synchronized from on-premises: Groups can come from on premises directories, which could be a good fit for organizations that have established group management processes that can be extended to assign licenses in office 365
+            - Attribute-Based / Dynamic: Groups can be created in the cloud based on an expression based on user attributes (example: Department equals &quot;sales&quot;). Azure AD maintains the members of the group, keeping it consistent with the expression defined. Using this kind of group for license assignment enables an attribute-based license assignment, which is a good fit for organizations that have high data quality in their directory
+            - Delegated Ownership: Groups can be created in the cloud and can be designated owners. This way, you can empower business owners (example: Collaboration team, BI team) to define who should have access
+
+            Another aspect of license management is the definition of service plans (components of the license) that should be enabled based on job functions in the organization. Granting access to services plans that are not necessary can result in additional help desk volume (e.g. users see tools in the office portal that they have not been trained for, or should not be using), unnecessary provisioning, or worse, putting your compliance and governance at risk (e.g. provisioning OneDrive for business to individuals that might not be allowed to share content)
+
+            Some guidelines to define service plans to users:
+
+            - Define &quot;packages&quot; of service plans to be offered to users based on their role (e.g. white-collar worker versus floor worker)
+            - Create groups by cluster and assign the license with service plan
+            - Optionally, an attribute can be defined to contain the packages for users
+        </Summary>
+        <Recommendation>
+            | **If you find …** | **We recommend …** | **With this suggested priority …** |
+            | --- | --- | --- |
+            | … **adhoc manual process to assign licenses and assign components to users** | … deploy Group Based Licensing (GBL) | P1 |
+            | … **standardized but manual process to assign licenses and assign components to users** | … deploy Group Based Licensing (GBL) | P2 |
+            | … **mature process and tools to assign licenses to users (e.g. MIM / Oracle Access Manager, etc.), but rely on on-premises infrastructure** | … offload assignment from existing tools and deploy GBL, and define a group lifecycle management based on dynamic groups | P3 |
+
+        </Recommendation>
+    </recommendation>    
     <!--
     <recommendation>
         <PowerShell>
