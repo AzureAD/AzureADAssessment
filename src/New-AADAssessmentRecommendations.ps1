@@ -141,7 +141,6 @@ function New-AADAssessmentRecommendations {
                 }
             }
 
-            # TODO: Check if recommendation visibility is MicrosoftOnly and exclude if user is not Microsoft user
             $recommendation = $recommendationDef | select-object ID,Category,Area,Name,Summary,Recommendation,Priority,Data,SortOrder
             # Manual checks won't have a PowerShell script to run
             if(Get-ObjectPropertyValue $recommendationDef 'PowerShell'){
@@ -150,11 +149,17 @@ function New-AADAssessmentRecommendations {
                 $recommendation.Priority = $result.Priority
                 $recommendation.Data = $result.Data    
             }
+            else {
+                if((Get-ObjectPropertyValue $recommendationDef 'Type') -eq 'QnA'){
+                    Set-TypeQnAResult $data $recommendationDef $recommendation
+                }
+    
+            }
             Set-SortOrder $recommendation
             $recommendationList += $recommendation
         }
 
-        Write-RecommendationsReport $recommendationList
+        Write-RecommendationsReport $data $recommendationList
 
         # generate Trusted network locations
         #Get-TrustedNetworksRecommendation -Path $TenantDirectoryData
@@ -163,4 +168,25 @@ function New-AADAssessmentRecommendations {
     }
 
     #Complete-AppInsightsRequest $MyInvocation.MyCommand.Name -Success $?
+}
+
+function Set-TypeQnAResult($data, $recommendationDef, $recommendation){
+
+    $qnaData = $data['QnA.json']
+    
+    $qnaReco = Get-ObjectPropertyValue $recommendationDef 'QnA'
+    $namedRange = Get-ObjectPropertyValue $qnaReco 'Name'
+    
+    $userValue = Get-ObjectPropertyValue $qnaData[$namedRange] 'Value'
+    switch ($userValue) {
+        '' { $recommendation.Priority = "Not Answered" }
+        'Not Applicable' { $recommendation.Priority = "N/A" }
+        Default {
+            foreach($answer in $qnaReco.Answers.Answer){
+                if($userValue -eq $answer.Value){
+                    $recommendation.Priority = $answer.Priority
+                }
+            }    
+        }
+    }
 }

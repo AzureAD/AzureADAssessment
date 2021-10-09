@@ -1272,6 +1272,7 @@
                 '' { $res.Priority = "Not Answered" }
                 'Yes' { $res.Priority = "Passed" }
                 'Yes - Partially' { $res.Priority = "P2" }
+                'Not Applicable' { $res.Priority = "N/A" }
                 Default { $res.Priority = "P1" }
             }
     
@@ -1310,8 +1311,14 @@
         <Area>Operations</Area>
         <ID>AR0035</ID>
         <Name>Patterns of Sync Issues</Name>
-        <Visibility>MicrosoftOnly</Visibility>
-        <Priority>To Do</Priority>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Are_there_sync_errors_lingering_for_more_than_100_days</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P3"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>        
         <Summary>
             It is strongly recommended to have a good baseline and understanding of the issues in the on-premises forests that result in synchronization issues to the cloud. While automated tools such as IdFix and Azure AD Connect Health tend to generate high volume of false positives, some of the findings are going to be impactful and cause support incidents.
         </Summary>
@@ -1332,23 +1339,76 @@
         </Recommendation>
     </recommendation>
     <recommendation>
+        <Category>Entitlement Management</Category>
+        <Area>Applications</Area>
+        <ID>AR0036</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>EntMgmt_Do_you_use_Azure_AD_Outbound_provisioning_for_applications_in_your_environment_that_supports_Azure_AD_provisioning</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="Yes - Partially" Priority = "P2"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>App Provisioning</Name>
+        <Summary>
+            User provisioning to Apps using CSV files, JIT and other approaches may not address the full lifecycle consistently (e.g.Movers or Leavers).
+
+            Automated Provisioning to Applications is the best way to create a consistent provisioning, deprovisioning and lifecycle of identities across multiple systems.
+        </Summary>
+        <Recommendation>
+            Implement application provisioning with Azure AD for supported applications. Define a consistent pattern for applications that are not yet supported by Azure AD (would depend on what is supported by the apps).
+
+            #### Learn More
+            [Automated SaaS app user provisioning in Azure AD | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/app-provisioning/user-provisioning)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>AAD Connect</Area>
+        <ID>AR0037</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>IdMgmt_Do_you_synchronize_the_same_forest_where_users_log_in_to_their_Windows_devices</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>Synchronize same forest as Windows login</Name>
+        <Summary>
+            In order to enable all hybrid experiences, device based security posture and integration with Azure AD, it is required to synchronize the user account that employees use to login to their desktops.
+        </Summary>
+        <Recommendation>
+            Remediate the synchronization to ensure the forest being synchronized IS the same as the one users log in to their devices.
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
         <Category>Identity Management</Category>
         <Area>Operations</Area>
-        <ID>AR0036</ID>
-        <Name>Azure AD Connect Sync Configuration</Name>
-        <Priority>To Do</Priority>
-        <Summary> 
-            **Active Directory Forest Synchronization**
-
-            In order to enable all hybrid experiences, device based security posture and integration with Azure AD, it is required synchronize the user account that employees use to login to their desktops.
-
+        <ID>AR0038</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Are_there_too_many_objects_being_imported_that_are_not_exported_to_the_cloud</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P3"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>AAD Connect - Import too many objects</Name>
+        <Summary>
             **Synchronization Scope and Object Filtering**
-
-            Removing known buckets of objects that don&#39;t require to be synchronized has several operational benefits:
+            Removing known buckets of objects that don't require to be synchronized has several operational benefits:
 
             1. Less objects means less sources of sync errors
             2. Less objects means faster sync cycles
-            3. Less objects means less &quot;garbage&quot; to carry forward from on prem (e.g. pollution of GAL / people picker for service accounts on prem that don&#39;t make sense in the cloud)
+            3. Less objects means less 'garbage' to carry forward from on prem (e.g. pollution of GAL / people picker for service accounts on prem that don't make sense in the cloud)
+        </Summary>
+        <Recommendation>
+            Filtering by OU, or attributes if customer has a lot of objects imported that are not exported.
 
             Some examples of objects to exclude are:
 
@@ -1359,24 +1419,157 @@
             - Computer Accounts where employees are not meant to access cloud applications from (e.g. Servers)
 
             It is key to reach a balance between reducing the number of objects to synchronize and the complexity in the rules. Generally, a combination between OU/container filtering plus a simple attribute tagging mapping to cloudFiltered is an effective combination.
+        </Recommendation>
+    </recommendation>
 
-            **Failover / Disaster Recovery**
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0039</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>IdMgmt_Do_you_have_a_disaster_recovery_production_instance_of_AAD_Connect_deployed_in_Staging_Mode</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>AAD Connect - Disaster Recovery</Name>
+        <Summary>
+            Azure AD connect plays a key role in the provisioning process. If the Sync Server goes offline for any reason, changes to on-prem will not be updated in the cloud and cause access issues to users. 
+            It is important to define a failover strategy that allows administrators to quickly resume synchronization after the sync server goes offline. 
 
-            Azure AD connect plays a key role in the provisioning process. If the Sync Server goes offline for any reason, changes to on-prem will not be updated in the cloud and cause access issues to users. It is important to define a failover strategy that allows administrators to quickly resume synchronization after the sync server goes offline. Such strategies can follow into the following categories:
-
+        </Summary>
+        <Recommendation>
+            Implement one or both of these options.
             1. Deploy Azure AD Connect Server(s) in Staging Mode: This allows administrator to &quot;promote&quot; the staging server to production by a simple configuration switch.
             2. Use Virtualization: If the Azure AD connect is deployed in a virtual machine (VM), users can leverage their virtualization stack to live migrate or quickly re-deploy the VM and therefore resuming synchronization.
+        </Recommendation>
+    </recommendation>
 
-            **Stay current**
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0040</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>IdMgmt_If_yes_do_you_have_a_process_in_place_to_ensure_the_configuration_of_the_instances_are_kept_in_sync</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P3"/>
+            </Answers>
+        </QnA>
+        <Name>AAD Connect - Staging instance config sync strategy</Name>
+        <Summary>
+            Customer deployed Azure AD connect but there is no process to compare and sync changes between staging and production.
+        </Summary>
+        <Recommendation>
+            Operationalize Azure AD Config Documenter](https://github.com/Microsoft/AADConnectConfigDocumenter) to get details of your sync servers and compare between different sync servers.
+        </Recommendation>
+    </recommendation>
 
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0041</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Is_there_a_mismatch_between_the_production_and_staging_configuration</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P3"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>AAD Connect - Staging instance config mismatch</Name>
+        <Summary>
+            Mismatch between production and staging configuration
+        </Summary>
+        <Recommendation>
+            Re-baseline Azure AD Connect staging mode to match production configuration. This includes software versions and configurations.
+
+            #### Learn More
+            [Microsoft/AADConnectConfigDocumenter: AAD Connect configuration documenter is a tool to generate documentation of an AAD Connect installation.](https://github.com/Microsoft/AADConnectConfigDocumenter)
+
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0042</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Is_the_Azure_AD_Connect_version_more_than_6_months_behind_the_latest_release</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P3"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>AAD Connect - AADC version is more than 6 months behind</Name>
+        <Summary>
             Azure AD connect is updated on a regular basis. It is strongly recommended to stay current in order to take advantage of the performance improvements, bug fixes, and new capabilities that each new version provides.
+        </Summary>
+        <Recommendation>
+            Plan to upgrade to the most recent version of Azure AD Connect. Schedule and implement a quarterly plan to upgrade AAD Connect to the latest version.
+        </Recommendation>
+    </recommendation>
 
-            **Source Anchor**
-
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0043</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Is_ms_ds_ConsistencyGuid_used_as_the_source_anchor__instead_of_ObjectGuid</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P3"/>
+            </Answers>
+        </QnA>
+        <Name>AAD Connect - ms-ds-ConsistencyGuid as source anchor</Name>
+        <Summary>
             Using ms-ds-consistencyguid as the source anchor allows an easier migration of objects across forests and domains, which is a common situation with AD Domain consolidation/cleanup, mergers, acquisitions, and divestitures.
+        </Summary>
+        <Recommendation>
+            Use ms-ds-ConsistencyGuid as source anchor.
+        </Recommendation>
+    </recommendation>
 
-            **Custom Rules**
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0044</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Are_there_custom_rules_with_precedence_value_over_100</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>AAD Connect - Custom rules with precedence value over 100</Name>
+        <Summary>
+            Custom rules with precedence value over 100
+        </Summary>
+        <Recommendation>
+            Fix the rules so it is not at risk or conflict with the default set.
+        </Recommendation>
+    </recommendation>
 
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0045</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Are_there_custom_rules_with_precedence_value_over_100</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P3"/>
+            </Answers>
+        </QnA>
+        <Name>AAD Connect - Overly complex rules</Name>
+        <Summary>
             Azure AD Connect custom rules provide the ability to control the flow of attributes between on-premises objects and cloud objects. When misused/overused, you introduce the following risks:
 
             1. Troubleshooting complexity
@@ -1390,57 +1583,385 @@
             - One-off remediation of individual users: It is common to find rules that special case outliers, usually because of an issue with a particular user. (example: if &quot;SamAccountName&quot; equals &quot;jsmith&quot; then … )
             - Overcomplicated &quot;CloudFiltering&quot;: While reducing the number of objects is a good practice, there is a tradeoff between the &quot;precision&quot; to zero in every single object with sync rules. If there is complex logic to include/exclude objects beyond the OU filtering, it is recommended to deal with this logic outside of sync and decorate the objects with a simple &quot;cloudFiltered&quot; attribute that can flow with a very simple Sync Rule.
         </Summary>
-        <Recommendation>            
-            | **If you find …** | **We recommend …** | **With this suggested priority …** |
-            | --- | --- | --- |
-            | … **importing too many objects that are not exported to the cloud** | … filtering by OU, or attributes if customer has a lot of objects imported that are not exported | P3 |
-            | … **no disaster recovery/failover strategy for Sync** | ...deploy Azure AD Connect in Staging Mode | P2 |
-            | … **mismatch between production and staging configuration** | …re-baseline Azure AD Connect staging mode to match production configuration. This includes software versions and configurations. | P2 |
-            | … **customer deployed Azure AD connect but there is no process to compare changes between staging and production** | …operationalize [Azure AD Config Documenter](https://github.com/Microsoft/AADConnectConfigDocumenter) to get details of your sync servers and compare between different sync servers | P3 |
-            | … **Azure AD Connect version is more than 6 months behind** | … plan to upgrade to the most recent version of Azure AD Connect and | P2 |
-            | … **source anchor is ObjectGuid** | …Use ms-ds-ConsistencyGuid as source anchor | P3 |
-            | … **custom rules with precedence value over 100** | …fix the rules so it is not at risk or conflict with the default set | P2 |
-            | … **overly complex rules** | …Investigate reasons for complexity and identify simplification opportunities | P3 |
-            | … **Group Filtering is used in Production** | …Transition to another filtering approach | P2 |
-            
-            #### Where to find the data for this check?
-            - Azure AD Config Documenter Output
-            - Interview Questions
-
-            #### Learn More
-            
-            [Azure AD Connect sync: Configure filtering | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/connect/active-directory-aadconnectsync-configure-filtering)
-            
-            [Azure AD Connect: Design concepts | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/connect/active-directory-aadconnect-design-concepts)
-            
-            [Microsoft/AADConnectConfigDocumenter: AAD Connect configuration documenter is a tool to generate documentation of an AAD Connect installation.](https://github.com/Microsoft/AADConnectConfigDocumenter)            
+        <Recommendation>
+            Investigate reasons for complexity and identify simplification opportunities.
         </Recommendation>
     </recommendation>
 
     <recommendation>
-        <PowerShell>
-            param($data)
-
-            $qna = $data['QnA.json']
-    
-            $res =  "" | select Priority,Data
-            $item = $qna['IdMgmt_Do_you_synchronize_the_same_forest_where_users_log_in_to_their_Windows_devices']
-            $answer = Get-ObjectPropertyValue $item  'value'
-            switch ($answer) {
-                '' { $res.Priority = "Not Answered" }
-                'Yes' { $res.Priority = "Passed" }
-                Default { $res.Priority = "P2" }
-            }
-    
-            return $res
-        </PowerShell>
         <Category>Identity Management</Category>
         <Area>Operations</Area>
-        <ID>AR0037</ID>
-        <Name>Synchronize same forest as Windows login</Name>
-        <Summary>Forest being synchronized is NOT the same one users log in their devices</Summary>
+        <ID>AR0046</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Is_Group_Filtering_used_in_Production</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>AAD Connect - Group Filtering is used in Production</Name>
+        <Summary>Group Filtering is used in Production
+        </Summary>
         <Recommendation>
-            Remediate the synchronization to come from the proper forests
+            Transition to another filtering approach.
+
+            #### Learn More
+            [Azure AD Connect sync: Configure filtering | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/connect/active-directory-aadconnectsync-configure-filtering)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Entitlement Management</Category>
+        <Area>License</Area>
+        <ID>AR0047</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>Lic_Are_there_outstanding_licensing_errors_shown_in_the_portal</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P1"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Outstanding licensing errors</Name>
+        <Summary>
+            User productivity may be impacted due to license errors. This results in users being in a licensing error state.
+            Some common license errors that require remediation include.
+            * Not enough licenses
+            * Conflicting service plans
+            * Other products depend on this license
+            * Usage location isn't allowed
+            * Duplicate proxy addresses
+            * Azure AD Mail and ProxyAddresses attribute change
+        </Summary>
+        <Recommendation>
+            Triage and remediate the root cause for the licensing error. 
+            Once fixed, force a group or user license processing to resolve errors.
+
+            #### Learn More
+            [Identify and resolve license assignment problems for a group in Azure Active Directory | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/enterprise-users/licensing-groups-resolve-problems)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Entitlement Management</Category>
+        <Area>License</Area>
+        <ID>AR0048</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>Lic_Do_you_have_a_defined_process_automated_or_manual_to_monitor_and_resolve_licensing_errors</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>License error monitoring</Name>
+        <Summary>
+            Current process does not monitor licensing errors.
+
+            User productivity may be impacted due to license errors. This results in users being in a licensing error state.
+            Some common license errors that require remediation include.
+            * Not enough licenses
+            * Conflicting service plans
+            * Other products depend on this license
+            * Usage location isn't allowed
+            * Duplicate proxy addresses
+            * Azure AD Mail and ProxyAddresses attribute change
+        </Summary>
+        <Recommendation>
+            Define improvements to the process to discover and address licensing errors.
+
+            #### Learn More
+            [Use Audit logs to monitor group-based licensing activity | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/enterprise-users/licensing-group-advanced#use-audit-logs-to-monitor-group-based-licensing-activity)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Entitlement Management</Category>
+        <Area>License</Area>
+        <ID>AR0049</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>Lic_Does_your_existing_license_assignment_strategy_fully_cover_Joiners_Movers_Leavers_consistently</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>Comprehensive licensing strategy</Name>
+        <Summary>
+            Existing process does not fully cover Joiners/Movers/Leavers consistently
+        </Summary>
+        <Recommendation>
+            Define lifecycle management improvements to the process. If GBL is deployed, define a group membership lifecycle.
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Entitlement Management</Category>
+        <Area>License</Area>
+        <ID>AR0050</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>Lic_If_yes__is_GBL_deployed_against_on_premises_groups_that_lack_lifecycle_management</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P3"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Group based licensing with on premises groups</Name>
+        <Summary>
+            GBL is deployed against on-premises groups that lack lifecycle management
+        </Summary>
+        <Recommendation>
+            Consider using cloud groups to enable capabilities such as delegated ownership, attribute based dynamic membership, etc.
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Entitlement Management</Category>
+        <Area>License</Area>
+        <ID>AR0051</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>Lic_If_GBL_is_not_used__how_would_you_rate_your_current_approach_to_licensing</Name>
+            <Answers>
+                <Answer Value="Ad hoc" Priority = "P1"/>
+                <Answer Value="Standardized" Priority = "P2"/>
+                <Answer Value="Mature" Priority = "P3"/>
+            </Answers>
+        </QnA>
+        <Name>Static license assignment</Name>
+        <Summary>
+            Licenses are assigned directly to users which can make large-scale management difficult.
+
+            Azure Active Directory streamlines the management of licenses through Group Based Licensing. This way, IAM provides the group infrastructure and delegated the management of those groups to the proper teams in the organizations. There are multiple ways to set up the membership of groups in Azure Active Directory:
+
+            - Synchronized from on-premises: Groups can come from on premises directories, which could be a good fit for organizations that have established group management processes that can be extended to assign licenses in office 365
+            - Attribute-Based / Dynamic: Groups can be created in the cloud based on an expression based on user attributes (example: Department equals &quot;sales&quot;). Azure AD maintains the members of the group, keeping it consistent with the expression defined. Using this kind of group for license assignment enables an attribute-based license assignment, which is a good fit for organizations that have high data quality in their directory
+            - Delegated Ownership: Groups can be created in the cloud and can be designated owners. This way, you can empower business owners (example: Collaboration team, BI team) to define who should have access
+
+            Another aspect of license management is the definition of service plans (components of the license) that should be enabled based on job functions in the organization. Granting access to services plans that are not necessary can result in additional help desk volume (e.g. users see tools in the office portal that they have not been trained for, or should not be using), unnecessary provisioning, or worse, putting your compliance and governance at risk (e.g. provisioning OneDrive for business to individuals that might not be allowed to share content)
+
+            Some guidelines to define service plans to users:
+
+            - Define &quot;packages&quot; of service plans to be offered to users based on their role (e.g. white-collar worker versus floor worker)
+            - Create groups by cluster and assign the license with service plan
+            - Optionally, an attribute can be defined to contain the packages for users
+        </Summary>
+        <Recommendation>
+            | **If you find …** | **We recommend …** | **With this suggested priority …** |
+            | --- | --- | --- |
+            | … **adhoc manual process to assign licenses and assign components to users** | … deploy Group Based Licensing (GBL) | P1 |
+            | … **standardized but manual process to assign licenses and assign components to users** | … deploy Group Based Licensing (GBL) | P2 |
+            | … **mature process and tools to assign licenses to users (e.g. MIM / Oracle Access Manager, etc.), but rely on on-premises infrastructure** | … offload assignment from existing tools and deploy GBL, and define a group lifecycle management based on dynamic groups | P3 |
+
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0052</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Is_delta_sync_taking_over_30_minutes_for_95th_percentile</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Sync Perf - Over 30 minutes for 95 percentile</Name>
+        <Summary>
+            Delta sync is taking over 30 minutes for 95 percentile.
+        </Summary>
+        <Recommendation>
+            Deep dive and review setup against hardware [guidelines](https://aka.ms/aadconnectperf)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0053</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Are_there_significant_discrepancies_between_the_delta_sync_performance_of_staging_and_production</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Sync Perf - Staging vs Production discrepancy</Name>
+        <Summary>
+            Significant discrepancies were found between the delta sync performance of the staging and production servers.
+        </Summary>
+        <Recommendation>
+            Deep dive and review setup against hardware [guidelines](https://aka.ms/aadconnectperf)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0054</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Are_there_full_sync_cycles_that_are_not_needed</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Sync Perf - Frequent full sync cycles</Name>
+        <Summary>
+            Full sync cycles are being performed unnecessarily. 
+        </Summary>
+        <Recommendation>
+            Deep dive and understand why.
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0055</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Is_there_a_consistent_volume_trend_of_add_deletes_over_1__and_or_updates_is_over_10</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P3"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Sync Perf - High volume</Name>
+        <Summary>
+            Consistently high volume trend of add/deletes is over 1% and/or updates is over 10%.
+        </Summary>
+        <Recommendation>
+            Review of what's causing it, for example a script on prem touching all objects.
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0056</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Do_you_have_owners_defined_for_the_following_tasks_in_your_organization</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P1"/>
+            </Answers>
+        </QnA>
+        <Name>Owners of Key Tasks</Name>
+        <Summary>
+            Managing Azure AD requires the continuous execution of key operational tasks and processes which are not necessarily mapped to a rollout project. Nonetheless, it is important to establish them for an optimized operation of customer's environment.
+        </Summary>
+        <Recommendation>
+            Assign missing owners and align ownership. Operationalize process per the suggestions in the table below:
+
+            | **Task** | **Microsoft Recommendation** |
+            | --- | --- |
+            | **Manage lifecycle of SSO Configuration in Azure AD** | IAM Operations Team |
+            | **Design Conditional Access Policies for Azure AD Applications** | InfoSec Architecture Team |
+            | **Archive Sign-In Activity in a SIEM system** | InfoSec Operations Team |
+            | **Archive Risk Events in a SIEM system** | InfoSec Operations Team |
+            | **Triage Security Reports** | InfoSec Operations Team |
+            | **Triage Risk Events** | InfoSec Operations Team |
+            | **Triage Users Flagged for risk, and Vulnerability reports from Azure AD Identity Protection (P2)** | InfoSec Operations Team |
+            | **Investigate Security Reports** | InfoSec Operations Team |
+            | **Investigate Risk Events** | InfoSec Operations Team |
+            | **Investigate Users Flagged for risk, and Vulnerability reports from Identity Protection (P2)** | InfoSec Operations Team |
+
+            #### Learn More
+
+            - [Assigning administrator roles in Azure Active Directory | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/active-directory-assign-admin-roles-azure-portal)
+            - [Governance in Azure | Microsoft Docs](https://docs.microsoft.com/en-us/azure/security/governance-in-azure)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials</Area>
+        <ID>AR0057</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Do_you_have_a_self_service_password_reset_solution</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>Password Management</Name>
+        <Summary>
+            Password Change/Reset is one of the biggest sources of volume and cost of help desk calls. In addition to this, changing the password as a tool to mitigate a user risk is a fundamental tool to improve the security posture in your organization.
+        </Summary>
+        <Recommendation>
+            Deploy Azure AD Self-Service Password Reset (SSPR) and on-premises Password Protection to allow users to self-service the reset of passwords and reduce the volume and cost of help desk calls.
+
+            #### Learn More
+
+            - [Azure AD tiered password security | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/active-directory-secure-passwords)
+            - [Azure AD self-service password reset overview | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/authentication/active-directory-passwords-overview)
+            - [Dynamically banned passwords in Azure AD | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/authentication/concept-password-ban-bad)
+            - [Deploy Azure AD password protection preview | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/authentication/howto-password-ban-bad-on-premises)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials</Area>
+        <ID>AR0058</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_If_yes__is_this_using_Azure_AD_s_self_service_password_reset_solution</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P3"/>
+            </Answers>
+        </QnA>
+        <Name>Cloud based Self Service Password Reset</Name>
+        <Summary>
+            An existing self-service password management solution that relies in on-premises product (e.g. MIM) 
+        </Summary>
+        <Recommendation>
+            Deploy Azure AD Self-Service Password Reset (SSPR) and on-premises Password Protection.
+
+            #### Learn More
+
+            - [Azure AD tiered password security | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/active-directory-secure-passwords)
+            - [Azure AD self-service password reset overview | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/authentication/active-directory-passwords-overview)
+            - [Dynamically banned passwords in Azure AD | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/authentication/concept-password-ban-bad)
+            - [Deploy Azure AD password protection preview | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/authentication/howto-password-ban-bad-on-premises)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials</Area>
+        <ID>AR0059</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Is_the_password_reset_part_of_the_operational_procedures_to_remediate_a_user_incident</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>User Risk Incident - Password Reset</Name>
+        <Summary>
+            Automated self-service password reset is not used in remediation of users at risk.
+        </Summary>
+        <Recommendation>
+            If AAD P2 is available, deploy Identity Protection with SSPR and use it as part of User Risk Policy.
+
+            If AAD P2 is not available, ensure automation is in place to detect user risk events based on the audit log and trigger a workflow to address user risk.
+
+            #### Learn More
+
+            - [Use risk detections for user sign-ins to trigger Azure AD Multi-Factor Authentication or password changes | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/authentication/tutorial-risk-based-sspr-mfa)
         </Recommendation>
     </recommendation>
     <!--

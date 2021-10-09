@@ -112,12 +112,10 @@ function Invoke-AADAssessmentDataCollection {
 
         ### Directory Role Data - 5
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Directory Roles' -PercentComplete 30
-        #Get-MsGraphResults 'directoryRoles?$select=id,displayName&$expand=members' `
-        #| Where-Object { $_.members.Count } `
-        #| Add-AadReferencesToCache -Type directoryRoles -ReferencedIdCache $ReferencedIdCache -PassThru `
-        #| Export-Clixml -Path (Join-Path $OutputDirectoryAAD "directoryRoleData.xml")
-        Get-MsGraphResults 'directoryRoles' -Select 'id,displayName,roleTemplateId' -QueryParameters @{ '$expand' = 'members($select=id)' }`
-        | Add-AadReferencesToCache -Type directoryRoles -ReferencedIdCache $ReferencedIdCache -PassThru `
+        ## $expand on directoryRole members caps results at 20 members with no NextLink.
+        Get-MsGraphResults 'directoryRoles?$select=id,displayName,roleTemplateId' -DisableUniqueIdDeduplication `
+        | Expand-MsGraphRelationship -ObjectType directoryRoles -PropertyName members -References `
+        | Add-AadReferencesToCache -Type directoryRole -ReferencedIdCache $ReferencedIdCache -PassThru `
         | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "directoryRoleData.xml")
 
         ### Directory Role Definitions - 6
@@ -196,33 +194,37 @@ function Invoke-AADAssessmentDataCollection {
 
         ### Service Principal Data - 9
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Service Principals' -PercentComplete 54
-        #$servicePrincipalIds = New-Object 'System.Collections.Generic.HashSet[guid]'
+        ## Option 1: Get servicePrincipal objects without appRoleAssignments. Get appRoleAssignments
+        # $servicePrincipalsCount = Get-MsGraphResults 'servicePrincipals/$count' `
+        # ## Although much more performant, $expand on servicePrincipal appRoleAssignedTo appears to miss certain appRoleAssignments.
+        # Get-MsGraphResults 'servicePrincipals?$select=id,appId,servicePrincipalType,displayName,accountEnabled,appOwnerOrganizationId,appRoles,oauth2PermissionScopes,keyCredentials,passwordCredentials' -Top 999 `
+        # | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "servicePrincipalData.xml")
+        ## Option 2: Expand appRoleAssignedTo when retrieving servicePrincipal object. This is at least 50x faster but appears to miss some appRoleAssignments.
         $listAppRoleAssignments = New-Object 'System.Collections.Generic.List[psobject]'
         Get-MsGraphResults 'servicePrincipals?$select=id,appId,servicePrincipalType,displayName,accountEnabled,appOwnerOrganizationId,appRoles,oauth2PermissionScopes,keyCredentials,passwordCredentials&$expand=appRoleAssignedTo' -Top 999 `
         | Extract-AppRoleAssignments -ListVariable $listAppRoleAssignments -PassThru `
         | Select-Object -Property "*" -ExcludeProperty 'appRoleAssignedTo', 'appRoleAssignedTo@odata.context' `
         | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "servicePrincipalData.xml")
-        #| ForEach-Object { [void]$servicePrincipalIds.Add($_.id); $_ } `
-        # Import-Clixml -Path (Join-Path $OutputDirectoryAAD "servicePrincipalData.xml") `
-        # | ForEach-Object { [void]$servicePrincipalIds.Add($_.id) }
 
         ### App Role Assignments Data - 10
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'App Role Assignments' -PercentComplete 60
+        ## Option 1: Loop through all servicePrincipals to get appRoleAssignments
+        # Import-Clixml -Path (Join-Path $OutputDirectoryAAD "servicePrincipalData.xml") `
+        # | Get-MsGraphResults 'servicePrincipals/{0}/appRoleAssignedTo' -Top 999 -TotalRequests $servicePrincipalsCount -DisableUniqueIdDeduplication `
+        # | Add-AadReferencesToCache -Type appRoleAssignment -ReferencedIdCache $ReferencedIdCache -PassThru `
+        # | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "appRoleAssignmentData.xml")
+        ## Option 2: Use expanded appRoleAssignedTo from servicePrincipals. This is at least 50x faster but appears to miss some appRoleAssignments.
         $listAppRoleAssignments `
         | Add-AadReferencesToCache -Type appRoleAssignment -ReferencedIdCache $ReferencedIdCache -PassThru `
         | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "appRoleAssignmentData.xml")
         Remove-Variable listAppRoleAssignments
-        # Import-Clixml -Path (Join-Path $OutputDirectoryAAD "appRoleAssignmentData.xml") `
-        # | Add-AadReferencesToCache -Type appRoleAssignment -ReferencedIdCache $ReferencedIdCache
 
         ### OAuth2 Permission Grants Data - 11
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'OAuth2 Permission Grants' -PercentComplete 66
-        #$servicePrincipalIds | Get-MsGraphResults 'serviceprincipals/{0}/oauth2PermissionGrants' -Top 999 -TotalRequests $servicePrincipalIds.Count -DisableUniqueIdDeduplication `
         ## https://graph.microsoft.com/v1.0/oauth2PermissionGrants fails with "Service is temorarily unavailable" if too much data is returned in a single request. 600 works on microsoft.onmicrosoft.com.
         Get-MsGraphResults 'oauth2PermissionGrants' -Top 600 `
-        | Add-AadReferencesToCache -Type oauth2PermissionGrants -ReferencedIdCache $ReferencedIdCache -PassThru `
+        | Add-AadReferencesToCache -Type oauth2PermissionGrant -ReferencedIdCache $ReferencedIdCache -PassThru `
         | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "oauth2PermissionGrantData.xml")
-        #Remove-Variable servicePrincipalIds
 
         ### Filter Service Principals - 12
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Filtering Service Principals' -PercentComplete 72
@@ -241,22 +243,36 @@ function Invoke-AADAssessmentDataCollection {
             $OrganizationData.technicalNotificationMails | Get-MsGraphResults 'groups?$select=id' -Filter "proxyAddresses/any(c:c eq 'smtp:{0}')" `
             | ForEach-Object { [void]$ReferencedIdCache.group.Add($_.id) }
         }
+        # Add nested groups
+        #$ReferencedIdCache.group | Get-MsGraphResults 'groups/{0}/transitiveMembers/microsoft.graph.group?$count=true&$select=id' -Top 999 -TotalRequests $ReferencedIdCache.group.Count -DisableUniqueIdDeduplication -ErrorAction SilentlyContinue `
+        #| ForEach-Object { [void]$ReferencedIdCache.group.Add($_.id) }
+
+        ## Option 1: Populate direct members on groups (including nested groups) and calculate transitiveMembers later.
+        # $ReferencedIdCache.group | Get-MsGraphResults 'groups?$select=id,groupTypes,displayName,mail,proxyAddresses' -TotalRequests $ReferencedIdCache.group.Count -DisableUniqueIdDeduplication -DisableBatching -GetByIdsBatchSize 10 `
+        # ## $expand on group members caps results at 20 members with no NextLink.
+        # | Expand-MsGraphRelationship -ObjectType groups -PropertyName members -References `
+        # | Select-Object -Property "*" -ExcludeProperty '@odata.type' `
+        # | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "groupData.xml")
+
+        ## Option 2: Get groups without member data and let Azure AD calculate transitiveMembers.
         $ReferencedIdCache.group | Get-MsGraphResults 'groups?$select=id,groupTypes,displayName,mail,proxyAddresses' -TotalRequests $ReferencedIdCache.group.Count -DisableUniqueIdDeduplication `
         | Select-Object -Property "*" -ExcludeProperty '@odata.type' `
         | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "groupData.xml")
 
         ### Group Transitive members - 14
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Group Transitive Membership' -PercentComplete 84
-        $ReferencedIdCache.group | Get-MsGraphResults 'groups/{0}/transitiveMembers/microsoft.graph.user?$select=id' -Top 999 -IncapsulateReferenceListInParentObject -DisableUniqueIdDeduplication `
+        $ReferencedIdCache.group | Get-MsGraphResults 'groups/{0}/transitiveMembers/$ref' -Top 999 -TotalRequests $ReferencedIdCache.group.Count -IncapsulateReferenceListInParentObject -DisableUniqueIdDeduplication `
         | ForEach-Object {
-            $groupId = $_.id
-            #$membersDirect = Get-MsGraphResults 'groups/{0}/members/microsoft.graph.user?$select=id' -UniqueId $groupId -Top 999 -DisableUniqueIdDeduplication | Select-Object -ExpandProperty id
-            foreach ($member in $_.transitiveMembers) {
-                [void]$ReferencedIdCache.user.Add($member.id)
-                $member | Select-Object -Property @(
-                    @{ Name = 'id'; Expression = { $groupId } }
+            $group = $_
+            #[array] $directMembers = Get-MsGraphResults 'groups/{0}/members/$ref' -UniqueId $_.id -Top 999 -DisableUniqueIdDeduplication | Expand-ODataId | Select-Object -ExpandProperty id
+            $group.transitiveMembers | Expand-ODataId | ForEach-Object {
+                if ($_.'@odata.type' -eq '#microsoft.graph.user') { [void]$ReferencedIdCache.user.Add($_.id) }
+                $_ | Select-Object -Property @(
+                    @{ Name = 'id'; Expression = { $group.id } }
+                    #@{ Name = '@odata.type'; Expression = { $group.'@odata.type' } }
                     @{ Name = 'memberId'; Expression = { $_.id } }
-                    #@{ Name = 'direct'; Expression = { $membersDirect -and $membersDirect.Contains($_.id) } }
+                    @{ Name = 'memberType'; Expression = { $_.'@odata.type' -replace '#microsoft.graph.', '' } }
+                    #@{ Name = 'direct'; Expression = { $directMembers -and $directMembers.Contains($_.id) } }
                 )
             }
         } `
@@ -270,8 +286,6 @@ function Invoke-AADAssessmentDataCollection {
             $OrganizationData.technicalNotificationMails | Get-MsGraphResults 'users?$select=id' -Filter "proxyAddresses/any(c:c eq 'smtp:{0}') or otherMails/any(c:c eq '{0}')" `
             | ForEach-Object { [void]$ReferencedIdCache.user.Add($_.id) }
         }
-        #Get-MsGraphResults 'users?$select=id,userPrincipalName,displayName,mail,otherMails,proxyAddresses' `
-        #| Where-Object { $ReferencedIdCache.user.Contains($_.id) } `
         $ReferencedIdCache.user | Get-MsGraphResults 'users?$select=id,userPrincipalName,userType,displayName,accountEnabled,mail,otherMails,proxyAddresses,assignedPlans' -TotalRequests $ReferencedIdCache.user.Count -DisableUniqueIdDeduplication `
         | Select-Object -Property "*" -ExcludeProperty '@odata.type' `
         | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "userData.xml")

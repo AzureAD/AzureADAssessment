@@ -91,42 +91,54 @@ function Get-MsGraphResults {
         [System.Collections.Generic.HashSet[uri]] $hashUri = New-Object 'System.Collections.Generic.HashSet[uri]'
         $ProgressState = Start-Progress -Activity 'Microsoft Graph Requests' -Total $TotalRequests
 
-        function Catch-MsGraphError ($ErrorRecord) {
-            if ($_.Exception -is [System.Net.WebException]) {
-                if ($_.Exception.Response) {
-                    Write-Verbose "Graph Error: response URI=$($_.Exception.Response.ResponseUri)"
-                    Write-Verbose "Graph Error: status code=$([int]$_.Exception.Response.StatusCode) ($($_.Exception.Response.StatusCode))"
-                    foreach($key in $_.Exception.Response.Headers.Keys | Where-Object {$_ -in ("timestamp","Date","request-id","client-request-id","x-ms-ags-diagnostic")}) {
-                        Write-Verbose "Graph Error: $key=$($_.Exception.Response.Headers[$key])"
-                    }
-                    $StreamReader = New-Object System.IO.StreamReader -ArgumentList $_.Exception.Response.GetResponseStream()
-                    try { $responseBody = ConvertFrom-Json $StreamReader.ReadToEnd() }
-                    finally { $StreamReader.Close() }
+        function Catch-MsGraphError {
+            [CmdletBinding()]
+            param (
+                [Parameter(Mandatory = $true)]
+                [System.Management.Automation.ErrorRecord] $ErrorRecord
+            )
 
-                    if ($responseBody.error.code -eq 'Authentication_ExpiredToken' -or $responseBody.error.code -eq 'Service_ServiceUnavailable') {
-                        #Write-AppInsightsException $_.Exception
-                        Write-Error -Exception $_.Exception -Message $responseBody.error.message -ErrorId $responseBody.error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorAction Stop
-                    }
-                    else {
-                        Write-Error -Exception $_.Exception -Message $responseBody.error.message -ErrorId $responseBody.error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorVariable cmdError
-                        Write-AppInsightsException $cmdError.Exception
-                    }
+            ## Get Response Body
+            if ($_.ErrorDetails) {
+                $ResponseContent = ConvertFrom-Json $_.ErrorDetails.Message
+            }
+            elseif ($_.Exception -is [System.Net.WebException]) {
+                if ($_.Exception.Response) {
+                    $StreamReader = New-Object System.IO.StreamReader -ArgumentList $_.Exception.Response.GetResponseStream()
+                    try { $ResponseContent = ConvertFrom-Json $StreamReader.ReadToEnd() }
+                    finally { $StreamReader.Close() }
                 }
-                else { throw $ErrorRecord }
+            }
+
+            Write-Debug -Message (ConvertTo-Json ([PSCustomObject]@{
+                        'Request'                             = '{0} {1}' -f $_.TargetObject.Method, $_.TargetObject.RequestUri.AbsoluteUri
+                        'Response.StatusCode'                 = $_.Exception.Response.StatusCode
+                        'Response.Content'                    = $ResponseContent
+                        'Response.Header.Date'                = $_.Exception.Response.Headers.GetValues('Date')[0]
+                        'Response.Header.request-id'          = $_.Exception.Response.Headers.GetValues('request-id')[0]
+                        'Response.Header.client-request-id'   = $_.Exception.Response.Headers.GetValues('client-request-id')[0]
+                        'Response.Header.x-ms-ags-diagnostic' = $_.Exception.Response.Headers.GetValues('x-ms-ags-diagnostic')[0] | ConvertFrom-Json
+                    }) -Depth 3)
+
+            if ($ResponseContent) {
+                ## Write Custom Error
+                if ($ResponseContent.error.code -eq 'Authentication_ExpiredToken' -or $ResponseContent.error.code -eq 'Service_ServiceUnavailable' -or $ResponseContent.error.code -eq 'Request_UnsupportedQuery') {
+                    #Write-AppInsightsException $_.Exception
+                    Write-Error -Exception $_.Exception -Message $ResponseContent.error.message -ErrorId $ResponseContent.error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorAction Stop
+                }
+                else {
+                    Write-Error -Exception $_.Exception -Message $ResponseContent.error.message -ErrorId $ResponseContent.error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorVariable cmdError
+                    Write-AppInsightsException $cmdError.Exception
+                }
             }
             else { throw $ErrorRecord }
         }
 
         function Test-MsGraphBatchError ($BatchResponse, $Url) {
             if ($BatchResponse.status -ne '200') {
-                Write-Verbose "Graph Batch Error: URL=$Url"
-                Write-Verbose "Graph Batch Error: Status Code=$($BatchResponse.status)"
-                if ($BatchResponse.body.error.innerError) {
-                    foreach($prop in $BatchResponse.body.error.innerError.PSObject.properties) {
-                        Write-Verbose "Graph Batch Error: $($prop.Name)=$($prop.Value)"
-                    }
-                }
-                if ($BatchResponse.body.error.code -eq 'Authentication_ExpiredToken' -or $BatchResponse.body.error.code -eq 'Service_ServiceUnavailable') {
+                Write-Debug -Message (ConvertTo-Json $BatchResponse -Depth 3)
+
+                if ($BatchResponse.body.error.code -eq 'Authentication_ExpiredToken' -or $BatchResponse.body.error.code -eq 'Service_ServiceUnavailable' -or $BatchResponse.body.error.code -eq 'Request_UnsupportedQuery') {
                     Write-Error -Message $BatchResponse.body.error.message -ErrorId $BatchResponse.body.error.code -ErrorAction Stop
                 }
                 else {
@@ -202,7 +214,9 @@ function Get-MsGraphResults {
             end {
                 [array] $BatchRequests = New-MsGraphBatchRequest $listRequests -BatchSize $BatchSize
                 for ($iRequest = 0; $iRequest -lt $BatchRequests.Count; $iRequest++) {
-                    Update-Progress $ProgressState -CurrentOperation ('{0} {1}' -f $BatchRequests[$iRequest].method.ToUpper(), $BatchRequests[$iRequest].url) -IncrementBy $BatchRequests[$iRequest].body.requests.Count
+                    if ($ProgressState.Total -gt $BatchSize) {
+                        Update-Progress $ProgressState -CurrentOperation ('{0} {1}' -f $BatchRequests[$iRequest].method.ToUpper(), $BatchRequests[$iRequest].url) -IncrementBy $BatchRequests[$iRequest].body.requests.Count
+                    }
                     $resultsBatch = Invoke-MsGraphRequest $BatchRequests[$iRequest] -NoAppInsights -GraphBaseUri $GraphBaseUri
 
                     [array] $resultsBatch = $resultsBatch.responses | Sort-Object -Property { [int]$_.id }
@@ -710,6 +724,9 @@ function Get-MsGraphResultsCount {
         else {
             $uriEndpointCount = New-Object System.UriBuilder -ArgumentList $GraphBaseUri -ErrorAction Stop
         }
+        ## Remove $ref from path
+        $uriEndpointCount.Path = $uriEndpointCount.Path -replace '/\$ref$', ''
+        ## Add $count segment to path
         $uriEndpointCount.Path = ([IO.Path]::Combine($uriEndpointCount.Path, '$count'))
         ## $count is not supported with $expand parameter so remove it.
         [hashtable] $QueryParametersUpdated = ConvertFrom-QueryString $uriEndpointCount.Query -AsHashtable
