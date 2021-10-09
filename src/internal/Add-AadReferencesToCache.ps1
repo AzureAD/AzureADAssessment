@@ -7,7 +7,7 @@ function Add-AadReferencesToCache {
         #
         [Parameter(Mandatory = $true)]
         [Alias('Type')]
-        [ValidateSet('appRoleAssignment', 'oauth2PermissionGrants', 'servicePrincipal', 'directoryRoles', 'conditionalAccessPolicy', 'aadRoleAssignment','roleDefinition')]
+        [ValidateSet('appRoleAssignment', 'oauth2PermissionGrant', 'servicePrincipal', 'directoryRole', 'conditionalAccessPolicy', 'aadRoleAssignment','roleDefinition')]
         [string] $ObjectType,
         #
         [Parameter(Mandatory = $true)]
