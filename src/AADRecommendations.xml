@@ -1843,7 +1843,127 @@
         </Recommendation>
     </recommendation>
 
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0056</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Do_you_have_owners_defined_for_the_following_tasks_in_your_organization</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P1"/>
+            </Answers>
+        </QnA>
+        <Name>Owners of Key Tasks</Name>
+        <Summary>
+            Managing Azure AD requires the continuous execution of key operational tasks and processes which are not necessarily mapped to a rollout project. Nonetheless, it is important to establish them for an optimized operation of customer's environment.
+        </Summary>
+        <Recommendation>
+            Assign missing owners and align ownership. Operationalize process per the suggestions in the table below:
 
+            | **Task** | **Microsoft Recommendation** |
+            | --- | --- |
+            | **Manage lifecycle of SSO Configuration in Azure AD** | IAM Operations Team |
+            | **Design Conditional Access Policies for Azure AD Applications** | InfoSec Architecture Team |
+            | **Archive Sign-In Activity in a SIEM system** | InfoSec Operations Team |
+            | **Archive Risk Events in a SIEM system** | InfoSec Operations Team |
+            | **Triage Security Reports** | InfoSec Operations Team |
+            | **Triage Risk Events** | InfoSec Operations Team |
+            | **Triage Users Flagged for risk, and Vulnerability reports from Azure AD Identity Protection (P2)** | InfoSec Operations Team |
+            | **Investigate Security Reports** | InfoSec Operations Team |
+            | **Investigate Risk Events** | InfoSec Operations Team |
+            | **Investigate Users Flagged for risk, and Vulnerability reports from Identity Protection (P2)** | InfoSec Operations Team |
+
+            #### Learn More
+
+            - [Assigning administrator roles in Azure Active Directory | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/active-directory-assign-admin-roles-azure-portal)
+            - [Governance in Azure | Microsoft Docs](https://docs.microsoft.com/en-us/azure/security/governance-in-azure)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials</Area>
+        <ID>AR0057</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Do_you_have_a_self_service_password_reset_solution</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>Password Management</Name>
+        <Summary>
+            Password Change/Reset is one of the biggest sources of volume and cost of help desk calls. In addition to this, changing the password as a tool to mitigate a user risk is a fundamental tool to improve the security posture in your organization.
+        </Summary>
+        <Recommendation>
+            Deploy Azure AD Self-Service Password Reset (SSPR) and on-premises Password Protection to allow users to self-service the reset of passwords and reduce the volume and cost of help desk calls.
+
+            #### Learn More
+
+            - [Azure AD tiered password security | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/active-directory-secure-passwords)
+            - [Azure AD self-service password reset overview | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/authentication/active-directory-passwords-overview)
+            - [Dynamically banned passwords in Azure AD | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/authentication/concept-password-ban-bad)
+            - [Deploy Azure AD password protection preview | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/authentication/howto-password-ban-bad-on-premises)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials</Area>
+        <ID>AR0058</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_If_yes__is_this_using_Azure_AD_s_self_service_password_reset_solution</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P3"/>
+            </Answers>
+        </QnA>
+        <Name>Cloud based Self Service Password Reset</Name>
+        <Summary>
+            An existing self-service password management solution that relies in on-premises product (e.g. MIM) 
+        </Summary>
+        <Recommendation>
+            Deploy Azure AD Self-Service Password Reset (SSPR) and on-premises Password Protection.
+
+            #### Learn More
+
+            - [Azure AD tiered password security | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/active-directory-secure-passwords)
+            - [Azure AD self-service password reset overview | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/authentication/active-directory-passwords-overview)
+            - [Dynamically banned passwords in Azure AD | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/authentication/concept-password-ban-bad)
+            - [Deploy Azure AD password protection preview | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/authentication/howto-password-ban-bad-on-premises)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials</Area>
+        <ID>AR0059</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Is_the_password_reset_part_of_the_operational_procedures_to_remediate_a_user_incident</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>User Risk Incident - Password Reset</Name>
+        <Summary>
+            Automated self-service password reset is not used in remediation of users at risk.
+        </Summary>
+        <Recommendation>
+            If AAD P2 is available, deploy Identity Protection with SSPR and use it as part of User Risk Policy.
+
+            If AAD P2 is not available, ensure automation is in place to detect user risk events based on the audit log and trigger a workflow to address user risk.
+
+            #### Learn More
+
+            - [Use risk detections for user sign-ins to trigger Azure AD Multi-Factor Authentication or password changes | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/authentication/tutorial-risk-based-sspr-mfa)
+        </Recommendation>
+    </recommendation>
     <!--
     <recommendation>
         <PowerShell>
