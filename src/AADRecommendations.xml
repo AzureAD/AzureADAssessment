@@ -1884,7 +1884,7 @@
 
     <recommendation>
         <Category>Access Management</Category>
-        <Area>Credentials</Area>
+        <Area>Credentials Management</Area>
         <ID>AR0057</ID>
         <Type>QnA</Type>
         <QnA>
@@ -1912,7 +1912,7 @@
 
     <recommendation>
         <Category>Access Management</Category>
-        <Area>Credentials</Area>
+        <Area>Credentials Management</Area>
         <ID>AR0058</ID>
         <Type>QnA</Type>
         <QnA>
@@ -1940,7 +1940,7 @@
 
     <recommendation>
         <Category>Access Management</Category>
-        <Area>Credentials</Area>
+        <Area>Credentials Management</Area>
         <ID>AR0059</ID>
         <Type>QnA</Type>
         <QnA>
@@ -1967,7 +1967,7 @@
 
     <recommendation>
         <Category>Access Management</Category>
-        <Area>Credentials</Area>
+        <Area>Credentials Management</Area>
         <ID>AR0060</ID>
         <Type>QnA</Type>
         <QnA>
@@ -2004,7 +2004,7 @@
 
     <recommendation>
         <Category>Access Management</Category>
-        <Area>Credentials</Area>
+        <Area>Credentials Management</Area>
         <ID>AR0061</ID>
         <Type>QnA</Type>
         <QnA>
@@ -2030,7 +2030,7 @@
 
     <recommendation>
         <Category>Access Management</Category>
-        <Area>Credentials</Area>
+        <Area>Credentials Management</Area>
         <ID>AR0062</ID>
         <Type>QnA</Type>
         <QnA>
@@ -2059,14 +2059,14 @@
 
     <recommendation>
         <Category>Access Management</Category>
-        <Area>Credentials</Area>
+        <Area>Credentials Management</Area>
         <ID>AR0063</ID>
         <Type>QnA</Type>
         <QnA>
             <Name>AccMgmt_Enforce_MFA_registration</Name>
             <Answers>
                 <Answer Value="Yes" Priority = "Passed"/>
-                <Answer Value="No" Priority = "P2"/>
+                <Answer Value="No" Priority = "P1"/>
             </Answers>
         </QnA>
         <Name>MFA Registration</Name>
@@ -2084,7 +2084,7 @@
 
     <recommendation>
         <Category>Access Management</Category>
-        <Area>Credentials</Area>
+        <Area>Credentials Management</Area>
         <ID>AR0064</ID>
         <Type>QnA</Type>
         <QnA>
@@ -2108,7 +2108,7 @@
 
     <recommendation>
         <Category>Access Management</Category>
-        <Area>Credentials</Area>
+        <Area>Credentials Management</Area>
         <ID>AR0065</ID>
         <Type>QnA</Type>
         <QnA>
@@ -2128,7 +2128,267 @@
             #### Learn More
             - [Azure AD and AD FS best practices: Defending against password spray attacks](https://cloudblogs.microsoft.com/enterprisemobility/2018/03/05/azure-ad-and-adfs-best-practices-defending-against-password-spray-attacks/)
         </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <ID>AR0065</ID> 
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Enable_ADFS_Smart_Soft_Lockout</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>ADFS Smart - Soft Lockout</Name>
+        <Summary>
+            Customer has AD FS and it is not feasible to move to managed authentication and Extranet Soft Lockout is not deployed, or Smart Lockout is not deployed.
+        </Summary>
+        <Recommendation>
+            Deploy AD FS extranet soft lockout and / or Smart Lockout
+
+            #### Learn More
+            - [Azure AD and AD FS best practices: Defending against password spray attacks](https://cloudblogs.microsoft.com/enterprisemobility/2018/03/05/azure-ad-and-adfs-best-practices-defending-against-password-spray-attacks/)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <ID>AR0066</ID> 
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Do_you_have_a_self_service_password_reset_solution</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P0"/>
+            </Answers>
+        </QnA>
+        <Name>MFA for Privileged Roles</Name>
+        <Summary>
+            Passwords by themselves are not secure enough to prevent bad actors to get access to your environment. It is key to provision strong credentials to all users to enable multi-factor authentication (MFA) access policies with and self-service password reset using strong credentials.
+
+            Not all privileged accounts are registered and using MFA.
+        </Summary>
+        <Recommendation>
+            Enforce MFA for all privileged accounts and require MFA for all sign-ins (avoid excluding MFA from trusted networks for these roles).
+
+            - [Conditional Access: Require MFA for administrators](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/howto-conditional-access-policy-admin-mfa)
+        </Recommendation>
     </recommendation>    
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <ID>AR0067</ID> 
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Do_you_provision_strong_credentials_alongside_identity_provisioning_or_device_provisioning</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P1"/>
+            </Answers>
+        </QnA>
+        <Name>Resilient Access Control Strategy</Name>
+        <Summary>
+            Organizations that rely on a single access control, such as multi-factor authentication (MFA) or a single network location, to secure their IT systems are susceptible to access failures to their apps and resources if that single access control becomes unavailable or misconfigured. 
+        </Summary>
+        <Recommendation>
+            Register additional factors for users as per the guide below.
+
+            - [Create a resilient access control management strategy - Azure Active Directory | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/authentication/concept-resilient-controls)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <ID>AR0068</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Are_strong_credentials_used_in_conditional_access_policies</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P1"/>
+            </Answers>
+        </QnA>
+        <Name>Require MFA for all users</Name>
+        <Summary>
+            MFA is not part of authentication policies (e.g. Conditional Access, Per User MFA, IdP on prem MFA) for all users.
+        </Summary>
+        <Recommendation>
+            Protect user authentication with MFA using Conditional Access.
+
+            - [Conditional Access: Require MFA for all users](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/howto-conditional-access-policy-all-users-mfa)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <ID>AR0069</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Have_you_enabled_Password_Hash_Sync</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P1"/>
+            </Answers>
+        </QnA>
+        <Name>On-premises outage resiliency</Name>
+        <Summary>
+            Attacks such as Solorigate and non-Petya are known to infect on-premises networks very severely. In addition to the benefits of simplicity and enabling leak credential detection, Azure AD Password Hash Sync (PHS) and Azure AD MFA allow users to access SaaS applications and Office 365 despite of on-premises outages.
+
+            It is possible to enable PHS, while keeping federation. This allows a fallback of authentication when federation services are not available.
+        </Summary>
+        <Recommendation>
+            Deploy Password Hash Sync and define a disaster recovery plan that includes using PHS for authentication
+
+            - [Implement password synchronization with Azure AD Connect sync | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/connect/active-directory-aadconnectsync-implement-password-synchronization)
+            - [Choose the right authentication method for your Azure Active Directory hybrid identity solution](https://docs.microsoft.com/en-au/azure/active-directory/hybrid/choose-ad-authn)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <ID>AR0070</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Is_the_procedure_to_switch_to_PHS_practiced_enabled_to_the_IAM_Ops_team</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>On-premises outage strategy</Name>
+        <Summary>
+            On-premises outage resiliency strategy is not integrated with Azure AD.
+        </Summary>
+        <Recommendation>
+            Deploy Password Hash Sync and update disaster recovery plan to leverage PHS.
+
+            - [Implement password synchronization with Azure AD Connect sync | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/connect/active-directory-aadconnectsync-implement-password-synchronization)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <ID>AR0071</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>Do_you_enforce_a_policy_that_requires_all_applications_to_use_a_certificate_credential</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>Programmatic Usage of Weak Credentials</Name>
+        <Summary>
+            Poor credential management increases the risk of credential theft.
+
+            There is a known dependency on client secrets and/or passwords flows for scripts or applications.
+        </Summary>
+        <Recommendation>
+            Move away to use Azure Managed Identities, Certificates or Windows Integrated Authentication whenever possible. 
+            For applications where this is not possible, consider using Azure KeyVault, code / config review to discover and remediate passwords in config files or source code.
+
+            - [Azure AD-managed identities for Azure resources documentation](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Authentication Experience</Area>
+        <ID>AR0072</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Have_you_deployed_Hybrid_Azure_AD_joined_in_your_environment</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>Hybrid Azure AD Join</Name>
+        <Summary>
+            Authenticating the device and account for its trust type improves your security posture and usability by:
+
+            - Avoid friction (e.g. MFA) when the device is trusted
+            - Blocks access from untrusted joined devices
+            
+            Hybrid Azure AD joined can be enabled only to express conditional access policies based on the domain joined status of the device. 
+            Device Management and Compliance is enforced and attested outside, typically using Group Policy Objects, System Center Configuration Manager or similar tools.
+        </Summary>
+        <Recommendation>
+            Register the devices to the cloud and use Hybrid Azure AD Join as a control in Conditional Access policies.
+
+            - [Identity and device access configurations](https://docs.microsoft.com/en-us/microsoft-365/security/office-365-security/microsoft-365-policies-configurations?view=o365-worldwide)
+            - [Plan your hybrid Azure Active Directory join implementation](https://docs.microsoft.com/en-us/azure/active-directory/devices/hybrid-azuread-join-plan)
+            - [Require Hybrid Azure AD joined devices](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/require-managed-devices#require-hybrid-azure-ad-joined-devices)
+        </Recommendation>
+    </recommendation>    
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Authentication Experience</Area>
+        <ID>AR0073</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Do_you_use_device_compliance_as_a_control_in_Conditional_Access</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>Hybrid Azure AD Join - Device Trust</Name>
+        <Summary> 
+            Authenticating the device and account for its trust type improves your security posture and usability by:
+
+            - Avoid friction (e.g. MFA) when the device is trusted
+            - Blocks access from untrusted joined devices
+            
+            Hybrid Azure AD joined can be enabled only to express conditional access policies based on the domain joined status of the device. 
+            Device Management and Compliance is enforced and attested outside, typically using Group Policy Objects, System Center Configuration Manager or similar tools.
+
+            **Domain Joined Windows Devices are already registered in the cloud, but are not used in conditional access policies**
+        </Summary>
+        <Recommendation>
+            Use Hybrid Azure AD Join as a control in Conditional Access policies
+
+            - [Require Hybrid Azure AD joined devices](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/require-managed-devices#require-hybrid-azure-ad-joined-devices)
+        </Recommendation>
+    </recommendation>        
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Authentication Experience</Area>
+        <ID>AR0074</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Do_you_have_mobile_management_policies_defined</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>Mobiles - Device Trust</Name>
+        <Summary> 
+            Authenticating the device and account for its trust type improves your security posture and usability by:
+
+            - Avoid friction (e.g. MFA) when the device is trusted
+            - Blocks access from untrusted joined devices
+            
+            Microsoft Intune can be used to manage the device and enforce compliance policies, attest device health, and set conditional access policies based on whether the device is compliant; Microsoft Intune can manage iOS devices, Mac desktops (Via JAMF integration), Windows desktops (natively using MDM for windows 10, and co-management with System Center Configuration Manager) and Android mobile devices.
+        </Summary>
+        <Recommendation>
+            Use Compliant Device as a control in Conditional Access policies.
+
+            - [Require managed devices for cloud app access with Conditional Access](quire-device-to-be-marked-as-compliant)
+        </Recommendation>
+    </recommendation>        
     <!--
     <recommendation>
         <PowerShell>
