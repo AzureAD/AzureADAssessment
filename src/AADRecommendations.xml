@@ -1964,6 +1964,171 @@
             - [Use risk detections for user sign-ins to trigger Azure AD Multi-Factor Authentication or password changes | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/authentication/tutorial-risk-based-sspr-mfa)
         </Recommendation>
     </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials</Area>
+        <ID>AR0060</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Password_policy_uses_complexity_based_rules</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Password complexity</Name>
+        <Summary>
+            Managing passwords securely is of the most critical part of the identity system, and oftentimes the biggest target of attacks.
+
+            Password policy uses complexity-based rules such as:
+            - Multiple Character Sets
+            - Expiration
+        </Summary>
+        <Recommendation>
+            Reconsider in favor of Microsoft Recommended Practices and switch to password that are not easy to guess, to either not expire or a long expiration period.
+
+            The primary goal of a more secure password system is password diversity. You want your password policy to contain lots of different and hard to guess passwords. Here are a few recommendations for keeping your organization as secure as possible.
+            - Maintain an 8-character minimum length requirement
+            - Don't require character composition requirements. For example, *&amp;((^%$
+            - Don't require mandatory periodic password resets for user accounts
+
+            #### Learn More
+            - [Password Guidance](https://aka.ms/passwordguidance)
+            - [Your Pa$$word doesn't matter](https://techcommunity.microsoft.com/t5/azure-active-directory-identity/your-pa-word-doesn-t-matter/ba-p/731984)
+            - [All your creds are belong to us!](https://aka.ms/allyourcredsarebelongtous)
+            - [Password policy recommendations](https://docs.microsoft.com/en-us/microsoft-365/admin/misc/password-policy-recommendations?view=o365-worldwide)
+        </Recommendation>
+    </recommendation>
+
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials</Area>
+        <ID>AR0061</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Ban_Weak_Passwords</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>Weak Passwords</Name>
+        <Summary>
+            No mechanism to protect against weak passwords.
+
+        </Summary>
+        <Recommendation>
+            Deploy Azure AD SSPR and password protection.
+
+            #### Learn More
+            - [Eliminate weak passwords in the cloud](https://docs.microsoft.com/en-us/azure/active-directory/authentication/concept-password-ban-bad)
+            - [Eliminate weak passwords on-premises](https://docs.microsoft.com/en-us/azure/active-directory/authentication/concept-password-ban-bad-on-premises)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials</Area>
+        <ID>AR0062</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Ban_Weak_Passwords</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P1"/>
+            </Answers>
+        </QnA>
+        <Name>Passwordless</Name>
+        <Summary>
+            The cost of using passwords and the associated security risk now outweigh the benefits. Even the strongest passwords are easily phishable and vulnerable to attacks, and user resistance to password requirements is high. 
+
+        </Summary>
+        <Recommendation>
+            Consider enabling passwordless.
+
+            Passwordless authentication is a form of multifactor authentication that replaces the password with a secure alternative. 
+
+            #### Learn More
+            - [Passwordless Authentication](https://www.microsoft.com/en-us/security/business/identity-access-management/passwordless-authentication)
+            - [Passwordless authentication options for Azure Active Directory](https://docs.microsoft.com/en-us/azure/active-directory/authentication/concept-authentication-passwordless)
+            - [10 Reasons to Love Passwordless #10: Never use a password](https://techcommunity.microsoft.com/t5/azure-active-directory-identity/10-reasons-to-love-passwordless-10-never-use-a-password/ba-p/2111909)
+        </Recommendation>
+    </recommendation>        
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials</Area>
+        <ID>AR0063</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Enforce_MFA_registration</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>MFA Registration</Name>
+        <Summary>
+            No MFA registration of users at scale.
+
+        </Summary>
+        <Recommendation>
+            Register all users for MFA, so it can be used as a mechanism to authenticate in addition to just passsords.
+
+            #### Learn More
+            - [Configure the Azure AD Multi-Factor Authentication registration policy](https://docs.microsoft.com/en-us/azure/active-directory/identity-protection/howto-identity-protection-configure-mfa-policy)            
+        </Recommendation>
+    </recommendation>    
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials</Area>
+        <ID>AR0064</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Detection_of_Leaked_Passwords</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P1"/>
+            </Answers>
+        </QnA>
+        <Name>Leaked Password Detection</Name>
+        <Summary>
+            No mechanism to detect leaked passwords.
+        </Summary>
+        <Recommendation>
+            Deploy password hash sync (PHS) to gain insights
+
+            #### Learn More
+            - [What is password hash synchronization with Azure AD?](https://docs.microsoft.com/en-us/azure/active-directory/hybrid/whatis-phs)
+        </Recommendation>
+    </recommendation>    
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials</Area>
+        <ID>AR0065</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Enable_ADFS_Smart_Soft_Lockout</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>ADFS Smart - Soft Lockout</Name>
+        <Summary>
+            Customer has AD FS and it is not feasible to move to managed authentication and Extranet Soft Lockout is not deployed, or Smart Lockout is not deployed.
+        </Summary>
+        <Recommendation>
+            Deploy AD FS extranet soft lockout and / or Smart Lockout
+
+            #### Learn More
+            - [Azure AD and AD FS best practices: Defending against password spray attacks](https://cloudblogs.microsoft.com/enterprisemobility/2018/03/05/azure-ad-and-adfs-best-practices-defending-against-password-spray-attacks/)
+        </Recommendation>
+    </recommendation>    
     <!--
     <recommendation>
         <PowerShell>
