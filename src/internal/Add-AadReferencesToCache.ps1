@@ -7,7 +7,7 @@ function Add-AadReferencesToCache {
         #
         [Parameter(Mandatory = $true)]
         [Alias('Type')]
-        [ValidateSet('appRoleAssignment', 'oauth2PermissionGrant', 'servicePrincipal', 'group', 'directoryRole', 'conditionalAccessPolicy', 'aadRoleAssignment')]
+        [ValidateSet('appRoleAssignment', 'oauth2PermissionGrant', 'servicePrincipal', 'directoryRole', 'conditionalAccessPolicy', 'aadRoleAssignment','roleDefinition')]
         [string] $ObjectType,
         #
         [Parameter(Mandatory = $true)]
@@ -69,8 +69,11 @@ function Add-AadReferencesToCache {
                 break
             }
             aadRoleAssignment {
-                [void] $ReferencedIdCache.$($InputObject.subject.Type).Add($InputObject.subject.id)
+                [void] $ReferencedIdCache.$($InputObject.principalType).Add($InputObject.principalId)
                 break
+            }
+            roleDefinition {
+                [void] $ReferencedIdCache.roleDefinition.Add($InputObject.id)
             }
         }
         if ($PassThru) { return $InputObject }

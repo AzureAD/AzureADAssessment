@@ -10,5 +10,6 @@ function New-AadReferencedIdCache {
             #application      = New-Object 'System.Collections.Generic.HashSet[guid]'
             servicePrincipal = New-Object 'System.Collections.Generic.HashSet[guid]'
             appId            = New-Object 'System.Collections.Generic.HashSet[guid]'
+            roleDefinition   = New-Object 'System.Collections.Generic.HashSet[guid]'
         }
 }

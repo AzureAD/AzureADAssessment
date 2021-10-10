@@ -21,7 +21,9 @@ function Invoke-AADAssessmentDataCollection {
         [switch] $SkipReportOutput,
         # Skip Packaging
         [Parameter(Mandatory = $false)]
-        [switch] $SkipPackaging
+        [switch] $SkipPackaging,
+        [Parameter(Mandatory = $false)]
+        [switch] $UnifiedRole
     )
 
     Start-AppInsightsRequest $MyInvocation.MyCommand.Name
@@ -117,31 +119,72 @@ function Invoke-AADAssessmentDataCollection {
         | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "directoryRoleData.xml")
 
         ### Directory Role Definitions - 6
+        # TODO: currently limit to native roles. Custom are not returned by assignments
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Directory Role Definitions' -PercentComplete 36
-        Get-MsGraphResults 'roleManagement/directory/roleDefinitions' -Select 'id,displayName,isBuiltIn,isEnabled,rolePermissions' -ApiVersion 'beta'`
-        | Export-JsonArray (Join-Path $OutputDirectoryAAD "roleDefinitions.json") -Depth 5 -Compress
+        Get-MsGraphResults 'roleManagement/directory/roleDefinitions' -Select 'id,displayName,isBuiltIn,isEnabled' -ApiVersion 'beta' `
+        | Where-Object { $_.isEnabled -and $_.isBuiltIn} `
+        | Select-Object id,displayName,isBuiltIn `
+        | Add-AadReferencesToCache -Type roleDefinition -ReferencedIdCache $ReferencedIdCache -PassThru `
+        | Export-Csv (Join-Path $OutputDirectoryAAD "roleDefinitions.csv") -NoTypeInformation
 
         ### Privileged Access AAD role Assignments - 7
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'PIM AAD Roles' -PercentComplete 42
-        Get-MsGraphResults 'privilegedAccess/aadRoles/roleAssignments' -Select 'id,startDateTime,endDateTime,assignmentState,roleDefinitionId,linkedEligibleRoleAssignmentId' -Filter "resourceId eq '$($OrganizationData.id)'" -Top 999 -ApiVersion 'beta' -QueryParameters @{ '$expand' = 'subject($select=id,type)' } `
-        | Select-Object -Property "*" -ExcludeProperty '@odata.type' `
-        | Add-AadReferencesToCache -Type aadRoleAssignment -ReferencedIdCache $ReferencedIdCache -PassThru `
-        | Export-JsonArray (Join-Path $OutputDirectoryAAD "aadRoleAssignments.json") -Depth 5 -Compress
+        if (!$UnifiedRole) {
+            Get-MsGraphResults 'privilegedAccess/aadRoles/roleAssignments' -Select 'id,roleDefinitionId,memberType,assignmentState,endDateTime,linkedEligibleRoleAssignmentId' -Filter "resourceId eq '$($OrganizationData.id)'" -Top 999 -ApiVersion 'beta' -QueryParameters @{ '$expand' = 'subject($select=id,type)' } `
+            | Where-Object { !$_.linkedEligibleRoleAssignmentId } `
+            | Select-Object -Property id,roleDefinitionId, `
+            @{ Name = "directoryScopeId"; Expression = {
+                "/"
+            }},memberType,endDateTime, `
+            @{ Name = "principalId"; Expression = {
+                $_.subject.id
+            }}, `
+            @{ Name = "principalType"; Expression = {
+                $tmp = $_.subject.type.ToCharArray()
+                $tmp[0] = [char]::ToLower($tmp[0])
+                new-object -typeName string -ArgumentList (,$tmp)
+            }} `
+            | Add-AadReferencesToCache -Type aadRoleAssignment -ReferencedIdCache $ReferencedIdCache -PassThru `
+            | Export-Csv (Join-Path $OutputDirectoryAAD "roleAssignements.csv") -NoTypeInformation
+        } else {
+            # Getting role assignments via unified role API
+            $ReferencedIdCache.roleDEfinition | Get-MsGraphResults "roleManagement/directory/roleAssignmentSchedules?`$filter=roleDefinitionId+eq+'{0}'&`$select=id,roleDefinitionId,directoryScopeId,memberType,scheduleInfo,status,assignmentType" -QueryParameters @{ '$expand' = 'principal($select=id)' } -ApiVersion 'beta' `
+            | Where-Object { $_.status -eq 'Provisioned' -and $_.assignmentType -eq 'Assigned'} `
+            | Select-Object -Property id,roleDefinitionId,directoryScopeId,memberType, `
+            @{ Name = "assignmentType"; Expression = {
+                "Active"
+            }}, `
+            @{ Name = 'endDateTime'; Expression = {
+                $_.scheduleInfo.expiration.endDateTime
+            }}, `
+            @{ Name = 'principalId'; Expression = {
+                $_.principal.id
+            }}, `
+            @{ Name = 'principalType'; Expression = {
+                $_.principal.'@odata.type' -replace '#microsoft.graph.',''
+            }} `
+            | Add-AadReferencesToCache -Type aadRoleAssignment -ReferencedIdCache $ReferencedIdCache -PassThru `
+            | Export-Csv (Join-Path $OutputDirectoryAAD "roleAssignements.csv") -NoTypeInformation
 
-        # Getting role assignments via unified role API 
-        #Get-MsGraphResults 'roleManagement/directory/roleAssignmentSchedules' -Select 'id,roleDefinitionId,directoryScopeId,memberType,scheduleInfo,status,assignmentType' -ApiVersion 'beta' -QueryParameters @{ '$expand' = 'principal($select=id)' } `
-        #| Where-Object { $_.status -eq 'Provisioned' -and $_.assignmentType -eq 'Assigned'} `
-        #| Select-Object -Property id,roleDefinitionId,directoryScopeId,memberType, `
-        #@{ Name = 'EndDateTime'; Expression = {
-        #    $_.scheduleInfo.expiration.endDateTime
-        #}}, `
-        #@{ Name = 'principalId'; Expression = {
-        #    $_.principal.id
-        #}}, `
-        #@{ Name = 'principalType'; Expression = {
-        #    $_.principal.'@odata.type' -replace '#microsoft.graph.',''
-        #}} `
-        #| Export-Csv (Join-Path $OutputDirectoryAAD "roleAssignement.csv") -NoTypeInformation
+            # Getting role elligibility via unified role API
+            $ReferencedIdCache.roleDEfinition | Get-MsGraphResults "roleManagement/directory/roleEligibilitySchedules?`$filter=roleDefinitionId+eq+'{0}'&`$select=id,roleDefinitionId,directoryScopeId,memberType,scheduleInfo,status" -QueryParameters @{ '$expand' = 'principal($select=id)' } -ApiVersion 'beta' `
+            | Where-Object { $_.status -eq 'Provisioned'} `
+            | Select-Object -Property id,roleDefinitionId,directoryScopeId,memberType, `
+            @{ Name = "assignmentType"; Expression = {
+                "Eligible"
+            }}, `
+            @{ Name = 'EndDateTime'; Expression = {
+                $_.scheduleInfo.expiration.endDateTime
+            }}, `
+            @{ Name = 'principalId'; Expression = {
+                $_.principal.id
+            }}, `
+            @{ Name = 'principalType'; Expression = {
+                $_.principal.'@odata.type' -replace '#microsoft.graph.',''
+            }} `
+            | Add-AadReferencesToCache -Type aadRoleAssignment -ReferencedIdCache $ReferencedIdCache -PassThru `
+            | Export-Csv (Join-Path $OutputDirectoryAAD "roleAssignements.csv") -NoTypeInformation -Append
+        }
 
         ### Application Data - 8
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Applications' -PercentComplete 48
