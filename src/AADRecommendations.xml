@@ -40,7 +40,7 @@
             $trustedNetworks = @($Data["namedLocations.json"] | Where-Object { $_.psobject.properties.match('isTrusted').Count -and $_.isTrusted })
 
             # set the data
-            $res.Data = $trustedNetworks | select-object Id,displayName
+            $res.Data = @($trustedNetworks | select-object Id,displayName)
 
             # set the priority
             $res.Priority = "Passed"
@@ -98,7 +98,7 @@
                 $res.Priority = "P1"
             }
 
-            $res.Data = $matchedPolicies | select id,displayName
+            $res.Data = @($matchedPolicies | select id,displayName)
 
             # return result
             return $res
@@ -154,7 +154,7 @@
                 $res.Priority = "P2"
             }
 
-            $res.Data = $expiredSecretAppOrSP
+            $res.Data = @($expiredSecretAppOrSP)
             
             # return result
             return $res
@@ -184,7 +184,7 @@
                 $res.Priority = "P2"
             }
 
-            $res.Data = $highPermissionsGrants | select-object clientId,clientDisplayName,resourceObjectId,resourceDisplayName,permission,permissionType,@{N="IsAdminConsent";E={$_.consentType -eq "AllPrincipals"}}
+            $res.Data = @($highPermissionsGrants | select-object clientId,clientDisplayName,resourceObjectId,resourceDisplayName,permission,permissionType,@{N="IsAdminConsent";E={$_.consentType -eq "AllPrincipals"}})
 
             # return result
             return $res
@@ -212,7 +212,7 @@
                 $res.Priority = "P2"
             }
 
-            $res.Data = $deprecatedGrants | select-object clientId,clientDisplayName,resourceObjectId,resourceDisplayName,permission,permissionType,@{N="IsAdminConsent";E={$_.consentType -eq "AllPrincipals"}}
+            $res.Data = @($deprecatedGrants | select-object clientId,clientDisplayName,resourceObjectId,resourceDisplayName,permission,permissionType,@{N="IsAdminConsent";E={$_.consentType -eq "AllPrincipals"}})
 
             # return result
             return $res
@@ -240,7 +240,7 @@
                 $res.Priority = "P3"
             }
             
-            $res.Data = $userAppAssignments | Group-Object -property resourceDisplayName,resourceId | select @{N="resourceId";E={$_.Group[0].resourceId}},@{N="resourceDisplayName";E={$_.Group[0].resourceDisplayName}},@{N="userAppAssignmentCount";E={$_.Count}}
+            $res.Data = @($userAppAssignments | Group-Object -property resourceDisplayName,resourceId | select @{N="resourceId";E={$_.Group[0].resourceId}},@{N="resourceDisplayName";E={$_.Group[0].resourceDisplayName}},@{N="userAppAssignmentCount";E={$_.Count}})
 
             # return result
             return $res
@@ -267,7 +267,7 @@
                 $res.Priority = "P1"
             }
 
-            $res.Data =  $allUsersAppAssignments | select-object resourceId,resourceDisplayName | Sort-Object -property resourceId -unique
+            $res.Data =  @($allUsersAppAssignments | select-object resourceId,resourceDisplayName | Sort-Object -property resourceId -unique)
 
             # return result
             return $res
@@ -297,7 +297,7 @@
                 $res.Priority = "P2"
             }
 
-            $res.Data = $requireMFACAPolicies | Select-Object id,displayName
+            $res.Data = @($requireMFACAPolicies | Select-Object id,displayName)
 
             # return result
             return $res
@@ -333,7 +333,7 @@
                 $res.Priority = "P2"
             }
 
-            $res.Data = $deviceGrantPolicies | Select-Object id,displayName
+            $res.Data = @($deviceGrantPolicies | Select-Object id,displayName)
             
             # return result
             return $res
@@ -366,7 +366,7 @@
                 $res.Priority = "P2"
             }
 
-            $res.Data = $riskPolicies | Select-Object id,displayName
+            $res.Data = @($riskPolicies | Select-Object id,displayName)
 
             # return result
             return $res
@@ -402,7 +402,7 @@
                 $res.Priority = "P2"
             }
 
-            $res.Data = $appGrantPolicies | Select-Object id,displayName
+            $res.Data = @($appGrantPolicies | Select-Object id,displayName)
 
             # return result
             return $res
@@ -436,7 +436,7 @@
                 $res.Priority = "P1"
             }
 
-            $res.Data = $policiesWithExcludes | Select-Object id,displayName
+            $res.Data = @($policiesWithExcludes | Select-Object id,displayName)
 
             # return result
             return $res
@@ -470,7 +470,7 @@
                 $res.Priority = "P3"
             }
 
-            $res.Data = $policiesWithExcludedUsersOnly | Select-Object id,displayName
+            $res.Data = @($policiesWithExcludedUsersOnly | Select-Object id,displayName)
             
             # return result
             return $res
@@ -503,7 +503,7 @@
                 $res.Priority = "P3"
             }
 
-            $res.Data = $policiesWithExcludedUsersandGroups | Select-Object id,displayName
+            $res.Data = @($policiesWithExcludedUsersandGroups | Select-Object id,displayName)
 
             # return result
             return $res
@@ -536,7 +536,7 @@
                 $res.Priority = "P3"
             }
 
-            $res.Data = $policiesWithOnlyUsersIncluded | Select-Object id,displayName
+            $res.Data = @($policiesWithOnlyUsersIncluded | Select-Object id,displayName)
 
             # return result
             return $res
@@ -569,7 +569,7 @@
                 $res.Priority = "P3"
             }
 
-            $res.Data = $policiesWithUsersandGroupsIncluded | Select-Object id,displayName
+            $res.Data = @($policiesWithUsersandGroupsIncluded | Select-Object id,displayName)
             
             # return result
             return $res
@@ -623,7 +623,7 @@
                 $res.Priority = "P1"
             }
 
-            $res.Data = $common
+            $res.Data = @($common)
 
             # return result
             return $res
@@ -677,7 +677,7 @@
                 $res.Priority = "P3"
             }
 
-            $res.Data = $common
+            $res.Data = @($common)
 
             # return result
             return $res
@@ -731,7 +731,7 @@
                 $res.Priority = "P3"
             }
 
-            $res.Data = $common
+            $res.Data = @($common)
 
             # return result
             return $res
@@ -776,7 +776,7 @@
                 $res.Priority = "P1"
             }
             
-            $res.Data = $legacyBlockCAPolicies | Select-Object id,displayName
+            $res.Data = @($legacyBlockCAPolicies | Select-Object id,displayName)
 
             # return result
             return $res
@@ -823,7 +823,7 @@
                 $res.Priority = "P1"
             }
 
-            $res.Data =  $blockAllPoliciesNotLegacy | Select-Object id,displayName
+            $res.Data =  @($blockAllPoliciesNotLegacy | Select-Object id,displayName)
 
             # return result
             return $res
@@ -859,7 +859,7 @@
                 $res.Priority = "P1"
             }
 
-            $res.Data = $deviceStatenAllPolicies | Select-Object id,displayName
+            $res.Data = @($deviceStatenAllPolicies | Select-Object id,displayName)
 
             # return result
             return $res
@@ -895,7 +895,7 @@
                 $res.Priority = "P1"
             }
 
-            $res.Data = $deviceStatenAllPolicies | Select-Object id,displayName
+            $res.Data = @($deviceStatenAllPolicies | Select-Object id,displayName)
 
             # return result
             return $res
@@ -931,7 +931,7 @@
                 $res.Priority = "P1"
             }
 
-            $res.Data = $deviceStatenAllPolicies | Select-Object id,displayName
+            $res.Data = @($deviceStatenAllPolicies | Select-Object id,displayName)
 
             # return result
             return $res
@@ -977,7 +977,7 @@
                 $res.Priority = "P1"
             }
 
-            $res.Data =  $blockAllAppsPoliciesNotLegacy | Select-Object id,displayName
+            $res.Data =  @($blockAllAppsPoliciesNotLegacy | Select-Object id,displayName)
 
             # return result
             return $res
@@ -1009,7 +1009,7 @@
                 $res.Priority = "P2"
             }
 
-            $res.Data =  $externalPolicies | Select-Object id,displayName
+            $res.Data =  @($externalPolicies | Select-Object id,displayName)
 
             # return result
             return $res
@@ -1046,7 +1046,7 @@
                 $res.Priority = "P2"
             }
 
-            $res.Data = $externalPolicies | Select-Object id,displayName
+            $res.Data = @($externalPolicies | Select-Object id,displayName)
 
             # return result
             return $res
@@ -1085,7 +1085,7 @@
                 $res.Priority = "P1"
             }
 
-            $res.Data = $deviceStatenAllorGuestPolicies | Select-Object id,displayName
+            $res.Data = @($deviceStatenAllorGuestPolicies | Select-Object id,displayName)
 
             # return result
             return $res
@@ -1117,7 +1117,7 @@
                 $res.Priority = "P2"
             }
 
-            $res.Data = $office365policies | Select-Object id,displayName
+            $res.Data = @($office365policies | Select-Object id,displayName)
 
             # return result
             return $res
@@ -1170,7 +1170,7 @@
                 $res.Priority = "P2"
             }
             
-            $res.Data = $office365apppolicies | Select-Object id,displayName
+            $res.Data = @($office365apppolicies | Select-Object id,displayName)
 
             # return result
             return $res
@@ -1247,7 +1247,7 @@
                 $res.Priority = "P2"
             }
 
-            $res.Data = $countriesBlock | Select-Object id,displayName
+            $res.Data = @($countriesBlock | Select-Object id,displayName)
             
             # return result
             return $res
@@ -1260,7 +1260,7 @@
         <Recommendation>Block countries from where your users don't sign-in</Recommendation>
     </recommendation>
     <recommendation>
-        <PowerShell>
+        <!--<PowerShell>
             param($data)
 
             $qna = $data['QnA.json']
@@ -1277,7 +1277,16 @@
             }
     
             return $res
-        </PowerShell>
+        </PowerShell>-->
+        <Type>QnA</Type>
+        <QnA>
+            <Name>IdMgmt_Do_you_have_owners_defined_for_the_following_tasks_in_your_organization</Name>
+            <Answers>
+                <Answer Value="Yes" Priority="Passed"/>
+                <Answer Value="Yes - Partially" Priority="P2"/>
+                <Answer Value="No" Priority="P1"/>
+            </Answers>
+        </QnA>
         <Category>Identity Management</Category>
         <Area>Operations</Area>
         <ID>AR0034</ID>

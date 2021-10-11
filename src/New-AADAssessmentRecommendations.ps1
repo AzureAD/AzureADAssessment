@@ -159,7 +159,9 @@ function New-AADAssessmentRecommendations {
             $recommendationList += $recommendation
         }
 
+        Write-Verbose "Writing recommendations"
         Write-RecommendationsReport $data $recommendationList
+        Write-Verbose "Recommendations written"
 
         # generate Trusted network locations
         #Get-TrustedNetworksRecommendation -Path $TenantDirectoryData

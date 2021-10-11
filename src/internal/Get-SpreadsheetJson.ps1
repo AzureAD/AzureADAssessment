@@ -23,15 +23,21 @@ function Get-SpreadsheetJson {
             return
         }
 
-        $tempFolder = Join-Path ([IO.Path]::GetTempPath()) 'AADAssess' ([guid]::NewGuid())
+        $tempFolder = Join-Path (Join-Path ([IO.Path]::GetTempPath()) 'AADAssess') ([guid]::NewGuid())
+        if (!(Test-Path $tempFolder)) {
+            New-Item $tempFolder -ItemType Directory | Out-Null
+        }
         #$tempFolder = ".\temp\"
         #Remove-Item ./temp/  -Recurse -Force
 
-        Expand-Archive -Path $SpreadsheetFilePath -DestinationPath $tempFolder
+
+        # move the excel in temp as zip (to be able to expand it)
+        Copy-Item -Path $SpreadsheetFilePath -Destination (Join-Path $tempFolder "AzureADAssessment-interview-xlsx.zip")
+        Expand-Archive -Path (Join-Path $tempFolder "AzureADAssessment-interview-xlsx.zip") -DestinationPath $tempFolder
         
-        $wbFilePath = Join-Path $tempFolder 'xl' 'workbook.xml'
-        $sheetFilePath = Join-Path $tempFolder 'xl' 'worksheets'
-        $ssFilePath = Join-Path $tempFolder 'xl' 'sharedStrings.xml'
+        $wbFilePath = Join-Path (Join-Path $tempFolder 'xl') 'workbook.xml'
+        $sheetFilePath = Join-Path (Join-Path $tempFolder 'xl') 'worksheets'
+        $ssFilePath = Join-Path (Join-Path $tempFolder 'xl') 'sharedStrings.xml'
         [xml]$xmlWb = Get-Content $wbFilePath
         [xml]$ss = Get-Content $ssFilePath
         
