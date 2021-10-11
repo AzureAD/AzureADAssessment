@@ -244,16 +244,15 @@ function Invoke-AADAssessmentDataCollection {
             | ForEach-Object { [void]$ReferencedIdCache.group.Add($_.id) }
         }
         # Add nested groups
-        #$ReferencedIdCache = New-AadReferencedIdCache; Import-Clixml "C:\AzureADAssessment\AzureADAssessmentData\AAD-microsoft.onmicrosoft.com\groupData.xml" | ForEach-Object { [void]$ReferencedIdCache.group.Add($_.id) }
-        $ReferencedIdCache.group.guid | Get-MsGraphResults 'groups/{0}/transitiveMembers/microsoft.graph.group?$count=true&$select=id' -Top 999 -TotalRequests $ReferencedIdCache.group.Count -DisableUniqueIdDeduplication -ErrorAction SilentlyContinue `
+        $ReferencedIdCache.group.guid | Get-MsGraphResults 'groups/{0}/transitiveMembers/microsoft.graph.group?$count=true&$select=id' -Top 999 -TotalRequests $ReferencedIdCache.group.Count -DisableUniqueIdDeduplication `
         | ForEach-Object { [void]$ReferencedIdCache.group.Add($_.id) }
 
         ## Option 1: Populate direct members on groups (including nested groups) and calculate transitiveMembers later.
         ## $expand on group members caps results at 20 members with no NextLink so call members endpoint for each.
-        # $ReferencedIdCache.group | Get-MsGraphResults 'groups?$select=id,groupTypes,displayName,mail,proxyAddresses' -TotalRequests $ReferencedIdCache.group.Count -DisableUniqueIdDeduplication -DisableBatching -GetByIdsBatchSize 20 `
+        # $ReferencedIdCache.group | Get-MsGraphResults 'groups?$select=id,groupTypes,displayName,mail,proxyAddresses' -TotalRequests $ReferencedIdCache.group.Count -DisableUniqueIdDeduplication -BatchSize 1 -GetByIdsBatchSize 20 `
         # | Expand-MsGraphRelationship -ObjectType groups -PropertyName members -References -Top 999 `
         # | Select-Object -Property "*" -ExcludeProperty '@odata.type' `
-        # | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "groupData2.xml")
+        # | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "groupData.xml")
 
         ## Option 2: Get groups without member data and let Azure AD calculate transitiveMembers.
         $ReferencedIdCache.group | Get-MsGraphResults 'groups?$select=id,groupTypes,displayName,mail,proxyAddresses' -TotalRequests $ReferencedIdCache.group.Count -DisableUniqueIdDeduplication `
