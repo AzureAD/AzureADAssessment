@@ -112,7 +112,7 @@ function Invoke-AADAssessmentDataCollection {
 
         ### Directory Role Data - 5
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Directory Roles' -PercentComplete 30
-        ## $expand on directoryRole members caps results at 20 members with no NextLink.
+        ## $expand on directoryRole members caps results at 20 members with no NextLink so call members endpoint for each.
         Get-MsGraphResults 'directoryRoles?$select=id,displayName,roleTemplateId' -DisableUniqueIdDeduplication `
         | Expand-MsGraphRelationship -ObjectType directoryRoles -PropertyName members -References `
         | Add-AadReferencesToCache -Type directoryRole -ReferencedIdCache $ReferencedIdCache -PassThru `
@@ -244,15 +244,16 @@ function Invoke-AADAssessmentDataCollection {
             | ForEach-Object { [void]$ReferencedIdCache.group.Add($_.id) }
         }
         # Add nested groups
-        #$ReferencedIdCache.group | Get-MsGraphResults 'groups/{0}/transitiveMembers/microsoft.graph.group?$count=true&$select=id' -Top 999 -TotalRequests $ReferencedIdCache.group.Count -DisableUniqueIdDeduplication -ErrorAction SilentlyContinue `
-        #| ForEach-Object { [void]$ReferencedIdCache.group.Add($_.id) }
+        #$ReferencedIdCache = New-AadReferencedIdCache; Import-Clixml "C:\AzureADAssessment\AzureADAssessmentData\AAD-microsoft.onmicrosoft.com\groupData.xml" | ForEach-Object { [void]$ReferencedIdCache.group.Add($_.id) }
+        $ReferencedIdCache.group.guid | Get-MsGraphResults 'groups/{0}/transitiveMembers/microsoft.graph.group?$count=true&$select=id' -Top 999 -TotalRequests $ReferencedIdCache.group.Count -DisableUniqueIdDeduplication -ErrorAction SilentlyContinue `
+        | ForEach-Object { [void]$ReferencedIdCache.group.Add($_.id) }
 
         ## Option 1: Populate direct members on groups (including nested groups) and calculate transitiveMembers later.
-        # $ReferencedIdCache.group | Get-MsGraphResults 'groups?$select=id,groupTypes,displayName,mail,proxyAddresses' -TotalRequests $ReferencedIdCache.group.Count -DisableUniqueIdDeduplication -DisableBatching -GetByIdsBatchSize 10 `
-        # ## $expand on group members caps results at 20 members with no NextLink.
-        # | Expand-MsGraphRelationship -ObjectType groups -PropertyName members -References `
+        ## $expand on group members caps results at 20 members with no NextLink so call members endpoint for each.
+        # $ReferencedIdCache.group | Get-MsGraphResults 'groups?$select=id,groupTypes,displayName,mail,proxyAddresses' -TotalRequests $ReferencedIdCache.group.Count -DisableUniqueIdDeduplication -DisableBatching -GetByIdsBatchSize 20 `
+        # | Expand-MsGraphRelationship -ObjectType groups -PropertyName members -References -Top 999 `
         # | Select-Object -Property "*" -ExcludeProperty '@odata.type' `
-        # | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "groupData.xml")
+        # | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "groupData2.xml")
 
         ## Option 2: Get groups without member data and let Azure AD calculate transitiveMembers.
         $ReferencedIdCache.group | Get-MsGraphResults 'groups?$select=id,groupTypes,displayName,mail,proxyAddresses' -TotalRequests $ReferencedIdCache.group.Count -DisableUniqueIdDeduplication `
@@ -267,13 +268,13 @@ function Invoke-AADAssessmentDataCollection {
             #[array] $directMembers = Get-MsGraphResults 'groups/{0}/members/$ref' -UniqueId $_.id -Top 999 -DisableUniqueIdDeduplication | Expand-ODataId | Select-Object -ExpandProperty id
             $group.transitiveMembers | Expand-ODataId | ForEach-Object {
                 if ($_.'@odata.type' -eq '#microsoft.graph.user') { [void]$ReferencedIdCache.user.Add($_.id) }
-                $_ | Select-Object -Property @(
-                    @{ Name = 'id'; Expression = { $group.id } }
-                    #@{ Name = '@odata.type'; Expression = { $group.'@odata.type' } }
-                    @{ Name = 'memberId'; Expression = { $_.id } }
-                    @{ Name = 'memberType'; Expression = { $_.'@odata.type' -replace '#microsoft.graph.', '' } }
-                    #@{ Name = 'direct'; Expression = { $directMembers -and $directMembers.Contains($_.id) } }
-                )
+                [PSCustomObject]@{
+                    id         = $group.id
+                    #'@odata.type' = $group.'@odata.type'
+                    memberId   = $_.id
+                    memberType = $_.'@odata.type' -replace '#microsoft.graph.', ''
+                    #direct     = $directMembers -and $directMembers.Contains($_.id)
+                }
             }
         } `
         | Export-Csv (Join-Path $OutputDirectoryAAD "groupTransitiveMembers.csv") -NoTypeInformation
