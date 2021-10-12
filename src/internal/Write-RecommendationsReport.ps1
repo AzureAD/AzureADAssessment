@@ -14,6 +14,7 @@
     $md += " | | |`n"
     $md += " | --- | --- |`n"
     $md += " |**Organization Name**|$(Get-ObjectPropertyValue $qna['AD_OrgName'] 'value')|`n"
+    $md += " |**Organization Name**|$(Get-ObjectPropertyValue $qna['AD_TenantId'] 'value')|`n"
     $md += " |**Organization Primary Contact**|$(Get-ObjectPropertyValue $qna['AD_OrgPrimaryContact'] 'value')|`n"
     $md += " |**Assessment Carried Out By**|$(Get-ObjectPropertyValue $qna['AD_AssessorName'] 'value')|`n"
     $md += " |**Assessment Date**|$(Get-ObjectPropertyValue $qna['AD_AssessmentDate'] 'value')|`n"
@@ -122,6 +123,7 @@ function Set-SortOrder($reco){
     switch ($priority) {
         'N/A' { $reco.SortOrder = 20 } # Show last
         'Passed' { $reco.SortOrder = 10 }
+        'P0' { $reco.SortOrder = 0 }
         'P1' { $reco.SortOrder = 1 }
         'P2' { $reco.SortOrder = 2 }
         'P3' { $reco.SortOrder = 3 }

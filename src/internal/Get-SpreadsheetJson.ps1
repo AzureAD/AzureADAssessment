@@ -55,7 +55,7 @@ function Get-SpreadsheetJson {
         foreach($nr in $xmlWb.workbook.definedNames.ChildNodes){
             $name = $nr.name
             $range = $nr.InnerText
-        
+
             $nrValue = [PSCustomObject]@{
                 Name = $name
                 Range = $range
@@ -71,13 +71,24 @@ function Get-SpreadsheetJson {
                 $c = Select-Xml -Xml $xmlWorksheets[$sheet] -XPath "//*[@r='$cell']"
                 $node = Get-ObjectPropertyValue $c 'Node'
                 if($node){
-                    $ssIndex = $c.Node.InnerText
-                    if($ssIndex -and $ss.sst.si[$ssIndex]){
-                        $nrValue.Value = $ss.sst.si[$ssIndex].InnerText
+                    $type = Get-ObjectPropertyValue $node 't'
+                    $innerText = $c.Node.InnerText
+
+                    #Write-Host $name $range $c.Node.InnerText $type
+                    switch ($type) {
+                        's' {   #String format
+                            if($innerText -and $ss.sst.si[$innerText]){
+                                $nrValue.Value = $ss.sst.si[$innerText].InnerText
+                            }
+                            else {
+                                #Write-Host "No value in cell: $range"
+                            }
+                        }
+                        Default {
+                            # Integer
+                            $nrValue.Value = $innerText
+                        }
                     }
-                    else {
-                        #Write-Host "No value in cell: $range"
-                    }    
                 }
             }
             else {
