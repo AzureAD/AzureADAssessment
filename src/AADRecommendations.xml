@@ -2475,7 +2475,65 @@
         </Summary>
         <Recommendation>
             Enable PIM in azure AD and set eligible assignment to Azure AD roles where these can be activated for a limited time when needed.
-            -[Azure AD Privileged Identity Management (PIM)](https://docs.microsoft.com/en-us/azure/active-directory/privileged-identity-management/pim-configure)
+
+            - [Azure AD Privileged Identity Management (PIM)](https://docs.microsoft.com/en-us/azure/active-directory/privileged-identity-management/pim-configure)
+        </Recommendation>
+    </recommendation>
+
+
+    <recommendation>
+        <Sources>
+            <File>roleDefinitions.csv</File>
+            <File>roleAssignments.csv</File>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            
+            $res =  "" | select Priority,Data
+
+            # get role ids of each roles with an assignment
+            $scopedAssignments = @($Data['roleAssignments.csv'] | Select-Object -ExpandProperty roleDefinitionId)
+
+            # get the role definitions of assigned roles
+            $roleDefintions = @($Data['roleDefinitions.csv'] | Where-Object { $_.id -in $scopedAssignments})
+
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $policiesWithRolesIncluded = @($enabledCAPolicies | Where-Object {
+                $_.conditions.users.includeRoles.Count -gt 0
+            })
+
+            # list roles with CA policies covering them
+            $rolesToCA = @($roleDefintions | Select-Object displayName, `
+                @{ Name = 'conditionalAccessPoliciesCount'; Expression = {
+                    $roleId= $_.id; @($policiesWithRolesIncluded | Where-Object{ $_.conditions.users.includeRoles -contains $roleId }).Count 
+                }}
+            )
+
+            # list roles not protected by CA
+            $res.Data = @($rolesToCA | Where-Object { $_.conditionalAccessPoliciesCount -eq 0 })
+
+            $res.Priority = "Passed"
+            if ($res.Data.Count -gt 0) {
+                $res.Priority = "P1"
+            }
+
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Role Management</Area>
+        <ID>AR0079</ID>
+        <Name>Turn on MFA for all your administrator accounts</Name>
+        <Summary>
+            [Based on our studies](https://techcommunity.microsoft.com/t5/azure-active-directory-identity/your-pa-word-doesn-t-matter/ba-p/731984), your account is 99.9% less likely to be compromised if you use multi-factor authentication (MFA). 
+        </Summary>
+        <Recommendation>
+            You can enable MFA on Azure AD roles using two methods:
+
+            - [Role settings](https://docs.microsoft.com/en-us/azure/active-directory/privileged-identity-management/pim-how-to-change-default-settings) in Privileged Identity Management
+            - [Conditional Access](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/howto-conditional-access-policy-admin-mfa)
         </Recommendation>
     </recommendation>
 
