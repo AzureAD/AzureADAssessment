@@ -24,6 +24,9 @@ function Expand-MsGraphRelationship {
         # Only retrieve relationship object references.
         [Parameter(Mandatory = $false)]
         [switch] $References,
+        # Number of results per request
+        [Parameter(Mandatory = $false)]
+        [int] $Top,
         # Specify Batch size.
         [Parameter(Mandatory = $false)]
         [int] $BatchSize = 20
@@ -39,7 +42,12 @@ function Expand-MsGraphRelationship {
         $InputObjects.Add($InputObject)
         ## Wait For Full Batch
         if ($InputObjects.Count -ge $BatchSize) {
-            [array] $Results = $InputObjects[0..($BatchSize - 1)] | Get-MsGraphResults $uri -DisableUniqueIdDeduplication -GroupOutputByRequest
+            if ($Top -gt 1) {
+                [array] $Results = $InputObjects[0..($BatchSize - 1)] | Get-MsGraphResults $uri -Top $Top -DisableUniqueIdDeduplication -GroupOutputByRequest
+            }
+            else {
+                [array] $Results = $InputObjects[0..($BatchSize - 1)] | Get-MsGraphResults $uri -DisableUniqueIdDeduplication -GroupOutputByRequest
+            }
             for ($i = 0; $i -lt $InputObjects.Count; $i++) {
                 [array] $refValues = $Results[$i]
                 if ($References) { $refValues = $refValues | Expand-ODataId | Select-Object -Property "*" -ExcludeProperty '@odata.id' }
@@ -53,7 +61,12 @@ function Expand-MsGraphRelationship {
     end {
         ## Finish Remaining
         if ($InputObjects.Count) {
-            [array] $Results = $InputObjects | Get-MsGraphResults $uri -DisableUniqueIdDeduplication -GroupOutputByRequest
+            if ($Top -gt 1) {
+                [array] $Results = $InputObjects | Get-MsGraphResults $uri -Top $Top -DisableUniqueIdDeduplication -GroupOutputByRequest
+            }
+            else {
+                [array] $Results = $InputObjects | Get-MsGraphResults $uri -DisableUniqueIdDeduplication -GroupOutputByRequest
+            }
             for ($i = 0; $i -lt $InputObjects.Count; $i++) {
                 [array] $refValues = $Results[$i]
                 if ($References) { $refValues = $refValues | Expand-ODataId | Select-Object -Property "*" -ExcludeProperty '@odata.id' }

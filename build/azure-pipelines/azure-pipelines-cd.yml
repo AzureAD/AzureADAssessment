@@ -41,6 +41,8 @@ stages:
   - job: Prepare
     variables:
       skipComponentGovernanceDetection: true
+    pool:
+      vmImage: 'windows-latest'
     steps:
     #- checkout: none
     - download: CI
