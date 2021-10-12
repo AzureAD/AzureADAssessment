@@ -106,6 +106,7 @@ function New-AADAssessmentRecommendations {
         ### Load configuration file
         $recommendations = Select-Xml -Path (Join-Path $PSScriptRoot "AADRecommendations.xml") -XPath "/recommendations"
         $recommendationList = @()
+        $idUniqueCheck = @{} # Hashtable to validate that IDs are unique
         foreach($recommendationDef in $recommendations.Node.recommendation) {
             if(Get-ObjectPropertyValue $recommendationDef 'Sources'){
                 # make sure necessary files are loaded
@@ -142,6 +143,13 @@ function New-AADAssessmentRecommendations {
             }
 
             $recommendation = $recommendationDef | select-object ID,Category,Area,Name,Summary,Recommendation,Priority,Data,SortOrder
+            if($idUniqueCheck.ContainsKey($recommendation.ID)){
+                Write-Error "Found duplicate recommendation $($recommendation.ID)"
+            }
+            else {
+                $idUniqueCheck.Add($recommendation.ID, $recommendation)
+            }
+            
             # Manual checks won't have a PowerShell script to run
             if(Get-ObjectPropertyValue $recommendationDef 'PowerShell'){
                 $scriptblock = [Scriptblock]::Create($recommendationDef.PowerShell)
