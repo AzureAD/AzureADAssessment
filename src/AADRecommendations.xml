@@ -2454,7 +2454,7 @@
             $scopedRoleIds = $Data['roleDefinitions.csv'] | Where-Object { $_.DisplayName -in $securityDefaultRoles } | Select-Object -ExpandProperty id
 
             # look for active permanent role assignements for those roles
-            $scopedActivePermanentAssignments = @($Data['roleAssignments.csv'] | Where-Object { $_.roleDefinitionId -in $scopedRoleIds -and $_.assignmentType -eq "Active" -and $_.endDateTime -eq $null })
+            $scopedActivePermanentAssignments = @($Data['roleAssignments.csv'] | Where-Object { $_.roleDefinitionId -in $scopedRoleIds -and $_.assignmentType -eq "Active" -and [string]::IsNullOrWhiteSpace($_.endDateTime) })
 
             $res.Priority = "Passed"
             if ($scopedActivePermanentAssignments.Count -gt 0) {
