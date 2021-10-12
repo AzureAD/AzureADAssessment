@@ -76,7 +76,8 @@ Please be aware of the following disclaimers
         $md += "### Recommendation`n"
         $md += "> $($reco.Recommendation)`n"
         $md += "`n"
-        if($null -ne $reco.Data -and $reco.Data.Length -gt 0){
+
+        if($null -ne $reco.Data -and ((Get-ObjectPropertyValue $reco.Data 'Length') -and $reco.Data.Length -gt 0)){
             $md += "`n   |"
             $hr = "`n   |"
             foreach($prop in $reco.Data[0].PsObject.Properties){
@@ -97,7 +98,12 @@ Please be aware of the following disclaimers
 
     $html = $html.Replace("@@MARKDOWN@@", $md)
     $htmlReportPath = Join-Path $OutputDirectory "AssessmentReport.html"
-    Set-Content -Path $htmlReportPath -Value $html
+    #Set-Content -Path $htmlReportPath -Value $html
+
+
+    $Utf8BomEncoding = New-Object System.Text.UTF8Encoding $true
+    [System.IO.File]::WriteAllLines($htmlReportPath, $html, $Utf8BomEncoding)
+
     Invoke-Item $htmlReportPath
 }
 
