@@ -2389,6 +2389,35 @@
             - [Require managed devices for cloud app access with Conditional Access](quire-device-to-be-marked-as-compliant)
         </Recommendation>
     </recommendation>        
+
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Authentication Experience</Area>
+        <ID>AR0074</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Do_your_users_use_Windows_Hello_in_their_Windows_10_Desktops</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>Windows Hello for Business - Enabled</Name>
+        <Summary> 
+            In Windows 10, Windows Hello for Business (WH4B) replaces passwords with strong two-factor authentication on PCs and mobile devices. This enables a more streamlined MFA experience for users, and reduces reliance on passwords
+        </Summary>
+        <Recommendation>
+            Deploy WH4B to all Windows 10 Devices
+
+            #### Learn More
+
+            - [Windows Hello for Business (Windows 10) | Microsoft Docs](https://docs.microsoft.com/en-us/windows/security/identity-protection/hello-for-business/hello-identity-verification)
+            - [Manage Windows Hello in your organization (Windows 10) | Microsoft Docs](https://docs.microsoft.com/en-us/windows/security/identity-protection/hello-for-business/hello-manage-in-organization)
+        </Recommendation>
+    </recommendation>        
+
+
     <!--
     <recommendation>
         <PowerShell>
