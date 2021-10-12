@@ -134,8 +134,11 @@ function Invoke-AADAssessmentDataCollection {
             | Where-Object { !$_.linkedEligibleRoleAssignmentId } `
             | Select-Object -Property id,roleDefinitionId, `
             @{ Name = "directoryScopeId"; Expression = {
-                "/"
-            }},memberType,endDateTime, `
+                "unknown"
+            }},memberType, `
+            @{ Name = "assignmentType"; Expression = {
+                $_.assignmentState
+            }},endDateTime, `
             @{ Name = "principalId"; Expression = {
                 $_.subject.id
             }}, `
@@ -145,7 +148,7 @@ function Invoke-AADAssessmentDataCollection {
                 new-object -typeName string -ArgumentList (,$tmp)
             }} `
             | Add-AadReferencesToCache -Type aadRoleAssignment -ReferencedIdCache $ReferencedIdCache -PassThru `
-            | Export-Csv (Join-Path $OutputDirectoryAAD "roleAssignements.csv") -NoTypeInformation
+            | Export-Csv (Join-Path $OutputDirectoryAAD "roleAssignments.csv") -NoTypeInformation
         } else {
             # Getting role assignments via unified role API
             $ReferencedIdCache.roleDEfinition | Get-MsGraphResults "roleManagement/directory/roleAssignmentSchedules?`$filter=roleDefinitionId+eq+'{0}'&`$select=id,roleDefinitionId,directoryScopeId,memberType,scheduleInfo,status,assignmentType" -QueryParameters @{ '$expand' = 'principal($select=id)' } -ApiVersion 'beta' `
@@ -164,7 +167,7 @@ function Invoke-AADAssessmentDataCollection {
                 $_.principal.'@odata.type' -replace '#microsoft.graph.',''
             }} `
             | Add-AadReferencesToCache -Type aadRoleAssignment -ReferencedIdCache $ReferencedIdCache -PassThru `
-            | Export-Csv (Join-Path $OutputDirectoryAAD "roleAssignements.csv") -NoTypeInformation
+            | Export-Csv (Join-Path $OutputDirectoryAAD "roleAssignments.csv") -NoTypeInformation
 
             # Getting role elligibility via unified role API
             $ReferencedIdCache.roleDEfinition | Get-MsGraphResults "roleManagement/directory/roleEligibilitySchedules?`$filter=roleDefinitionId+eq+'{0}'&`$select=id,roleDefinitionId,directoryScopeId,memberType,scheduleInfo,status" -QueryParameters @{ '$expand' = 'principal($select=id)' } -ApiVersion 'beta' `
@@ -183,7 +186,7 @@ function Invoke-AADAssessmentDataCollection {
                 $_.principal.'@odata.type' -replace '#microsoft.graph.',''
             }} `
             | Add-AadReferencesToCache -Type aadRoleAssignment -ReferencedIdCache $ReferencedIdCache -PassThru `
-            | Export-Csv (Join-Path $OutputDirectoryAAD "roleAssignements.csv") -NoTypeInformation -Append
+            | Export-Csv (Join-Path $OutputDirectoryAAD "roleAssignments.csv") -NoTypeInformation -Append
         }
 
         ### Application Data - 8

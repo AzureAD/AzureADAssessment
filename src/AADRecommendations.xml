@@ -2426,6 +2426,53 @@
         </Recommendation>
     </recommendation>
 
+    <recommendation>
+        <Sources>
+            <File>roleDefinitions.csv</File>
+            <File>roleAssignments.csv</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            
+            $res =  "" | select Priority,Data
+
+            # concentrate on the 13 roles protected by security defaults
+            # https://docs.microsoft.com/en-us/azure/active-directory/fundamentals/concept-fundamentals-security-defaults#protecting-administrators
+            $securityDefaultRoles = @(
+                "Global administrator","Application administrator","Authentication administrator",
+                "Billing administrator","Cloud application administrator","Conditional Access administrator",
+                "Exchange administrator","Helpdesk administrator","Password administrator",
+                "Privileged authentication administrator","Security administrator","SharePoint administrator",
+                "User administrator"
+            )
+
+            $scopedRoleIds = $Data['roleDefinitions.csv'] | Where-Object { $_.DisplayName -in $securityDefaultRoles } | Select-Object -ExpandProperty id
+
+            # look for active permanent role assignements for those roles
+            $scopedActivePermanentAssignments = @($Data['roleAssignments.csv'] | Where-Object { $_.roleDefinitionId -in $scopedRoleIds -and $_.assignmentType -eq "Active" -and $_.endDateTime -eq $null })
+
+            $res.Priority = "Passed"
+            if ($scopedActivePermanentAssignments.Count -gt 0) {
+                $res.Priority = "P1"
+            }
+
+            $res.Data = @($scopedActivePermanentAssignments | Select-Object -Property @{ Name = "roleDisplayName"; Expression = { $roleDef = $_.roleDefinitionId; $Data['roleDefinitions.csv'] | Where-Object { $_.id -eq $roleDef} | Select-Object -ExpandProperty displayName}},principalId,principalType)
+            
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Role Management</Area>
+        <ID>AR0077</ID>
+        <Name>Use PIM to grant just-in-time access</Name>
+        <Summary>
+            One of the principles of least privilege is that access should be granted only for a specific period of time.
+            Azure AD Privileged Identity Management (PIM) lets you grant just-in-time access to your administrators. 
+        </Summary>
+        <Recommendation>
+            Enable PIM in azure AD and set eligible assignment to Azure AD roles where these can be activated for a limited time when needed.
+            -[Azure AD Privileged Identity Management (PIM)](https://docs.microsoft.com/en-us/azure/active-directory/privileged-identity-management/pim-configure)
+        </Recommendation>
+    </recommendation>
 
     <!--
     <recommendation>
