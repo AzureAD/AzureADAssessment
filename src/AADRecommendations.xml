@@ -25,8 +25,13 @@
         <Area>Authentication Experience</Area>
         <ID>AR0001</ID>
         <Name>Enable Email OTP</Name>
-        <Summary>With email OTP, org members can collaborate with anyone in the world by simply sharing a link or sending an invitation via email. Invited users prove their identity by using a verification code sent to their email account</Summary>
-        <Recommendation>Enable email OTP</Recommendation>
+        <Summary>
+            With email OTP, org members can collaborate with anyone in the world by simply sharing a link or sending an invitation via email.
+            Invited users prove their identity by using a verification code sent to their email account.
+        </Summary>
+        <Recommendation>
+            [Enable email one-time passcode](https://docs.microsoft.com/en-us/azure/active-directory/external-identities/one-time-passcode#enable-email-one-time-passcode)
+        </Recommendation>
     </recommendation>
     <recommendation>
         <Sources>
@@ -2457,12 +2462,12 @@
             }
 
             $res.Data = @($scopedActivePermanentAssignments | Select-Object -Property @{ Name = "roleDisplayName"; Expression = { $roleDef = $_.roleDefinitionId; $Data['roleDefinitions.csv'] | Where-Object { $_.id -eq $roleDef} | Select-Object -ExpandProperty displayName}},principalId,principalType)
-            
+
             return $res
         </PowerShell>
         <Category>Access Management</Category>
         <Area>Role Management</Area>
-        <ID>AR0077</ID>
+        <ID>AR0078</ID>
         <Name>Use PIM to grant just-in-time access</Name>
         <Summary>
             One of the principles of least privilege is that access should be granted only for a specific period of time.
