@@ -2174,7 +2174,7 @@
         <ID>AR0066</ID> 
         <Type>QnA</Type>
         <QnA>
-            <Name>AccMgmt_Do_you_have_a_self_service_password_reset_solution</Name>
+            <Name>AccMgmt_Do_you_provision_strong_credentials_to_all_users_with_privileged_roles</Name>
             <Answers>
                 <Answer Value="Yes" Priority = "Passed"/>
                 <Answer Value="No" Priority = "P0"/>
