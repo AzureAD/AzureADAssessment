@@ -251,7 +251,7 @@
             return $res
         </PowerShell>
         <Category>Access Management</Category>
-        <Area>Application Authentication and Assignment</Area>
+        <Area>App Auth and Assignment</Area>
         <ID>AR0008</ID>
         <Name>User App Assignments</Name>
         <Summary>Direct assignment to user is not advisable when attestation (Access Reviews) to applications is not used</Summary>
@@ -2618,7 +2618,7 @@
 
     <recommendation>
         <Category>Access Management</Category>
-        <Area>Authentication Experience</Area>
+        <Area>App Auth and Assignment</Area>
         <ID>AR0081</ID>
         <Type>QnA</Type>
         <QnA>
@@ -2643,7 +2643,7 @@
 
     <recommendation>
         <Category>Access Management</Category>
-        <Area>Authentication Experience</Area>
+        <Area>App Auth and Assignment</Area>
         <ID>AR0082</ID>
         <Type>QnA</Type>
         <QnA>
@@ -2670,7 +2670,7 @@
 
     <recommendation>
         <Category>Access Management</Category>
-        <Area>Authentication Experience</Area>
+        <Area>App Auth and Assignment</Area>
         <ID>AR0083</ID>
         <Type>QnA</Type>
         <QnA>
@@ -2697,7 +2697,7 @@
 
     <recommendation>
         <Category>Access Management</Category>
-        <Area>Authentication Experience</Area>
+        <Area>App Auth and Assignment</Area>
         <ID>AR0084</ID>
         <Type>QnA</Type>
         <QnA>
@@ -2724,7 +2724,7 @@
 
     <recommendation>
         <Category>Access Management</Category>
-        <Area>Authentication Experience</Area>
+        <Area>App Auth and Assignment</Area>
         <ID>AR0085</ID>
         <Type>QnA</Type>
         <QnA>
@@ -2753,6 +2753,94 @@
             - [Migrate AD FS on-premises apps to Azure AD | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/manage-apps/migrate-adfs-apps-to-azure)
         </Recommendation>
     </recommendation>
+
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>App Auth and Assignment</Area>
+        <ID>AR0086</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Did_you_find_applications_that_have_assignment_to_individual_users</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Applications assigned to individual users</Name>
+        <Summary> 
+            Applications have assignment to individual users, and there is no attestation / governance in place.
+
+            Assigning users to applications is best mapped when using groups, because they allow great flexibility and ability to manage at scale:
+            - Attribute based using dynamic group membership
+            - Delegation to app owners
+
+        </Summary>
+        <Recommendation>
+            Implement attestation (access reviews) to applications with direct assignments.
+
+            #### Learn More
+
+            - [How to assign users and groups to an application | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/application-access-assignment-how-to-add-assignment)
+            - [Manage user access with Azure AD access reviews | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/governance/manage-user-access-with-access-reviews)
+        </Recommendation>
+    </recommendation>    
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>App Auth and Assignment</Area>
+        <ID>AR0087</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Did_you_find_applications_that_have_assignment_to_individual_groups</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Applications assigned to groups without governance</Name>
+        <Summary> 
+            Applications have assignment to groups, and there is no attestation / governance in place.
+        </Summary>
+        <Recommendation>
+            Implement attestation (access reviews) to groups used for application access.
+
+            #### Learn More
+
+            - [How to assign users and groups to an application | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/application-access-assignment-how-to-add-assignment)
+            - [Create an access review of groups and applications in Azure AD access reviews | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/governance/create-access-review)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>App Auth and Assignment</Area>
+        <ID>AR0088</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmg_Did_you_find_that_applications_have_assignment_to_groups_and_groups_are_managed_by_IT</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Applications assigned to IT managed groups</Name>
+        <Summary> 
+            Applications have assignment to groups, and groups are managed by IT (as opposed to an access governance solution).
+        </Summary>
+        <Recommendation>
+            Improve management at scale through one of the mechanisms below, whenever it is applicable:
+            - delegating group management and governance to application owners
+            - allowing self-service access to the application 
+            - define dynamic groups if user attributes can consistently determine access to applications
+            - leverage an access governance solution (eg Azure AD Access Reviews)
+
+            #### Learn More
+
+            - [How to assign users and groups to an application | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/application-access-assignment-how-to-add-assignment)
+            - [Create an access review of groups and applications in Azure AD access reviews | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/governance/create-access-review)
+        </Recommendation>
+    </recommendation>    
     <!--
     <recommendation>
         <PowerShell>

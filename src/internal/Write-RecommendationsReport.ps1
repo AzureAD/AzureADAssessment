@@ -71,11 +71,12 @@ Please be aware of the following disclaimers
 
         $md += "`n`n[⤴️ Back To Summary](#assessment-summary)`n"
         $md += "## $(Get-RecoTitle $reco)`n"
-        $md += "### Priority = $(Get-PriorityIcon($reco)) $($reco.Priority)`n"
-        $md += "$($reco.Category) >  $($reco.Area)`n`n"
+        $md += "### Priority → $(Get-PriorityIcon($reco)) $($reco.Priority)`n"
+        $md += "> $($reco.Category) >  $($reco.Area)`n`n"
+        $md += "### Summary`n"
         $md += "$($reco.Summary)`n"
         $md += "### Recommendation`n"
-        $md += "> $($reco.Recommendation)`n"
+        $md += "$($reco.Recommendation)`n"
         $md += "`n"
 
         if($null -ne $reco.Data -and ((Get-ObjectPropertyValue $reco.Data 'Length') -and $reco.Data.Length -gt 0)){
