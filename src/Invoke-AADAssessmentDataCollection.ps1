@@ -132,7 +132,7 @@ function Invoke-AADAssessmentDataCollection {
         if (!$UnifiedRole) {
             Get-MsGraphResults 'privilegedAccess/aadRoles/roleAssignments' -Select 'id,roleDefinitionId,memberType,assignmentState,endDateTime,linkedEligibleRoleAssignmentId' -Filter "resourceId eq '$($OrganizationData.id)'" -Top 999 -ApiVersion 'beta' -QueryParameters @{ '$expand' = 'subject($select=id,type)' } `
             | Where-Object { !$_.linkedEligibleRoleAssignmentId } `
-            | Select-Object -Property id,roleDefinitionId, `
+            | Select-Object -Property roleDefinitionId, `
             @{ Name = "directoryScopeId"; Expression = {
                 "unknown"
             }},memberType, `
@@ -148,12 +148,12 @@ function Invoke-AADAssessmentDataCollection {
                 new-object -typeName string -ArgumentList (,$tmp)
             }} `
             | Add-AadReferencesToCache -Type aadRoleAssignment -ReferencedIdCache $ReferencedIdCache -PassThru `
-            | Export-Csv (Join-Path $OutputDirectoryAAD "roleAssignments.csv") -NoTypeInformation
+            | Export-Csv (Join-Path $OutputDirectoryAAD "roleAssignmentsData.csv") -NoTypeInformation
         } else {
             # Getting role assignments via unified role API
             $ReferencedIdCache.roleDEfinition | Get-MsGraphResults "roleManagement/directory/roleAssignmentSchedules?`$filter=roleDefinitionId+eq+'{0}'&`$select=id,roleDefinitionId,directoryScopeId,memberType,scheduleInfo,status,assignmentType" -QueryParameters @{ '$expand' = 'principal($select=id)' } -ApiVersion 'beta' `
             | Where-Object { $_.status -eq 'Provisioned' -and $_.assignmentType -eq 'Assigned'} `
-            | Select-Object -Property id,roleDefinitionId,directoryScopeId,memberType, `
+            | Select-Object -Property roleDefinitionId,directoryScopeId,memberType, `
             @{ Name = "assignmentType"; Expression = {
                 "Active"
             }}, `
@@ -167,12 +167,12 @@ function Invoke-AADAssessmentDataCollection {
                 $_.principal.'@odata.type' -replace '#microsoft.graph.',''
             }} `
             | Add-AadReferencesToCache -Type aadRoleAssignment -ReferencedIdCache $ReferencedIdCache -PassThru `
-            | Export-Csv (Join-Path $OutputDirectoryAAD "roleAssignments.csv") -NoTypeInformation
+            | Export-Csv (Join-Path $OutputDirectoryAAD "roleAssignmentsData.csv") -NoTypeInformation
 
             # Getting role elligibility via unified role API
             $ReferencedIdCache.roleDEfinition | Get-MsGraphResults "roleManagement/directory/roleEligibilitySchedules?`$filter=roleDefinitionId+eq+'{0}'&`$select=id,roleDefinitionId,directoryScopeId,memberType,scheduleInfo,status" -QueryParameters @{ '$expand' = 'principal($select=id)' } -ApiVersion 'beta' `
             | Where-Object { $_.status -eq 'Provisioned'} `
-            | Select-Object -Property id,roleDefinitionId,directoryScopeId,memberType, `
+            | Select-Object -Property roleDefinitionId,directoryScopeId,memberType, `
             @{ Name = "assignmentType"; Expression = {
                 "Eligible"
             }}, `
@@ -186,7 +186,7 @@ function Invoke-AADAssessmentDataCollection {
                 $_.principal.'@odata.type' -replace '#microsoft.graph.',''
             }} `
             | Add-AadReferencesToCache -Type aadRoleAssignment -ReferencedIdCache $ReferencedIdCache -PassThru `
-            | Export-Csv (Join-Path $OutputDirectoryAAD "roleAssignments.csv") -NoTypeInformation -Append
+            | Export-Csv (Join-Path $OutputDirectoryAAD "roleAssignmentsData.csv") -NoTypeInformation -Append
         }
 
         ### Application Data - 8
@@ -289,7 +289,7 @@ function Invoke-AADAssessmentDataCollection {
             $OrganizationData.technicalNotificationMails | Get-MsGraphResults 'users?$select=id' -Filter "proxyAddresses/any(c:c eq 'smtp:{0}') or otherMails/any(c:c eq '{0}')" `
             | ForEach-Object { [void]$ReferencedIdCache.user.Add($_.id) }
         }
-        $ReferencedIdCache.user | Get-MsGraphResults 'users?$select=id,userPrincipalName,userType,displayName,accountEnabled,mail,otherMails,proxyAddresses,assignedPlans' -TotalRequests $ReferencedIdCache.user.Count -DisableUniqueIdDeduplication `
+        $ReferencedIdCache.user | Get-MsGraphResults 'users?$select=id,userPrincipalName,userType,displayName,accountEnabled,onPremisesSyncEnabled,onPremisesImmutableId,mail,otherMails,proxyAddresses,assignedPlans' -TotalRequests $ReferencedIdCache.user.Count -DisableUniqueIdDeduplication `
         | Select-Object -Property "*" -ExcludeProperty '@odata.type' `
         | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "userData.xml")
         $ReferencedIdCache.user.Clear()
@@ -301,6 +301,7 @@ function Invoke-AADAssessmentDataCollection {
 
             ## Remove Raw Data Output
             Remove-Item -Path (Join-Path $OutputDirectoryAAD "*") -Include "*Data.xml" -ErrorAction Ignore
+            Remove-Item -Path (Join-Path $OutputDirectoryAAD "*") -Include "*Data.csv" -ErrorAction Ignore
         }
 
         ### Complete

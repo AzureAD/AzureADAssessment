@@ -2754,7 +2754,6 @@
         </Recommendation>
     </recommendation>
 
-
     <recommendation>
         <Category>Access Management</Category>
         <Area>App Auth and Assignment</Area>
@@ -2809,6 +2808,7 @@
 
             - [How to assign users and groups to an application | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/application-access-assignment-how-to-add-assignment)
             - [Create an access review of groups and applications in Azure AD access reviews | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/governance/create-access-review)
+
         </Recommendation>
     </recommendation>
 
@@ -2840,6 +2840,98 @@
             - [How to assign users and groups to an application | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/application-access-assignment-how-to-add-assignment)
             - [Create an access review of groups and applications in Azure AD access reviews | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/governance/create-access-review)
         </Recommendation>
+    </recommendation>
+
+    <recommendation>    
+        <Category>Access Management</Category>
+        <Area>Role Management</Area>
+        <ID>AR0089</ID>
+        <Name>Limit the number of Global Administrators</Name>
+        <Summary>
+            As a best practice, Microsoft recommends that you assign the Global Administrator role to fewer than five people in your organization.
+            Global Administrators hold keys to the kingdom, and it is in your best interest to keep the attack surface low. 
+        </Summary>
+        <Recommendation>
+            Review Global Administrator role assignements.
+        </Recommendation>
+        <Sources>
+            <File>roleDefinitions.csv</File>
+            <File>roleAssignments.csv</File>
+            <File>users.csv</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            
+            $res =  "" | select Priority,Data
+
+            $GARoleId = $Data['roleDefinitions.csv'] | Where-Object { $_.DisplayName -eq "Global Administrator" } | Select-Object -ExpandProperty id
+
+            # look for users with assigned roles
+            $userIdsWithGA = @($Data['roleAssignments.csv'] | Where-Object { $_.roleDefinitionId -eq $GARoleId -and $_.principalType -eq "user"} | Select-Object -ExpandProperty principalId)
+
+            # get GA users
+            $usersWithGA = @($Data['users.csv'] | Where-Object { $_.id -in $userIdsWithGA})
+
+            $res.Priority = "Passed"
+            if ($usersWithGA.Count -gt 5) {
+                $res.Priority = "P0"
+            }
+
+            $res.Data = $usersWithGA
+
+            return $res
+        </PowerShell>        
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Role Management</Area>
+        <ID>AR0090</ID>
+        <Name>Avoid synced privileged users</Name>
+        <Summary>
+            Avoid using on-premises synced accounts for Azure AD role assignments. 
+            If your on-premises account is compromised, it can compromise your Azure AD resources as well.
+        </Summary>
+        <Recommendation>
+            Avoid using on-premises synced accounts for Azure AD role assignments. 
+        </Recommendation>
+        <Sources>
+            <File>roleDefinitions.csv</File>
+            <File>roleAssignments.csv</File>
+            <File>users.csv</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            
+            $res =  "" | select Priority,Data
+
+            # concentrate on the 13 roles protected by security defaults
+            # https://docs.microsoft.com/en-us/azure/active-directory/fundamentals/concept-fundamentals-security-defaults#protecting-administrators
+            $securityDefaultRoles = @(
+                "Global administrator","Application administrator","Authentication administrator",
+                "Billing administrator","Cloud application administrator","Conditional Access administrator",
+                "Exchange administrator","Helpdesk administrator","Password administrator",
+                "Privileged authentication administrator","Privileged Role Administrator","Security administrator",
+                "SharePoint administrator","User administrator"
+            )
+
+            $scopedRoleIds = $Data['roleDefinitions.csv'] | Where-Object { $_.DisplayName -in $securityDefaultRoles } | Select-Object -ExpandProperty id
+
+            # look for users with assigned roles
+            $usersWithRole = @($Data['roleAssignments.csv'] | Where-Object { $_.roleDefinitionId -in $scopedRoleIds -and $_.principalType -eq "user"} | Select-Object -ExpandProperty principalId)
+
+            # get the synced users
+            $syncedUsersWithRole = @($Data['users.csv'] | Where-Object { $_.id -in $usersWithRole -and ($_.onPremisesSyncEnabled -eq "True" -or $_.onPremisesImmutableId -eq "True")})
+
+            $res.Priority = "Passed"
+            if ($syncedUsersWithRole.Count -gt 0) {
+                $res.Priority = "P1"
+            }
+
+            $res.Data = $syncedUsersWithRole
+
+            return $res
+        </PowerShell>        
     </recommendation>    
     <!--
     <recommendation>
@@ -2850,6 +2942,7 @@
         </PowerShell>
         <Category></Category>
         <Area></Area>
+        <ID></ID>
         <Name></Name>
         <Summary></Summary>
         <Recommendation></Recommendation>

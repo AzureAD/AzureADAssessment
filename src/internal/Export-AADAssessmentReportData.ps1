@@ -46,13 +46,16 @@ function Export-AADAssessmentReportData {
     # | Use-Progress -Activity 'Exporting users' -Property displayName -PassThru -WriteSummary `
     # | Export-JsonArray (Join-Path $OutputDirectory "users.json") -Depth 5 -Compress
 
-    Set-Content -Path (Join-Path $OutputDirectory "users.csv") -Value 'id,userPrincipalName,userType,displayName,accountEnabled,mail,otherMails'
+    Set-Content -Path (Join-Path $OutputDirectory "users.csv") -Value 'id,userPrincipalName,userType,displayName,accountEnabled,onPremisesSyncEnabled,onPremisesImmutableId,mail,otherMails,AADLicense'
     Import-Clixml -Path (Join-Path $SourceDirectory "userData.xml") `
     | Use-Progress -Activity 'Exporting users' -Property displayName -PassThru -WriteSummary `
-    | Select-Object -Property id, userPrincipalName, userType, displayName, accountEnabled, mail, `
+    | Select-Object -Property id,userPrincipalName,userType,displayName,accountEnabled, `
+        @{ Name = "onPremisesSyncEnabled"; Expression = {[bool]$_.onPremisesSyncEnabled}}, `
+        @{ Name = "onPremisesImmutableId"; Expression = {![string]::IsNullOrWhiteSpace($_.onPremisesImmutableId)}},mail, `
         @{ Name = "otherMails"; Expression = { $_.otherMails -join ';' } }, `
         @{ Name = "AADLicense"; Expression = {$plans = $_.assignedPlans | foreach-object { $_.servicePlanId }; if ($plans -contains "eec0eb4f-6444-4f95-aba0-50c24d67f998") { "AADP2" } elseif ($plans -contains "41781fb2-bc02-4b7c-bd55-b576c07bb09d") { "AADP1" } else { "None" }}} `
     | Export-Csv (Join-Path $OutputDirectory "users.csv") -NoTypeInformation
+    #
 
     # Import-Clixml -Path (Join-Path $SourceDirectory "groupData.xml") `
     # | Use-Progress -Activity 'Exporting groups' -Property displayName -PassThru -WriteSummary `
@@ -112,4 +115,26 @@ function Export-AADAssessmentReportData {
     | Use-Progress -Activity 'Exporting ConsentGrantReport' -Property clientDisplayName -PassThru -WriteSummary `
     | Export-Csv -Path (Join-Path $OutputDirectory "ConsentGrantReport.csv") -NoTypeInformation
 
+    [array] $groupTransitiveMembership = Import-Csv -Path (Join-Path $OutputDirectory "groupTransitiveMembers.csv")
+    Set-Content -Path (Join-Path $OutputDirectory "roleAssignments.csv") -Value 'roleDefinitionId,directoryScopeId,memberType,assignmentType,endDateTime,principalId,principalType'
+    Import-Csv -Path (Join-Path $OutputDirectory "roleAssignmentsData.csv") `
+    | Use-Progress -Activity 'Exporting Role Assignments' -Property roleDefinitionId -PassThru -WriteSummary `
+    | ForEach-Object  {
+        $_
+        if ($_.principalType -eq "group") {
+            $groupId = $_.principalId
+            # prefill resulting assignment
+            $resultingAssignement = $_
+            $resultingAssignement.memberType = "Group"
+            $resultingAssignement.principalType = ""
+            $resultingAssignement.principalId = ""
+            # look for memberships
+            $groupTransitiveMembership | Where-Object { $_.id -eq $groupId } | ForEach-Object {
+                $resultingAssignement.principalType = $_.memberType
+                $resultingAssignement.principalId = $_.memberId
+                $resultingAssignement
+            }
+        }
+    } `
+    | Export-Csv -Path (Join-Path $OutputDirectory "roleAssignments.csv") -NoTypeInformation
 }
