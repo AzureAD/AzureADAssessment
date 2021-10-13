@@ -2169,17 +2169,66 @@
     </recommendation>
 
     <recommendation>
+        <Sources>
+            <File>roleDefinitions.csv</File>
+            <File>roleAssignments.csv</File>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            
+            $res =  "" | select Priority,Data
+
+            # concentrate on the 13 roles protected by security defaults
+            # https://docs.microsoft.com/en-us/azure/active-directory/fundamentals/concept-fundamentals-security-defaults#protecting-administrators
+            $securityDefaultRoles = @(
+                "Global administrator","Application administrator","Authentication administrator",
+                "Billing administrator","Cloud application administrator","Conditional Access administrator",
+                "Exchange administrator","Helpdesk administrator","Password administrator",
+                "Privileged authentication administrator","Privileged Role Administrator","Security administrator",
+                "SharePoint administrator","User administrator"
+            )
+
+            # get the role definitions of assigned roles
+            $roleDefintions = @($Data['roleDefinitions.csv'] | Where-Object { $_.DisplayName -in $securityDefaultRoles })
+
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            # policies covering roles and requiring MFA (only)
+            $policiesWithRolesIncluded = @($enabledCAPolicies | Where-Object {
+                $_.conditions.users.includeRoles.Count -gt 0 -and
+                $_.conditions.applications.includeApplications -contains "All"
+                $_.conditions.platforms -eq $null -and
+                $_.conditions.locations -eq $null -and
+                $_.conditions.devices -eq $null -and
+                $_.grantControls.builtInControls.Count -eq 1 -and
+                $_.grantControls.builtInControls -contains "mfa"
+            })
+
+            # list roles with CA policies covering them
+            $rolesToCA = @($roleDefintions | Select-Object displayName, `
+                @{ Name = 'conditionalAccessPoliciesCount'; Expression = {
+                    $roleId= $_.id; @($policiesWithRolesIncluded | Where-Object{ $_.conditions.users.includeRoles -contains $roleId }).Count 
+                }}, `
+                @{ Name = 'conditionalAccessPolicies'; Expression = {
+                    $roleId= $_.id; @($policiesWithRolesIncluded | Where-Object{ $_.conditions.users.includeRoles -contains $roleId } | Select-Object -ExpandProperty displayName) -join ", " 
+                }}
+            )
+
+            # list roles not protected by CA
+            $res.Data = @($rolesToCA | Where-Object { $_.conditionalAccessPoliciesCount -eq 0 } | Select-Object -Property displayName,conditionalAccessPolicies)
+
+            $res.Priority = "Passed"
+            if ($res.Data.Count -gt 0) {
+                $res.Priority = "P0"
+            }
+
+            return $res
+        </PowerShell>
         <Category>Access Management</Category>
         <Area>Credentials Management</Area>
         <ID>AR0066</ID> 
-        <Type>QnA</Type>
-        <QnA>
-            <Name>AccMgmt_Do_you_provision_strong_credentials_to_all_users_with_privileged_roles</Name>
-            <Answers>
-                <Answer Value="Yes" Priority = "Passed"/>
-                <Answer Value="No" Priority = "P0"/>
-            </Answers>
-        </QnA>
         <Name>MFA for Privileged Roles</Name>
         <Summary>
             Passwords by themselves are not secure enough to prevent bad actors to get access to your environment. It is key to provision strong credentials to all users to enable multi-factor authentication (MFA) access policies with and self-service password reset using strong credentials.
@@ -2447,8 +2496,8 @@
                 "Global administrator","Application administrator","Authentication administrator",
                 "Billing administrator","Cloud application administrator","Conditional Access administrator",
                 "Exchange administrator","Helpdesk administrator","Password administrator",
-                "Privileged authentication administrator","Security administrator","SharePoint administrator",
-                "User administrator"
+                "Privileged authentication administrator","Privileged Role Administrator","Security administrator",
+                "SharePoint administrator","User administrator"
             )
 
             $scopedRoleIds = $Data['roleDefinitions.csv'] | Where-Object { $_.DisplayName -in $securityDefaultRoles } | Select-Object -ExpandProperty id
@@ -2509,11 +2558,14 @@
             $rolesToCA = @($roleDefintions | Select-Object displayName, `
                 @{ Name = 'conditionalAccessPoliciesCount'; Expression = {
                     $roleId= $_.id; @($policiesWithRolesIncluded | Where-Object{ $_.conditions.users.includeRoles -contains $roleId }).Count 
+                }}, `
+                @{ Name = 'conditionalAccessPolicies'; Expression = {
+                    $roleId= $_.id; @($policiesWithRolesIncluded | Where-Object{ $_.conditions.users.includeRoles -contains $roleId } | Select-Object -ExpandProperty displayName) -join ", " 
                 }}
             )
 
             # list roles not protected by CA
-            $res.Data = @($rolesToCA | Where-Object { $_.conditionalAccessPoliciesCount -eq 0 })
+            $res.Data = @($rolesToCA | Where-Object { $_.conditionalAccessPoliciesCount -eq 0 } | Select-Object -Property displayName,conditionalAccessPolicies)
 
             $res.Priority = "Passed"
             if ($res.Data.Count -gt 0) {
