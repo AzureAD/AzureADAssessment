@@ -2537,6 +2537,170 @@
         </Recommendation>
     </recommendation>
 
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Authentication Experience</Area>
+        <ID>AR0080</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Do_you_have_any_applications_where_app_specific_local_username_password_is_used</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P1"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Applications with local accounts</Name>
+        <Summary> 
+            Providing a standardized single sign on mechanism to the entire enterprise is crucial for best user experience, reduction of risk, ability to report, and governance.
+
+            Applications that support SSO with Azure AD but are configured to use local accounts.
+        </Summary>
+        <Recommendation>
+            Re-configure the applications to use SSO with Azure AD.
+
+            #### Learn More
+
+            - [Plan a single sign-on deployment in Azure Active Directory](https://docs.microsoft.com/en-us/azure/active-directory/manage-apps/plan-sso-deployment)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Authentication Experience</Area>
+        <ID>AR0081</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Do_you_have_any_applications_that_support_SAML_OpenID_Connect_but_SSO_is_configured_with_a_different_Identity_provider</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Applications not using Azure AD</Name>
+        <Summary> 
+            Applications that support SSO with Azure AD but are using another Identity Provider instead of Azure AD.
+        </Summary>
+        <Recommendation>
+            Re-configure the applications to use SSO with Azure AD.
+
+            #### Learn More
+
+            - [What is single sign-on in Azure Active Directory?](https://docs.microsoft.com/en-us/azure/active-directory/manage-apps/what-is-single-sign-on)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Authentication Experience</Area>
+        <ID>AR0082</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_If_so__do_you_use_password_vaulting_with_these_apps</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>Applications eligible for Password SSO</Name>
+        <Summary>
+            Organization has applications that don't support federation protocols but support forms authentication.
+
+            Providing a standardized single sign on mechanism to the entire enterprise is crucial for best user experience, reduction of risk, ability to report, and governance.
+        </Summary>
+        <Recommendation>
+            Configure the application to use password single sign on with Azure AD.
+
+            #### Learn More
+
+            - [Add password-based single sign-on to an application in Azure Active Directory](https://docs.microsoft.com/en-us/azure/active-directory/manage-apps/configure-password-single-sign-on-non-gallery-applications)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Authentication Experience</Area>
+        <ID>AR0083</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Do_you_have_a_process_to_discover_applications</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>Detect unsactioned applications</Name>
+        <Summary> 
+            No mechanism to discover ungoverned applications in the environment.
+
+            Providing a standardized single sign on mechanism to the entire enterprise is crucial for best user experience, reduction of risk, ability to report, and governance.
+        </Summary>
+        <Recommendation>
+            Define a discovery process (e.g. CASB solution like Microsoft Cloud App Security).
+
+            #### Learn More
+
+            - [Microsoft Cloud App Security](https://docs.microsoft.com/en-us/cloud-app-security/)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Authentication Experience</Area>
+        <ID>AR0084</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Are_there_any_applications_configured_in_AD_FS_that_support_SSO_against_Azure_AD</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Applications eligible for migration from ADFS</Name>
+        <Summary> 
+            Applications were found configured in AD FS that support SSO against Azure AD.
+
+            Providing a standardized single sign on mechanism to the entire enterprise is crucial for best user experience, reduction of risk, ability to report, and governance.
+        </Summary>
+        <Recommendation>
+            Re-configure the applications to use SSO with Azure AD.
+
+            #### Learn More
+
+            - [Migrate AD FS on-premises apps to Azure AD | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/manage-apps/migrate-adfs-apps-to-azure)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Authentication Experience</Area>
+        <ID>AR0085</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Are_there_applications_configured_in_AD_FS_using_uncommon_configurations_that_are_not_supported_By_Azure_AD</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Applications not-eligible for migration from ADFS</Name>
+        <Summary> 
+            Applications were found configured in AD FS using uncommon configurations that are not supported By Azure AD.
+
+            Providing a standardized single sign on mechanism to the entire enterprise is crucial for best user experience, reduction of risk, ability to report, and governance.            
+        </Summary>
+        <Recommendation>
+            Reach out to application owners to understand if the special configuration is indeed a requirement of the application. 
+            
+            If the special configuration is NOT a requirement, re-configure the applications to use SSO with Azure AD. 
+            
+            If the special configuration is a requirement, provide configuration details and scenarios to your Microsoft Representative
+
+
+            #### Learn More
+
+            - [Migrate AD FS on-premises apps to Azure AD | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/manage-apps/migrate-adfs-apps-to-azure)
+        </Recommendation>
+    </recommendation>
     <!--
     <recommendation>
         <PowerShell>
