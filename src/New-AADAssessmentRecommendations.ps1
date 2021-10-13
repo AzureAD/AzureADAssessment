@@ -108,6 +108,14 @@ function New-AADAssessmentRecommendations {
         $recommendationList = @()
         $idUniqueCheck = @{} # Hashtable to validate that IDs are unique
         foreach($recommendationDef in $recommendations.Node.recommendation) {
+
+            if($idUniqueCheck.ContainsKey($recommendationDef.ID)){
+                Write-Error "Found duplicate recommendation $($recommendationDef.ID)"
+            }
+            else {
+                $idUniqueCheck.Add($recommendationDef.ID, $recommendationDef.ID)
+            }
+
             if(Get-ObjectPropertyValue $recommendationDef 'Sources'){
                 # make sure necessary files are loaded
                 $fileMissing = $false
@@ -143,12 +151,6 @@ function New-AADAssessmentRecommendations {
             }
 
             $recommendation = $recommendationDef | select-object ID,Category,Area,Name,Summary,Recommendation,Priority,Data,SortOrder
-            if($idUniqueCheck.ContainsKey($recommendation.ID)){
-                Write-Error "Found duplicate recommendation $($recommendation.ID)"
-            }
-            else {
-                $idUniqueCheck.Add($recommendation.ID, $recommendation)
-            }
             
             # Manual checks won't have a PowerShell script to run
             if(Get-ObjectPropertyValue $recommendationDef 'PowerShell'){
@@ -166,6 +168,10 @@ function New-AADAssessmentRecommendations {
             Set-SortOrder $recommendation
             $recommendationList += $recommendation
         }
+
+        
+        #Set-Content -Value ($idUniqueCheck.GetEnumerator()  | Sort-Object name | Select-Object name) -Path ./log.txt
+        Write-Output "Completed $($recommendationList.Length) checks."
 
         Write-Verbose "Writing recommendations"
         Write-RecommendationsReport $data $recommendationList

@@ -2147,28 +2147,18 @@
     <recommendation>
         <Category>Access Management</Category>
         <Area>Credentials Management</Area>
-        <ID>AR0076</ID>
-        <Type>QnA</Type>
-        <QnA>
-            <Name>AccMgmt_Enable_ADFS_Smart_Soft_Lockout</Name>
-            <Answers>
-                <Answer Value="Yes" Priority = "Passed"/>
-                <Answer Value="No" Priority = "P2"/>
-            </Answers>
-        </QnA>
-        <Name>ADFS Smart - Soft Lockout</Name>
+        <ID>AR0066</ID> 
+        <Name>MFA for Privileged Roles</Name>
         <Summary>
-            Customer has AD FS and it is not feasible to move to managed authentication and Extranet Soft Lockout is not deployed, or Smart Lockout is not deployed.
+            Passwords by themselves are not secure enough to prevent bad actors to get access to your environment. It is key to provision strong credentials to all users to enable multi-factor authentication (MFA) access policies with and self-service password reset using strong credentials.
+
+            Not all privileged accounts are registered and using MFA.
         </Summary>
         <Recommendation>
-            Deploy AD FS extranet soft lockout and / or Smart Lockout
+            Enforce MFA for all privileged accounts and require MFA for all sign-ins (avoid excluding MFA from trusted networks for these roles).
 
-            #### Learn More
-            - [Azure AD and AD FS best practices: Defending against password spray attacks](https://cloudblogs.microsoft.com/enterprisemobility/2018/03/05/azure-ad-and-adfs-best-practices-defending-against-password-spray-attacks/)
-        </Recommendation>
-    </recommendation>
-
-    <recommendation>
+            - [Conditional Access: Require MFA for administrators](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/howto-conditional-access-policy-admin-mfa)
+        </Recommendation>        
         <Sources>
             <File>roleDefinitions.csv</File>
             <File>roleAssignments.csv</File>
@@ -2226,20 +2216,6 @@
 
             return $res
         </PowerShell>
-        <Category>Access Management</Category>
-        <Area>Credentials Management</Area>
-        <ID>AR0066</ID> 
-        <Name>MFA for Privileged Roles</Name>
-        <Summary>
-            Passwords by themselves are not secure enough to prevent bad actors to get access to your environment. It is key to provision strong credentials to all users to enable multi-factor authentication (MFA) access policies with and self-service password reset using strong credentials.
-
-            Not all privileged accounts are registered and using MFA.
-        </Summary>
-        <Recommendation>
-            Enforce MFA for all privileged accounts and require MFA for all sign-ins (avoid excluding MFA from trusted networks for these roles).
-
-            - [Conditional Access: Require MFA for administrators](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/howto-conditional-access-policy-admin-mfa)
-        </Recommendation>
     </recommendation>    
 
     <recommendation>
@@ -2481,6 +2457,10 @@
     </recommendation>
 
     <recommendation>
+        <Category>Access Management</Category>
+        <Area>Role Management</Area>
+        <ID>AR0078</ID>
+        <Name>Use PIM to grant just-in-time access</Name>        
         <Sources>
             <File>roleDefinitions.csv</File>
             <File>roleAssignments.csv</File>
@@ -2514,10 +2494,6 @@
 
             return $res
         </PowerShell>
-        <Category>Access Management</Category>
-        <Area>Role Management</Area>
-        <ID>AR0078</ID>
-        <Name>Use PIM to grant just-in-time access</Name>
         <Summary>
             One of the principles of least privilege is that access should be granted only for a specific period of time.
             Azure AD Privileged Identity Management (PIM) lets you grant just-in-time access to your administrators. 
@@ -2886,7 +2862,7 @@
     <recommendation>
         <Category>Access Management</Category>
         <Area>Role Management</Area>
-        <ID>AR0090</ID>
+        <ID>AR0076</ID>
         <Name>Avoid synced privileged users</Name>
         <Summary>
             Avoid using on-premises synced accounts for Azure AD role assignments. 
