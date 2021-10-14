@@ -26,15 +26,25 @@ function Confirm-ModuleAuthentication {
         # Scopes for MS Graph
         [Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
         [string[]] $MsGraphScopes = @(
-            'https://graph.microsoft.com/Organization.Read.All'
-            'https://graph.microsoft.com/RoleManagement.Read.Directory'
-            #'https://graph.microsoft.com/Application.Read.All'
-            'https://graph.microsoft.com/User.Read.All'
-            #'https://graph.microsoft.com/Group.Read.All'
-            'https://graph.microsoft.com/Policy.Read.All'
-            'https://graph.microsoft.com/Directory.Read.All'
+            'Organization.Read.All'
+            'RoleManagement.Read.Directory'
+            'Application.Read.All'
+            'User.Read.All'
+            'Group.Read.All'
+            'Policy.Read.All'
+            'Directory.Read.All'
+            #'SecurityEvents.Read.All'
+            #'Reports.Read.All'
+            #'AuditLog.Read.All'
         )
     )
+
+    ## Add Microsoft Graph endpoint for the appropriate cloud
+    for ($iScope = 0; $iScope -lt $MsGraphScopes.Count; $iScope++) {
+        if (!$MsGraphScopes[$iScope].Contains('//')) {
+            $MsGraphScopes[$iScope] = [IO.Path]::Combine($script:mapMgEnvironmentToMgEndpoint[$CloudEnvironment], $MsGraphScopes[$iScope])
+        }
+    }
 
     if (!$MsGraphScopes.Contains('openid')) { $MsGraphScopes += 'openid' }
 
@@ -53,12 +63,12 @@ function Confirm-ModuleAuthentication {
         #CorrelationId = $CorrelationId
     }
     if (!$User -and !(Get-MsalAccount $ClientApplication)) {
-        if ($PSVersionTable.PSEdition -eq 'Core') {
-            $paramMsalToken.Add('DeviceCode', $true)
-        }
-        else {
+        # if ($PSVersionTable.PSEdition -eq 'Core') {
+        #     $paramMsalToken.Add('DeviceCode', $true)
+        # }
+        # else {
             $paramMsalToken.Add('Interactive', $true)
-        }
+        #}
     }
 
     ## Get Tokens

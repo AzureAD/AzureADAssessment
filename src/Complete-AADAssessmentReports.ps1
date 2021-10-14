@@ -22,24 +22,33 @@ function Complete-AADAssessmentReports {
         [string] $OutputDirectory = (Join-Path $env:SystemDrive 'AzureADAssessment'),
         # Skip copying data and PowerBI dashboards to "C:\AzureADAssessment\PowerBI"
         [Parameter(Mandatory = $false)]
-        [switch] $SkipPowerBIWorkingDirectory
+        [switch] $SkipPowerBIWorkingDirectory,
+        # Includes the new recommendations report in the output
+        [Parameter(Mandatory = $false)]
+        [switch] $IncludeRecommendations,
+        # Path to the spreadsheet with the interview answers
+        [Parameter(Mandatory = $false)]
+        [string] $InterviewSpreadsheetPath
     )
 
     Start-AppInsightsRequest $MyInvocation.MyCommand.Name
     try {
-
-        if (!$script:ConnectState.MsGraphToken) {
-            #Connect-AADAssessment
-            if (!$script:ConnectState.ClientApplication) {
-                $script:ConnectState.ClientApplication = New-MsalClientApplication -ClientId $script:ModuleConfig.'aad.clientId' -ErrorAction Stop
-                $script:ConnectState.CloudEnvironment = 'Global'
+        ## Return Immediately when Telemetry is Disabled
+        if(!($script:ModuleConfig.'ai.disabled'))
+        {
+            if (!$script:ConnectState.MsGraphToken) {
+                #Connect-AADAssessment
+                if (!$script:ConnectState.ClientApplication) {
+                    $script:ConnectState.ClientApplication = New-MsalClientApplication -ClientId $script:ModuleConfig.'aad.clientId' -ErrorAction Stop
+                    $script:ConnectState.CloudEnvironment = 'Global'
+                }
+                $CorrelationId = New-Guid
+                if ($script:AppInsightsRuntimeState.OperationStack.Count -gt 0) {
+                    $CorrelationId = $script:AppInsightsRuntimeState.OperationStack.Peek().Id
+                }
+                ## Authenticate with Lightweight Consent
+                $script:ConnectState.MsGraphToken = Get-MsalToken -PublicClientApplication $script:ConnectState.ClientApplication -Scopes 'openid' -UseEmbeddedWebView:$true -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
             }
-            $CorrelationId = New-Guid
-            if ($script:AppInsightsRuntimeState.OperationStack.Count -gt 0) {
-                $CorrelationId = $script:AppInsightsRuntimeState.OperationStack.Peek().Id
-            }
-            ## Authenticate with Lightweight Consent
-            $script:ConnectState.MsGraphToken = Get-MsalToken -PublicClientApplication $script:ConnectState.ClientApplication -Scopes 'openid' -UseEmbeddedWebView:$true -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
         }
 
         if ($MyInvocation.CommandOrigin -eq 'Runspace') {
@@ -73,13 +82,19 @@ function Complete-AADAssessmentReports {
             Remove-Item -Path (Join-Path $OutputDirectoryAAD "*") -Include "*Data.xml" -ErrorAction Ignore
         }
 
+        ## Generate Recommendations
+        if($IncludeRecommendations) {
+            Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Complete Reports - {0}' -f $AssessmentDetail.AssessmentTenantDomain) -Status 'Generating Recommendations' -PercentComplete 30
+            New-AADAssessmentRecommendations -Path $OutputDirectory -OutputDirectory $OutputDirectory -InterviewSpreadsheetPath $InterviewSpreadsheetPath -SkipExpand
+        }
+
         ## Report Complete
         Write-AppInsightsEvent 'AAD Assessment Report Generation Complete' -OverrideProperties -Properties @{
             AssessmentId       = $AssessmentDetail.AssessmentId
             AssessmentVersion  = $AssessmentDetail.AssessmentVersion
             AssessmentTenantId = $AssessmentDetail.AssessmentTenantId
-            AssessorTenantId   = if ($script:ConnectState.MsGraphToken.Account) { $script:ConnectState.MsGraphToken.Account.HomeAccountId.TenantId } else { Expand-JsonWebTokenPayload $script:ConnectState.MsGraphToken.AccessToken | Select-Object -ExpandProperty tid }
-            AssessorUserId     = if ($script:ConnectState.MsGraphToken.Account -and $script:ConnectState.MsGraphToken.Account.HomeAccountId.TenantId -in ('72f988bf-86f1-41af-91ab-2d7cd011db47', 'cc7d0b33-84c6-4368-a879-2e47139b7b1f')) { $script:ConnectState.MsGraphToken.Account.HomeAccountId.ObjectId }
+            AssessorTenantId   = if ((Get-ObjectPropertyValue $script:ConnectState.MsGraphToken 'Account') -and $script:ConnectState.MsGraphToken.Account) { $script:ConnectState.MsGraphToken.Account.HomeAccountId.TenantId } else { if (Get-ObjectPropertyValue $script:ConnectState.MsGraphToken 'AccessToken') { Expand-JsonWebTokenPayload $script:ConnectState.MsGraphToken.AccessToken | Select-Object -ExpandProperty tid } }
+            AssessorUserId     = if ((Get-ObjectPropertyValue $script:ConnectState.MsGraphToken 'Account') -and $script:ConnectState.MsGraphToken.Account -and $script:ConnectState.MsGraphToken.Account.HomeAccountId.TenantId -in ('72f988bf-86f1-41af-91ab-2d7cd011db47', 'cc7d0b33-84c6-4368-a879-2e47139b7b1f')) { $script:ConnectState.MsGraphToken.Account.HomeAccountId.ObjectId }
         }
 
         ## Rename

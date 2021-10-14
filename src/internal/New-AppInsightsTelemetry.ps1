@@ -28,7 +28,9 @@ function New-AppInsightsTelemetry {
         'AppRequests'     = 'RequestData'
         'AppTraces'       = 'MessageData'
     }
-
+    ## Return Immediately when Telemetry is Disabled
+    if ($script:ModuleConfig.'ai.disabled') { return }
+    
     if ($script:AppInsightsRuntimeState.OperationStack.Count -gt 0) {
         $Operation = $script:AppInsightsRuntimeState.OperationStack.Peek()
     }

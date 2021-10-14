@@ -196,6 +196,9 @@ function Write-AppInsightsException {
     }
 
     process {
+        ## Return Immediately when Telemetry is Disabled
+        if ($script:ModuleConfig.'ai.disabled') { return }
+        
         foreach ($Exception in $Exceptions) {
             ## Get New Telemetry Entry
             $AppInsightsTelemetry = New-AppInsightsTelemetry 'AppExceptions' -InstrumentationKey $InstrumentationKey

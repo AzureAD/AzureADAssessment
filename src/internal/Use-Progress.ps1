@@ -89,7 +89,7 @@ function Start-Progress {
     )
 
     [int] $Id = 0
-    if (!(Get-Variable stackProgressId -Scope Script -ErrorAction SilentlyContinue)) { New-Variable -Name stackProgressId -Scope Script -Value (New-Object System.Collections.Generic.Stack[int]) }
+    if (!(Get-Variable stackProgressId -Scope Script -ErrorAction Ignore)) { New-Variable -Name stackProgressId -Scope Script -Value (New-Object System.Collections.Generic.Stack[int]) }
     while ($stackProgressId.Contains($Id)) { $Id += 1 }
 
     [hashtable] $paramWriteProgress = @{

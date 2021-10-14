@@ -15,7 +15,7 @@ parameters:
 - name: vmImage
   displayName: 'Pool Image'
   type: string
-  default: windows-latest
+  default: ubuntu-latest
   values:
   - windows-latest
   - ubuntu-latest
@@ -41,6 +41,8 @@ stages:
   - job: Prepare
     variables:
       skipComponentGovernanceDetection: true
+    pool:
+      vmImage: 'windows-latest'
     steps:
     #- checkout: none
     - download: CI

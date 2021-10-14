@@ -1,0 +1,2927 @@
+<recommendations>
+    <recommendation>
+        <!--
+            The powershell property will contain the powershell script used to evaluate the recommendation.
+            Data will contain a hasharray of all the evaluated data in the path of the current scope (i.e. AAD, ADFS, AADC, AADAP).
+            The result of the script contains two properties:
+            * Priority: the priority of the recommendation (P1, P2, P3) or Passed if the recommendation is already met.
+            * Data: any identifiable data to corobore the result (faulty elements or positive result)
+        -->
+        <Sources>
+            <File>emailOTPMethodPolicy.json</File>
+        </Sources>
+        <Powershell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            $res.Priority = "Passed"
+            if ($Data["emailOTPMethodPolicy.json"].state -ne "enabled" -or $Data["emailOTPMethodPolicy.json"].allowExternalIdToUseEmailOtp -ne "enabled") {
+                $res.Priority = "P2"
+            }
+
+            return $res
+        </Powershell>
+        <Category>Access Management</Category>
+        <Area>Authentication Experience</Area>
+        <ID>AR0001</ID>
+        <Name>Enable Email OTP</Name>
+        <Summary>
+            With email OTP, org members can collaborate with anyone in the world by simply sharing a link or sending an invitation via email.
+            Invited users prove their identity by using a verification code sent to their email account.
+        </Summary>
+        <Recommendation>
+            [Enable email one-time passcode](https://docs.microsoft.com/en-us/azure/active-directory/external-identities/one-time-passcode#enable-email-one-time-passcode)
+        </Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>namedLocations.json</File>
+        </Sources>
+        <Powershell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            # get trusted networks
+            $trustedNetworks = @($Data["namedLocations.json"] | Where-Object { $_.psobject.properties.match('isTrusted').Count -and $_.isTrusted })
+
+            # set the data
+            $res.Data = @($trustedNetworks | select-object Id,displayName)
+
+            # set the priority
+            $res.Priority = "Passed"
+            if ($trustedNetworks.Count -eq 0) {
+                $res.Priority =  "P1"
+            }
+            
+            # return result
+            return $res
+        </Powershell>
+        <Category>Access Management</Category>
+        <Area>Access Policies</Area>
+        <ID>AR0002</ID>
+        <Name>Definte Trusted networks</Name>
+        <Summary>Trusted network is a signal leveraged by identity protection to improve risk detection. Defining your trusted networks will improve detection of risk events</Summary>
+        <Recommendation>Define trusted networks</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <Powershell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            # list policies using device grand or device condition or risk or network location
+            $matchedPolicies = @($enabledCAPolicies | Where-Object {
+                ( # device grant
+                    $null -ne $_.grantControls -and (
+                        $_.grantControls.builtInControls -contains "compliantDevice" -or 
+                        $_.grantControls.builtInControls -contains "domainJoinDevice"
+                    )
+                ) -or ( # device condition
+                    $_.conditions.psobject.properties.match('devices').Count -and
+                    $null -ne $_.conditions.devices -and (
+                        ($_.conditions.devices.psobject.properties.match('excludeDevices').Count -and $_.conditions.devices.excludeDevices.Count -gt 0) -or 
+                        ($_.conditions.devices.psobject.properties.match('excludeDevicesStates').Count -and $_.conditions.devices.excludeDevicesStates.Count -gt 0)
+                    )
+                ) -or ( # risk level condition
+                    $_.conditions.signInRiskLevels.Count -gt 0 -or
+                    $_.conditions.userRiskLevels.Count -gt 0
+                ) -or (  # location condition 
+                    $null -ne $_.conditions.locations -and (
+                        ($_.conditions.locations.psobject.properties.match('includedLocations').Count -and $_.conditions.locations.includedLocations -contains "AllTrusted") -or 
+                        ($_.conditions.locations.psobject.properties.match('excludedLocations').Count -and $_.conditions.locations.excludedLocations -contains "AllTrusted")
+                    )
+                )
+            })
+
+            $res.Priority = "Passed"
+            if ($matchedPolicies.Count -eq 0) {
+                $res.Priority = "P1"
+            }
+
+            $res.Data = @($matchedPolicies | select id,displayName)
+
+            # return result
+            return $res
+        </Powershell>
+        <Category>Access Management</Category>
+        <Area>Access Policies</Area>
+        <ID>AR0003</ID>
+        <Name>Conditional Access Controls (network, device and/or risks)</Name>
+        <Summary>Protect your users sign-ins by applying conditional access policies including risk, device or network location controls to improve your security</Summary>
+        <Recommendation>Design conditional access to include risk, device and/or netowrk location conditions</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>AppCredentialsReport.csv</File>
+        </Sources>
+        <Powershell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            $passwordAppOrSP = @($Data["AppCredentialsReport.csv"]  | Where-Object { $_.credentialType -eq "Password" })
+
+            $res.Priority =  "Passed"
+            if ($passwordAppOrSP.Count -gt 0) {
+                $res.Priority = "P2"
+            }
+            
+            $res.Data = $passwordAppOrSP | Group-Object -Property "displayName" | select Name,@{N="PasswordCount";E={$_.Count}}
+
+            # return result
+            return $res
+        </Powershell>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <ID>AR0004</ID>
+        <Name>Programatic usage of password credentials</Name>
+        <Summary>Application or Service Principals using password is discouraged to enforce the lifecycle of credentials</Summary>
+        <Recommendation>Use managed identities, Windows Integrated Authentication or certificate whenever possible</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>AppCredentialsReport.csv</File>
+        </Sources>
+        <Powershell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            $expiredSecretAppOrSP = @($Data["AppCredentialsReport.csv"]  | select displayName,@{N="EndDateTime";E={Get-Date -Date $_.credentialEndDateTime}} | Group-Object -Property displayName | ForEach-Object {
+                $_.Group | Sort-Object -Property EndDateTime -Descending | Select-Object -First 1
+            } | Where-Object { $_.EndDateTime -lt (Get-Date).AddMonths(1) })
+
+            $res.Priority = "Passed"
+            if ($expiredSecretAppOrSP.Count -gt 0) {
+                $res.Priority = "P2"
+            }
+
+            $res.Data = @($expiredSecretAppOrSP)
+            
+            # return result
+            return $res
+        </Powershell>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <ID>AR0005</ID>
+        <Name>Application or Service Principals with expired credentials</Name>
+        <Summary>Application or Service Principals credential lifecycle should be managed</Summary>
+        <Recommendation>Review application or service principals with expired credentials</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>ConsentGrantReport.csv</File>
+        </Sources>
+        <Powershell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            # Select high permisions grants 
+            # high permissions = Mail or ReadWrite permissions
+            # filtering out microsoft and office demo tenant
+            $highPermissionsGrants = @($Data["ConsentGrantReport.csv"] | where { $_.permission -match "ReadWrite|Mail" -and $_.clientOwnerTenantId -notin ("72f988bf-86f1-41af-91ab-2d7cd011db47","a942cf59-f3c6-4338-acac-d26c18783a46") })
+
+            $res.Priority = "Passed"
+            if ($highPermissionsGrants.Count -gt 0) {
+                $res.Priority = "P2"
+            }
+
+            $res.Data = @($highPermissionsGrants | select-object clientId,clientDisplayName,resourceObjectId,resourceDisplayName,permission,permissionType,@{N="IsAdminConsent";E={$_.consentType -eq "AllPrincipals"}})
+
+            # return result
+            return $res
+        </Powershell>
+        <Category>Access Management</Category>
+        <Area>Access Surface Area</Area>
+        <ID>AR0006</ID>
+        <Name>Grants for high level permissions</Name>
+        <Summary>Application can request high level permission trough fishing. Such permissions include those allowing "ReadWrite" actions or "Mail" operations. Regular reviews should be in place and non-necessary grants should be removed</Summary>
+        <Recommendation>Review applications having high permissions and remove unnecessary grants</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>ConsentGrantReport.csv</File>
+        </Sources>
+        <Powershell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            # Select grants to deprecated resource (Azure AD Graph)
+            $deprecatedGrants = @($Data["ConsentGrantReport.csv"] | Where-Object { $_.resourceObjectId -eq "369aeace-0da3-434f-a94b-cdd518008814" })
+
+            $res.Priority = "Passed"
+            if ($deprecatedGrants.Count -gt 0) {
+                $res.Priority = "P2"
+            }
+
+            $res.Data = @($deprecatedGrants | select-object clientId,clientDisplayName,resourceObjectId,resourceDisplayName,permission,permissionType,@{N="IsAdminConsent";E={$_.consentType -eq "AllPrincipals"}})
+
+            # return result
+            return $res
+        </Powershell>
+        <Category>Access Management</Category>
+        <Area>Access Surface Area</Area>
+        <ID>AR0007</ID>
+        <Name>Grants to legacy resources</Name>
+        <Summary>Grants are present to resources that are being deprected (Azure AD Graph)</Summary>
+        <Recommendation>Review applications relying on these resources and review potential migration path with developer</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>appRoleAssignments.csv</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            # TODO: check if ELM/AR is used or not
+            $userAppAssignments = @($Data["appRoleAssignments.csv"] | Where-Object { $_.principalType -eq "User" })
+            
+            $res.Priority = "Passed"
+            if ($userAppAssignments.Count -gt 0) {
+                $res.Priority = "P3"
+            }
+            
+            $res.Data = @($userAppAssignments | Group-Object -property resourceDisplayName,resourceId | select @{N="resourceId";E={$_.Group[0].resourceId}},@{N="resourceDisplayName";E={$_.Group[0].resourceDisplayName}},@{N="userAppAssignmentCount";E={$_.Count}})
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>App Auth and Assignment</Area>
+        <ID>AR0008</ID>
+        <Name>User App Assignments</Name>
+        <Summary>Direct assignment to user is not advisable when attestation (Access Reviews) to applications is not used</Summary>
+        <Recommendation>Assign application roles to groups to have more flexibility</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>appRoleAssignments.csv</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            $allUsersAppAssignments = @($Data["appRoleAssignments.csv"] | Where-Object { $_.principalType -eq "Group" -and $_.principalDisplayName -eq "All users" }) 
+            
+            $res.Priority = "Passed"
+            if ($allUsersAppAssignments.Count -gt 0) {
+                $res.Priority = "P1"
+            }
+
+            $res.Data =  @($allUsersAppAssignments | select-object resourceId,resourceDisplayName | Sort-Object -property resourceId -unique)
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Identity Management</Category>
+        <Area>Entitlement Management</Area>
+        <ID>AR0009</ID>
+        <Name>Assignment of Apps with "All users" group</Name>
+        <Summary>The "All users" group contains both Members and Guests. Resource owners might misunderstand this group to contain only members. As a result, special condsideration should be takeb when using this group for application assignment or grant access tor resource such as SharePoint Content or Azure resources</Summary>
+        <Recommendation>Fix the entittlements by creating the right groups (e.g. "all members")</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $requireMFACAPolicies = @($enabledCAPolicies | Where-Object { $null -ne $_.grantControls -and $_.grantControls.builtInControls -contains "mfa" })
+
+            $res.Priority = "Passed"
+            if ($requireMFACAPolicies.Count -eq 0)  {
+                $res.Priority = "P2"
+            }
+
+            $res.Data = @($requireMFACAPolicies | Select-Object id,displayName)
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <ID>AR0010</ID>
+        <Name>Control MFA trough Conditional Access</Name>
+        <Summary>MFA can be condigured per user or on a federated Identity Provider. Applying MFA protection trough Conditional Access provides more flexibility</Summary>
+        <Recommendation>Configure authentication policies to leverage MFA requirement via conditional access</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            # list policies using device grant controls
+            $deviceGrantPolicies = @($enabledCAPolicies | Where-Object {
+                $null -ne $_.grantControls -and (`
+                    $_.grantControls.builtInControls -contains "compliantDevice" -or `
+                    $_.grantControls.builtInControls -contains "domainJoinDevice"
+                )
+            })
+
+            $res.Priority = "Passed"
+            if ($deviceGrantPolicies.Count -eq 0) {
+                $res.Priority = "P2"
+            }
+
+            $res.Data = @($deviceGrantPolicies | Select-Object id,displayName)
+            
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Authentication Experience</Area>
+        <ID>AR0011</ID>
+        <Name>Device Trust Access Policies</Name>
+        <Summary>Authenticating devices and account for its trust type improves your security posture and usability by avoiding friction (e.g. MFA) and blocking access to untrusted devices</Summary>
+        <Recommendation>Use hybrid azure ad joined or compliant devices as a control in conditional access policies</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            # list policies using riskState conditions
+            $riskPolicies = @($enabledCAPolicies | Where-Object {
+                $_.conditions.signInRiskLevels.Count -gt 0 -or `
+                $_.conditions.userRiskLevels.Count -gt 0
+            })
+
+            $res.Priority = "Passed"
+            if ($riskPolicies.Count -eq 0) {
+                $res.Priority = "P2"
+            }
+
+            $res.Data = @($riskPolicies | Select-Object id,displayName)
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Access Policies</Area>
+        <ID>AR0012</ID>
+        <Name>Risk-Based Access Policies</Name>
+        <Summary>Azure AD Calculates risk for every sign-in and every user. Using risk as criteria in access policies can provide a better user experience (fewer authentication prompts), better security (only prompt user when needed) and automate remediation.</Summary>
+        <Recommendation>Use sign-in or user risk controls in conditional access policies</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            # list policies using app grant control
+            $appGrantPolicies = @($enabledCAPolicies | Where-Object {
+                $null -ne $_.grantControls -and (`
+                    $_.grantControls.builtInControls -contains "approvedApplication" -or `
+                    $_.grantControls.builtInControls -contains "compliantApplication"
+                )
+            })
+
+            $res.Priority = "Passed"
+            if ($appGrantPolicies.Count -eq 0) {
+                $res.Priority = "P2"
+            }
+
+            $res.Data = @($appGrantPolicies | Select-Object id,displayName)
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Access Policies</Area>
+        <ID>AR0013</ID>
+        <Name>Client Application Access Policies</Name>
+        <Summary>Microsoft Intune Appliucation Management (MAM) provides the ability to push data protection controls to compatible client mobile applications such as Outlook. Conditional Access can enforce policies that will restrict access to cloud services from approved and/or compatible apps</Summary>
+        <Recommendation>Deploy application MAM policies to manage application configuration. Update Conditional Access policies to only allow access from MAM capables clients.</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $policiesWithExcludes = @($enabledCAPolicies | Where-Object {
+                $_.conditions.users.excludeUsers.Count -gt 0 -or `
+                $_.conditions.users.excludeGroups.Count -gt 0 -or `
+                $_.conditions.users.excludeRoles.Count -gt 0
+            })
+
+            $res.Priority = "Passed"
+            if ($policiesWithExcludes.Count -eq 0) {
+                $res.Priority = "P1"
+            }
+
+            $res.Data = @($policiesWithExcludes | Select-Object id,displayName)
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <ID>AR0014</ID>
+        <Name>Exclusions usage</Name>
+        <Summary>Policies should all have an exclusion (User/Group/Role)</Summary>
+        <Recommendation>Exclude at least one group from every policy</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $policiesWithExcludedUsersOnly = @($enabledCAPolicies | Where-Object {
+                @($_.conditions.users.excludeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }) -gt 0 -or `
+                $_.conditions.users.excludeGroups.Count -eq 0 -or `
+                $_.conditions.users.excludeRoles.Count -eq 0
+            })
+
+            $res.Priority = "Passed"
+            if ($policiesWithExcludedUsersOnly.Count -gt 0) {
+                $res.Priority = "P3"
+            }
+
+            $res.Data = @($policiesWithExcludedUsersOnly | Select-Object id,displayName)
+            
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <ID>AR0015</ID>
+        <Name>Only Users Excluded</Name>
+        <Summary>Excluding groups provide more flexibility to manage exclusions</Summary>
+        <Recommendation>Put excluded users in a group and exclude the group</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $policiesWithExcludedUsersandGroups = @($enabledCAPolicies | Where-Object {
+                @($_.conditions.users.excludeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }) -gt 0 -and `
+                $_.conditions.users.excludeGroups.Count -gt 0
+            })
+            
+            $res.Priority = "Passed"
+            if ($policiesWithExcludedUsersandGroups.Count -gt 0) {
+                $res.Priority = "P3"
+            }
+
+            $res.Data = @($policiesWithExcludedUsersandGroups | Select-Object id,displayName)
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <ID>AR0016</ID>
+        <Name>Groups and Users Excluded</Name>
+        <Summary>Excluding groups provide more flexibility to manage exclusions</Summary>
+        <Recommendation>Put excluded users in an existing excluded group or create a new group to be excluded</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $policiesWithOnlyUsersIncluded = @($enabledCAPolicies | Where-Object {
+                @($_.conditions.users.includeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }).Count -gt 0  -and `
+                @($_.conditions.users.includeGroups | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }).Count -eq 0
+            })
+            
+            $res.Priority = "Passed"
+            if ($policiesWithOnlyUsersIncluded.Count -gt 0) {
+                $res.Priority = "P3"
+            }
+
+            $res.Data = @($policiesWithOnlyUsersIncluded | Select-Object id,displayName)
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <ID>AR0017</ID>
+        <Name>Only Users Included</Name>
+        <Summary>Including groups provide more flexibility to manage inclusions</Summary>
+        <Recommendation>Put included users in a group and include the group</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $policiesWithUsersandGroupsIncluded = @($enabledCAPolicies | Where-Object {
+                @($_.conditions.users.includeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }).Count -gt 0  -and `
+                @($_.conditions.users.includeGroups | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }).Count -gt 0
+            })
+            
+            $res.Priority = "Passed"
+            if ($policiesWithUsersandGroupsIncluded.Count -gt 0) {
+                $res.Priority = "P3"
+            }
+
+            $res.Data = @($policiesWithUsersandGroupsIncluded | Select-Object id,displayName)
+            
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <ID>AR0018</ID>
+        <Name>Only Users Included</Name>
+        <Summary>Including groups provide more flexibility to manage inclusions</Summary>
+        <Recommendation>Put included users in an existing excluded group or create a new group to be included</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $policiesWithUsersOrGroupsExcluded = @($enabledCAPolicies | Where-Object {
+                @($_.conditions.users.excludeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }).Count -gt 0  -or `
+                @($_.conditions.users.excludeGroups | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }).Count -gt 0
+            })            
+            
+            $res.Priority = "Passed"
+            if ($policiesWithUsersOrGroupsExcluded.Count -eq 0) {
+                $res.Priority = "P1"
+                return $res
+            }
+
+            $commonUsers = @($policiesWithUsersOrGroupsExcluded[0].conditions.users.excludeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" })
+            $commonGroups = @($policiesWithUsersOrGroupsExcluded[0].conditions.users.excludeGroups | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" })
+            foreach($policy in $policiesWithUsersOrGroupsExcluded) {
+                if ($commonUsers.Count -gt 0) {
+                    $commonUsers = @(Compare-Object -ReferenceObject $commonUsers -DifferenceObject @($policy.conditions.users.excludeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }) -PassThru -IncludeEqual -ExcludeDifferent)
+                }
+                if ($commonGroups.Count -gt 0) {
+                    $commonGroups = @(Compare-Object -ReferenceObject $commonGroups -DifferenceObject @($policy.conditions.users.excludeGroups | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }) -PassThru -IncludeEqual -ExcludeDifferent)
+                }
+            }
+
+            # lookup commmon objects
+            $common = @()
+            $common += @($Data["groups.csv"] | Where-Object { (Get-ObjectPropertyValue $_ 'id') -and $_.id -and ($_.id -in $commonGroups) } | select id,displayName,@{N="type";E={"group"}})
+            $common += @($Data["users.csv"] | Where-Object { (Get-ObjectPropertyValue $_ 'id') -and $_.id -and ($_.id -in $commonUsers)} | select id,displayName,@{N="type";E={"user"}})
+
+            if ($common.Count -eq 0) {
+                $res.Priority = "P1"
+            }
+
+            $res.Data = @($common)
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <ID>AR0019</ID>
+        <Name>Common Excluded Groups or Users</Name>
+        <Summary>A common set of users or groups should be excluded from the CA policies. These break glass accounts are meant to be used in case of lockout. Their usage should be monitored.</Summary>
+        <Recommendation>Create a group that is excluded from every CA policies</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $policiesWithUsersOrGroupsExcluded = @($enabledCAPolicies | Where-Object {
+                @($_.conditions.users.excludeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }).Count -gt 0  -or `
+                @($_.conditions.users.excludeGroups | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }).Count -gt 0
+            })            
+            
+            $res.Priority = "Passed"
+            if ($policiesWithUsersOrGroupsExcluded.Count -eq 0) {
+                $res.Priority = "P1"
+                return $res
+            }
+
+            $commonUsers = @($policiesWithUsersOrGroupsExcluded[0].conditions.users.excludeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" })
+            $commonGroups = @($policiesWithUsersOrGroupsExcluded[0].conditions.users.excludeGroups | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" })
+            foreach($policy in $policiesWithUsersOrGroupsExcluded) {
+                if ($commonUsers.Count -gt 0) {
+                    $commonUsers = @(Compare-Object -ReferenceObject $commonUsers -DifferenceObject @($policy.conditions.users.excludeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }) -PassThru -IncludeEqual -ExcludeDifferent)
+                }
+                if ($commonGroups.Count -gt 0) {
+                    $commonGroups = @(Compare-Object -ReferenceObject $commonGroups -DifferenceObject @($policy.conditions.users.excludeGroups | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }) -PassThru -IncludeEqual -ExcludeDifferent)
+                }
+            }
+
+            # lookup commmon objects
+            $common = @()
+            $common += @($Data["groups.csv"] | Where-Object { (Get-ObjectPropertyValue $_ 'id') -and $_.id -in $commonGroups } | select id,displayName,@{N="type";E={"group"}})
+            $common += @($Data["users.csv"] | Where-Object { (Get-ObjectPropertyValue $_ 'id') -and $_.id -in $commonUsers } | select id,displayName,@{N="type";E={"user"}})
+
+            if ($commonUsers.Count -gt 0 -and $commonGroups -eq 0) {
+                $res.Priority = "P3"
+            }
+
+            $res.Data = @($common)
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <ID>AR0020</ID>
+        <Name>Common Users excluded but not groups</Name>
+        <Summary>Excluding groups provide more flexibility to manage exclusions</Summary>
+        <Recommendation>Put common excluded users into a group and exclude this group</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $policiesWithUsersOrGroupsExcluded = @($enabledCAPolicies | Where-Object {
+                @($_.conditions.users.excludeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }).Count -gt 0  -or `
+                @($_.conditions.users.excludeGroups | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }).Count -gt 0
+            })            
+            
+            $res.Priority = "Passed"
+            if ($policiesWithUsersOrGroupsExcluded.Count -eq 0) {
+                $res.Priority = "P1"
+                return $res
+            }
+
+            $commonUsers = @($policiesWithUsersOrGroupsExcluded[0].conditions.users.excludeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" })
+            $commonGroups = @($policiesWithUsersOrGroupsExcluded[0].conditions.users.excludeGroups | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" })
+            foreach($policy in $policiesWithUsersOrGroupsExcluded) {
+                if ($commonUsers.Count -gt 0) {
+                    $commonUsers = @(Compare-Object -ReferenceObject $commonUsers -DifferenceObject @($policy.conditions.users.excludeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }) -PassThru -IncludeEqual -ExcludeDifferent)
+                }
+                if ($commonGroups.Count -gt 0) {
+                    $commonGroups = @(Compare-Object -ReferenceObject $commonGroups -DifferenceObject @($policy.conditions.users.excludeGroups | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }) -PassThru -IncludeEqual -ExcludeDifferent)
+                }
+            }
+
+            # lookup commmon objects
+            $common = @()
+            $common += @($Data["groups.csv"] | Where-Object { (Get-ObjectPropertyValue $_ 'id') -and $_.id -in $commonGroups } | select id,displayName,@{N="type";E={"group"}})
+            $common += @($Data["users.csv"] | Where-Object { (Get-ObjectPropertyValue $_ 'id') -and $_.id -in $commonUsers } | select id,displayName,@{N="type";E={"user"}})
+
+            if ($commonUsers.Count -gt 0 -and $commonGroups -gt 0) {
+                $res.Priority = "P3"
+            }
+
+            $res.Data = @($common)
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <ID>AR0021</ID>
+        <Name>Common Users and Groups are excluded</Name>
+        <Summary>Excluding groups provide more flexibility to manage exclusions</Summary>
+        <Recommendation>Put common excluded users into a group and exclude this group</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            # filter CA blocking legacy authentication
+            $legacyBlockCAPolicies = @($enabledCAPolicies | Where-Object {
+                # grantControls is block
+                $null -ne $_.grantControls -and 
+                $_.grantControls.builtInControls -contains "block" -and 
+                # clientApps are active sync and other clients
+                $null -ne $_.conditions.clientAppTypes -and (
+                    $_.conditions.clientAppTypes -contains "other" -and (
+                        $_.conditions.clientAppTypes -contains "easSupported" -or `
+                        $_.conditions.clientAppTypes -contains "exchangeActiveSync"
+                    )
+                ) -and ( # users or groups are included
+                    @($_.conditions.users.includeUsers | Where-Object { $_ -ne "None" }).Count -gt 0 -or `
+                    $_.conditions.users.includeGroups.Count -gt 0
+                )
+            })
+
+            $res.Priority = "Passed"
+            if ($legacyBlockCAPolicies.Count -eq 0) {
+                $res.Priority = "P1"
+            }
+            
+            $res.Data = @($legacyBlockCAPolicies | Select-Object id,displayName)
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <ID>AR0022</ID>
+        <Name>Block Legacy Authentication</Name>
+        <Summary>Legacy authentication should be blocked in Conditional Access as well as locked down at the source</Summary>
+        <Recommendation>Create a conditonal access to block legacy authentication</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $blockAllPolicies = @($enabledCAPolicies | Where-Object {
+                # grantControls is block
+                $null -ne $_.grantControls -and 
+                $_.grantControls.builtInControls -contains "block" -and 
+                $_.conditions.applications.includeApplications -contains "All" -and
+                $_.conditions.users.includeUsers -contains "All"
+            })
+
+            # filter out legacy auth policies
+            $blockAllPoliciesNotLegacy = @($blockAllPolicies | Where-Object {
+                # clientApps are not active sync or other clients
+                $null -eq $_.conditions.clientAppTypes -or (
+                    $_.conditions.clientAppTypes -notcontains "other" -or (
+                        $_.conditions.clientAppTypes -notcontains "easSupported" -and `
+                        $_.conditions.clientAppTypes -notcontains "exchangeActiveSync"
+                    )
+                )
+            })
+
+            $res.Priority =  "Passed"
+            if ($blockAllPoliciesNotLegacy.Count -gt 0) {
+                $res.Priority = "P1"
+            }
+
+            $res.Data =  @($blockAllPoliciesNotLegacy | Select-Object id,displayName)
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <ID>AR0075</ID>
+        <Name>Block policies for all cloud apps and all users</Name>
+        <Summary>Policies that block all users and all cloud apps pose a risk of locking out the your entire organisation</Summary>
+        <Recommendation>Review these policies</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $deviceStatenAllPolicies = @($enabledCAPolicies | Where-Object {
+                # grantControls requires a device condition
+                $null -ne $_.grantControls -and
+                $_.grantControls.builtInControls -contains "compliantDevice" -and 
+                $_.conditions.applications.includeApplications -contains "All" -and
+                $_.conditions.users.includeUsers -contains "All"
+            })
+
+            $res.Priority =  "Passed"
+            if ($deviceStatenAllPolicies.Count -gt 0) {
+                $res.Priority = "P1"
+            }
+
+            $res.Data = @($deviceStatenAllPolicies | Select-Object id,displayName)
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <ID>AR0023</ID>
+        <Name>Policies for all cloud apps and all users requiring compliant devices</Name>
+        <Summary>Policies that require a compliant device for all users and all cloud apps pose a risk of locking out the users who have not enrolled their deviece yet</Summary>
+        <Recommendation>Review these policies</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $deviceStatenAllPolicies = @($enabledCAPolicies | Where-Object {
+                # grantControls requires a device condition
+                $null -ne $_.grantControls -and
+                $_.grantControls.builtInControls -contains "domainJoinedDevice" -and 
+                $_.conditions.applications.includeApplications -contains "All" -and
+                $_.conditions.users.includeUsers -contains "All"
+            })
+
+            $res.Priority = "Passed"
+            if ($deviceStatenAllPolicies.Count -gt 0) {
+                $res.Priority = "P1"
+            }
+
+            $res.Data = @($deviceStatenAllPolicies | Select-Object id,displayName)
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <ID>AR0024</ID>
+        <Name>Policies for all cloud apps and all users requiring hybird azure ad joined device</Name>
+        <Summary>Policies that require hybrid azure ad join for all users and all cloud apps pose a risk of locking out the users who have not domain joined their deviece yet</Summary>
+        <Recommendation>Review these policies</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $deviceStatenAllPolicies = @($enabledCAPolicies | Where-Object {
+                # grantControls requires a device condition
+                $null -ne $_.grantControls -and
+                $_.grantControls.builtInControls -contains "compliantApplication" -and 
+                $_.conditions.applications.includeApplications -contains "All" -and
+                $_.conditions.users.includeUsers -contains "All"
+            })
+
+            $res.Priority = "Passed"
+            if ($deviceStatenAllPolicies.Count -gt 0) {
+                $res.Priority = "P1"
+            }
+
+            $res.Data = @($deviceStatenAllPolicies | Select-Object id,displayName)
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <ID>AR0025</ID>
+        <Name>Policies for all cloud apps and all users requiring app protection policy</Name>
+        <Summary>Policies that require app protection for all users and all cloud apps pose a risk of locking out the users</Summary>
+        <Recommendation>Review these policies</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)    
+            $res =  "" | select Priority,Data      
+
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $blockAllAppsPolicies = @($enabledCAPolicies | Where-Object {
+                # grantControls is block
+                $null -ne $_.grantControls -and 
+                $_.grantControls.builtInControls -contains "block" -and 
+                $_.conditions.applications.includeApplications -contains "All"
+            })
+
+            # filter out legacy auth policies
+            $blockAllAppsPoliciesNotLegacy = @($blockAllAppsPolicies | Where-Object {
+                # clientApps are not active sync or other clients
+                $null -eq $_.conditions.clientAppTypes -or (
+                    $_.conditions.clientAppTypes -notcontains "other" -or (
+                        $_.conditions.clientAppTypes -notcontains "easSupported" -and `
+                        $_.conditions.clientAppTypes -notcontains "exchangeActiveSync"
+                    )
+                )
+            })
+
+            $res.Priority = "Passed"
+            if ($blockAllAppsPoliciesNotLegacy.Count -gt 0) {
+                $res.Priority = "P1"
+            }
+
+            $res.Data =  @($blockAllAppsPoliciesNotLegacy | Select-Object id,displayName)
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <ID>AR0026</ID>
+        <Name>Block policies with all apps filter</Name>
+        <Summary>Block policies targeted at all apps may lock user out</Summary>
+        <Recommendation>Review these policies</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $externalPolicies = @($enabledCAPolicies | Where-Object {
+                $_.conditions.users.includeUsers -contains "GuestsOrExternalUsers"
+            })
+
+            $res.Priority = "Passed"
+            if ($externalPolicies.Count -gt 0) {
+                $res.Priority = "P2"
+            }
+
+            $res.Data =  @($externalPolicies | Select-Object id,displayName)
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <ID>AR0027</ID>
+        <Name>Guest targeted policies</Name>
+        <Summary>A least one policy targetting guest should be present</Summary>
+        <Recommendation>Create at least one policy targeting guests</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $externalPolicies = @($enabledCAPolicies | Where-Object {
+                $null -ne $_.grantControls -and 
+                $_.grantControls.builtInControls -contains "mfa" -and  
+                $_.conditions.applications.includeApplications -contains "All" -and (
+                    $_.conditions.users.includeUsers -contains "GuestsOrExternalUsers" -or
+                    $_.conditions.users.includeUsers -contains "All"
+                )
+            })
+
+            $res.Priority = "Passed"
+            if ($externalPolicies.Count -gt 0) {
+                $res.Priority = "P2"
+            }
+
+            $res.Data = @($externalPolicies | Select-Object id,displayName)
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <ID>AR0028</ID>
+        <Name>Guest targeted policies to all apss requiring mfa</Name>
+        <Summary>Guest should be required to MFA to access applications</Summary>
+        <Recommendation>Create a policy targetting guest on all apps with mfa requirement</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $deviceStatenAllorGuestPolicies = @($enabledCAPolicies | Where-Object {
+                # grantControls requires a device condition
+                $null -ne $_.grantControls -and (
+                    $_.grantControls.builtInControls -contains "compliantDevice" -or 
+                    $_.grantControls.builtInControls -contains "domainJoinedDevice"
+                ) -and (
+                    $_.conditions.users.includeUsers -contains "All" -or
+                    $_.conditions.users.includeUsers -contains "GuestsOrExternalUsers" 
+                )
+            })
+
+            $res.Priority = "Passed"
+            if ($deviceStatenAllorGuestPolicies.Count -gt 0) {
+                $res.Priority = "P1"
+            }
+
+            $res.Data = @($deviceStatenAllorGuestPolicies | Select-Object id,displayName)
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <ID>AR0029</ID>
+        <Name>Policies requring domain joined or compliant targetting guest users</Name>
+        <Summary>Policies that require hybrid azure ad join or compliant device targetting guests pose a risk of locking out the guests</Summary>
+        <Recommendation>Review these policies</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $office365policies = @($enabledCAPolicies | Where-Object {
+                $_.conditions.applications.includeApplications -contains "Office365"
+            })
+
+            $res.Priority = "Passed"
+            if ($office365policies.Count -eq 0) {
+                $res.Priority = "P2"
+            }
+
+            $res.Data = @($office365policies | Select-Object id,displayName)
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <ID>AR0030</ID>
+        <Name>Policies explicitly targetting Office 365</Name>
+        <Summary>Office 365 applications are interdependent. Targeting Office 365 as a group of applications will avoid some access issues</Summary>
+        <Recommendation>Create at least one policy targetting Office 365</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            # list of Office 365 apps in conditional access
+
+            # 00000002-0000-0ff1-ce00-000000000000 Office 365 Exchange Online
+            # 00000003-0000-0ff1-ce00-000000000000 Office 365 SharePoint Online
+            # 00000004-0000-0ff1-ce00-000000000000 Skype for Business Online
+            # cc15fd57-2c6c-4117-a88c-83b1d56b4bbe Microsoft Teams Services
+            # 2634dd23-5e5a-431c-81ca-11710d9079f4 Microsoft Stream Service
+            # 00000005-0000-0ff1-ce00-000000000000 Office 365 Yammer
+            # 905fcf26-4eb7-48a0-9ff0-8dcc7194b5ba Sway
+            # 09abbdfd-ed23-44ee-a2d9-a627aa1c90f3 ProjectWorkManagement
+            # 94c63fef-13a3-47bc-8074-75af8c65887a Office Delve
+            # c9a559d2-7aab-4f13-a6ed-e7e9c52aec87 Microsoft Forms
+            # 95de633a-083e-42f5-b444-a4295d8e9314 Microsoft Whiteboard Services
+
+            $office365apps = @(
+                "00000002-0000-0ff1-ce00-000000000000", "00000003-0000-0ff1-ce00-000000000000", "00000004-0000-0ff1-ce00-000000000000",
+                "cc15fd57-2c6c-4117-a88c-83b1d56b4bbe", "2634dd23-5e5a-431c-81ca-11710d9079f4", "00000005-0000-0ff1-ce00-000000000000",
+                "905fcf26-4eb7-48a0-9ff0-8dcc7194b5ba", "09abbdfd-ed23-44ee-a2d9-a627aa1c90f3", "94c63fef-13a3-47bc-8074-75af8c65887a",
+                "c9a559d2-7aab-4f13-a6ed-e7e9c52aec87", "95de633a-083e-42f5-b444-a4295d8e9314"
+            )
+
+            $office365apppolicies = @($enabledCAPolicies | Where-Object {
+                @(Compare-Object -ReferenceObject $_.conditions.applications.includeApplications -DifferenceObject $office365apps -PassThru -IncludeEqual -ExcludeDifferent).Count -gt 0
+            })
+
+            $res.Priority = "Passed"
+            if ($office365apppolicies.Count -eq 0) {
+                $res.Priority = "P2"
+            }
+            
+            $res.Data = @($office365apppolicies | Select-Object id,displayName)
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <ID>AR0031</ID>
+        <Name>Policies targetting individual Office Applications</Name>
+        <Summary>Office 365 applications are interdependent. Targeting specific Office 365 applications can generate some access issues</Summary>
+        <Recommendation>Target Office 365 as a group in place of specific applications</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            # list policies using aproved app wihtout app policy
+            $approvedAppPoliciesWithoutMAM = @($enabledCAPolicies | Where-Object {
+                $null -ne $_.grantControls -and
+                $_.grantControls.builtInControls -contains "approvedApplication" -and
+                $_.grantControls.builtInControls -notcontains "compliantApplication"
+            })
+
+            $res.Priority = "Passed"
+            if ($approvedAppPoliciesWithoutMAM.Count -eq 0) {
+                $res.Priority = "P2"
+            }
+            
+            $res.Data = $approvedAppPoliciesWithoutMAM | Select-Object id,displayName
+
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <ID>AR0032</ID>
+        <Name>Policies requiring approved app and not MAM policies</Name>
+        <Summary>Approved applications do support MAM policies, adding Intune policies targetting them as well as requiring them to be protected by such policies will increase security</Summary>
+        <Recommendation>Require Intune protection policies for approved applications and enforce them via Conditional Access</Recommendation>
+    </recommendation>
+    <recommendation>
+        <Sources>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            # list policies using aproved app wihtout app policy
+            $countriesBlock = @($enabledCAPolicies | Where-Object {
+                $null -ne $_.grantControls -and
+                $_.grantControls.builtInControls -contains "block" -and
+                $null -ne $_.conditions.locations -and 
+                $_.conditions.locations.psobject.properties.match('includedLocations').Count -and (
+                    $_.conditions.locations.includedLocations.Count -gt 0 -or (
+                        $_.conditions.locations.psobject.properties.match('excludedLocations').Count -and 
+                        $_.conditions.locations.includedLocations -contains "All" -and 
+                        $_.conditions.locations.excludedLocations.Count -gt 0
+                    )
+                )
+            })
+
+            $res.Priority = "Passed"
+            if ($countriesBlock.Count -eq 0) {
+                $res.Priority = "P2"
+            }
+
+            $res.Data = @($countriesBlock | Select-Object id,displayName)
+            
+            # return result
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Conditional Access</Area>
+        <ID>AR0033</ID>
+        <Name>Block countries</Name>
+        <Summary>If you don't expect sign-in from some countries they can be blocked in conditional access</Summary>
+        <Recommendation>Block countries from where your users don't sign-in</Recommendation>
+    </recommendation>
+    <recommendation>
+        <!--<PowerShell>
+            param($data)
+
+            $qna = $data['QnA.json']
+    
+            $res =  "" | select Priority,Data
+            $item = $qna['IdMgmt_Do_you_have_owners_defined_for_the_following_tasks_in_your_organization']
+            $answer = Get-ObjectPropertyValue $item  'value'
+            switch ($answer) {
+                '' { $res.Priority = "Not Answered" }
+                'Yes' { $res.Priority = "Passed" }
+                'Yes - Partially' { $res.Priority = "P2" }
+                'Not Applicable' { $res.Priority = "N/A" }
+                Default { $res.Priority = "P1" }
+            }
+    
+            return $res
+        </PowerShell>-->
+        <Type>QnA</Type>
+        <QnA>
+            <Name>IdMgmt_Do_you_have_owners_defined_for_the_following_tasks_in_your_organization</Name>
+            <Answers>
+                <Answer Value="Yes" Priority="Passed"/>
+                <Answer Value="Yes - Partially" Priority="P2"/>
+                <Answer Value="No" Priority="P1"/>
+            </Answers>
+        </QnA>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0034</ID>
+        <Name>Define Key Operational Processes</Name>
+        <Summary>Managing Azure AD requires the continuous execution of key operational tasks and processes which are not necessarily mapped to a rollout project. Nonetheless, it is important to establish them for an optimized operation of customer's environment.</Summary>
+        <Recommendation>Operationalize process per the suggestions in the table below:
+
+            | **If you find …** | **We recommend …** | **With this suggested priority …** |
+            | --- | --- | --- |
+            | **..tasks that miss owners** | Assign an owner | P1 |
+            | **..tasks with owners that are not aligned with the reference below** | Adjust ownership | P2 |
+
+            | **Task** | **Microsoft Recommendation** |
+            | --- | --- |
+            | **Define process how to create Azure subscriptions** | (Varies by customer) |
+            | **Decide who gets EMS licenses** | IAM Team |
+            | **Decide who gets Office 365 Licenses** | Productivity Team |
+            | **Decide who gets Other Licenses (Dynamics, VSO, etc.)** | Application Owner |
+            | **Assign Licenses** | IAM Operations Team |
+            | **Troubleshoot and Remediate license assignment errors** | IAM Operations Team |
+            | **Provision Identities to Applications in Azure AD** | IAM Operations Team |
+
+            #### Learn More
+            
+            - [Assigning administrator roles in Azure Active Directory | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/active-directory-assign-admin-roles-azure-portal)
+            - [Governance in Azure | Microsoft Docs](https://docs.microsoft.com/en-us/azure/security/governance-in-azure)
+        </Recommendation>
+    </recommendation>
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0035</ID>
+        <Name>Patterns of Sync Issues</Name>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Are_there_sync_errors_lingering_for_more_than_100_days</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P3"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>        
+        <Summary>
+            It is strongly recommended to have a good baseline and understanding of the issues in the on-premises forests that result in synchronization issues to the cloud. While automated tools such as IdFix and Azure AD Connect Health tend to generate high volume of false positives, some of the findings are going to be impactful and cause support incidents.
+        </Summary>
+        <Recommendation>
+            | **If you find …** | **We recommend …** | **With this suggested priority …** |
+            | --- | --- | --- |
+            | **...sync errors lingering for more than 100 days** | ..cleanup of objects in errors, since those objects might not even be relevant | P3 |
+
+            #### Where to find the data for this check?
+            - Power BI: Tab 'AADCH – Alerts', 'Sync Performance', and 'Sync – Object Count'
+
+            **Note:** Applicable to assessments performed by Microsoft Identity team
+
+            #### Learn More
+            
+            - [Prepare directory attributes for synchronization with Office 365 by using the IdFix tool - Office 365](https://support.office.com/en-us/article/prepare-directory-attributes-for-synchronization-with-office-365-by-using-the-idfix-tool-497593cf-24c6-491c-940b-7c86dcde9de0)
+            - [Azure AD Connect: Troubleshooting Errors during synchronization | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/connect/active-directory-aadconnect-troubleshoot-sync-errors)            
+        </Recommendation>
+    </recommendation>
+    <recommendation>
+        <Category>Entitlement Management</Category>
+        <Area>Applications</Area>
+        <ID>AR0036</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>EntMgmt_Do_you_use_Azure_AD_Outbound_provisioning_for_applications_in_your_environment_that_supports_Azure_AD_provisioning</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="Yes - Partially" Priority = "P2"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>App Provisioning</Name>
+        <Summary>
+            User provisioning to Apps using CSV files, JIT and other approaches may not address the full lifecycle consistently (e.g.Movers or Leavers).
+
+            Automated Provisioning to Applications is the best way to create a consistent provisioning, deprovisioning and lifecycle of identities across multiple systems.
+        </Summary>
+        <Recommendation>
+            Implement application provisioning with Azure AD for supported applications. Define a consistent pattern for applications that are not yet supported by Azure AD (would depend on what is supported by the apps).
+
+            #### Learn More
+            [Automated SaaS app user provisioning in Azure AD | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/app-provisioning/user-provisioning)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>AAD Connect</Area>
+        <ID>AR0037</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>IdMgmt_Do_you_synchronize_the_same_forest_where_users_log_in_to_their_Windows_devices</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>Synchronize same forest as Windows login</Name>
+        <Summary>
+            In order to enable all hybrid experiences, device based security posture and integration with Azure AD, it is required to synchronize the user account that employees use to login to their desktops.
+        </Summary>
+        <Recommendation>
+            Remediate the synchronization to ensure the forest being synchronized IS the same as the one users log in to their devices.
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0038</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Are_there_too_many_objects_being_imported_that_are_not_exported_to_the_cloud</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P3"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>AAD Connect - Import too many objects</Name>
+        <Summary>
+            **Synchronization Scope and Object Filtering**
+            Removing known buckets of objects that don't require to be synchronized has several operational benefits:
+
+            1. Less objects means less sources of sync errors
+            2. Less objects means faster sync cycles
+            3. Less objects means less 'garbage' to carry forward from on prem (e.g. pollution of GAL / people picker for service accounts on prem that don't make sense in the cloud)
+        </Summary>
+        <Recommendation>
+            Filtering by OU, or attributes if customer has a lot of objects imported that are not exported.
+
+            Some examples of objects to exclude are:
+
+            - Service Accounts that are not used in the context of cloud applications
+            - If a single human identity has multiple accounts provisioned (e.g. legacy domain migration, Merger / Acquisition left over), only synchronize the one used by the user on a day to day basis (e.g. what he or she uses to log in to his or her computer)
+            - Groups that are not meant to be used in cloud scenarios (e.g. no used to grant access to resources)
+            - Users or contacts that represent external identities that are meant to be modernized with Azure AD B2B Collaboration
+            - Computer Accounts where employees are not meant to access cloud applications from (e.g. Servers)
+
+            It is key to reach a balance between reducing the number of objects to synchronize and the complexity in the rules. Generally, a combination between OU/container filtering plus a simple attribute tagging mapping to cloudFiltered is an effective combination.
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0039</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>IdMgmt_Do_you_have_a_disaster_recovery_production_instance_of_AAD_Connect_deployed_in_Staging_Mode</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>AAD Connect - Disaster Recovery</Name>
+        <Summary>
+            Azure AD connect plays a key role in the provisioning process. If the Sync Server goes offline for any reason, changes to on-prem will not be updated in the cloud and cause access issues to users. 
+            It is important to define a failover strategy that allows administrators to quickly resume synchronization after the sync server goes offline. 
+
+        </Summary>
+        <Recommendation>
+            Implement one or both of these options.
+            1. Deploy Azure AD Connect Server(s) in Staging Mode: This allows administrator to &quot;promote&quot; the staging server to production by a simple configuration switch.
+            2. Use Virtualization: If the Azure AD connect is deployed in a virtual machine (VM), users can leverage their virtualization stack to live migrate or quickly re-deploy the VM and therefore resuming synchronization.
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0040</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>IdMgmt_If_yes_do_you_have_a_process_in_place_to_ensure_the_configuration_of_the_instances_are_kept_in_sync</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P3"/>
+            </Answers>
+        </QnA>
+        <Name>AAD Connect - Staging instance config sync strategy</Name>
+        <Summary>
+            Customer deployed Azure AD connect but there is no process to compare and sync changes between staging and production.
+        </Summary>
+        <Recommendation>
+            Operationalize Azure AD Config Documenter](https://github.com/Microsoft/AADConnectConfigDocumenter) to get details of your sync servers and compare between different sync servers.
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0041</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Is_there_a_mismatch_between_the_production_and_staging_configuration</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P3"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>AAD Connect - Staging instance config mismatch</Name>
+        <Summary>
+            Mismatch between production and staging configuration
+        </Summary>
+        <Recommendation>
+            Re-baseline Azure AD Connect staging mode to match production configuration. This includes software versions and configurations.
+
+            #### Learn More
+            [Microsoft/AADConnectConfigDocumenter: AAD Connect configuration documenter is a tool to generate documentation of an AAD Connect installation.](https://github.com/Microsoft/AADConnectConfigDocumenter)
+
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0042</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Is_the_Azure_AD_Connect_version_more_than_6_months_behind_the_latest_release</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P3"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>AAD Connect - AADC version is more than 6 months behind</Name>
+        <Summary>
+            Azure AD connect is updated on a regular basis. It is strongly recommended to stay current in order to take advantage of the performance improvements, bug fixes, and new capabilities that each new version provides.
+        </Summary>
+        <Recommendation>
+            Plan to upgrade to the most recent version of Azure AD Connect. Schedule and implement a quarterly plan to upgrade AAD Connect to the latest version.
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0043</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Is_ms_ds_ConsistencyGuid_used_as_the_source_anchor__instead_of_ObjectGuid</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P3"/>
+            </Answers>
+        </QnA>
+        <Name>AAD Connect - ms-ds-ConsistencyGuid as source anchor</Name>
+        <Summary>
+            Using ms-ds-consistencyguid as the source anchor allows an easier migration of objects across forests and domains, which is a common situation with AD Domain consolidation/cleanup, mergers, acquisitions, and divestitures.
+        </Summary>
+        <Recommendation>
+            Use ms-ds-ConsistencyGuid as source anchor.
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0044</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Are_there_custom_rules_with_precedence_value_over_100</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>AAD Connect - Custom rules with precedence value over 100</Name>
+        <Summary>
+            Custom rules with precedence value over 100
+        </Summary>
+        <Recommendation>
+            Fix the rules so it is not at risk or conflict with the default set.
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0045</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Are_there_custom_rules_with_precedence_value_over_100</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P3"/>
+            </Answers>
+        </QnA>
+        <Name>AAD Connect - Overly complex rules</Name>
+        <Summary>
+            Azure AD Connect custom rules provide the ability to control the flow of attributes between on-premises objects and cloud objects. When misused/overused, you introduce the following risks:
+
+            1. Troubleshooting complexity
+            2. Degradation of performance when performing complex operations across many objects
+            3. Higher probability of divergence of configuration between production and staging server
+            4. Additional overhead when upgrading Azure AD Connect, if custom rules are created within the precedence greater than 100 (used by built-in rules)
+
+            Typical patterns of misuse of custom rule include:
+
+            - Compensate for dirty data in the directory: In this case, it is recommended to work with the owners of the AD team and clean up the data in the directory as a remediation task, and adjust processes to avoid re-introduction of bad data.
+            - One-off remediation of individual users: It is common to find rules that special case outliers, usually because of an issue with a particular user. (example: if &quot;SamAccountName&quot; equals &quot;jsmith&quot; then … )
+            - Overcomplicated &quot;CloudFiltering&quot;: While reducing the number of objects is a good practice, there is a tradeoff between the &quot;precision&quot; to zero in every single object with sync rules. If there is complex logic to include/exclude objects beyond the OU filtering, it is recommended to deal with this logic outside of sync and decorate the objects with a simple &quot;cloudFiltered&quot; attribute that can flow with a very simple Sync Rule.
+        </Summary>
+        <Recommendation>
+            Investigate reasons for complexity and identify simplification opportunities.
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0046</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Is_Group_Filtering_used_in_Production</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>AAD Connect - Group Filtering is used in Production</Name>
+        <Summary>Group Filtering is used in Production
+        </Summary>
+        <Recommendation>
+            Transition to another filtering approach.
+
+            #### Learn More
+            [Azure AD Connect sync: Configure filtering | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/connect/active-directory-aadconnectsync-configure-filtering)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Entitlement Management</Category>
+        <Area>License</Area>
+        <ID>AR0047</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>Lic_Are_there_outstanding_licensing_errors_shown_in_the_portal</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P1"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Outstanding licensing errors</Name>
+        <Summary>
+            User productivity may be impacted due to license errors. This results in users being in a licensing error state.
+            Some common license errors that require remediation include.
+            * Not enough licenses
+            * Conflicting service plans
+            * Other products depend on this license
+            * Usage location isn't allowed
+            * Duplicate proxy addresses
+            * Azure AD Mail and ProxyAddresses attribute change
+        </Summary>
+        <Recommendation>
+            Triage and remediate the root cause for the licensing error. 
+            Once fixed, force a group or user license processing to resolve errors.
+
+            #### Learn More
+            [Identify and resolve license assignment problems for a group in Azure Active Directory | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/enterprise-users/licensing-groups-resolve-problems)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Entitlement Management</Category>
+        <Area>License</Area>
+        <ID>AR0048</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>Lic_Do_you_have_a_defined_process_automated_or_manual_to_monitor_and_resolve_licensing_errors</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>License error monitoring</Name>
+        <Summary>
+            Current process does not monitor licensing errors.
+
+            User productivity may be impacted due to license errors. This results in users being in a licensing error state.
+            Some common license errors that require remediation include.
+            * Not enough licenses
+            * Conflicting service plans
+            * Other products depend on this license
+            * Usage location isn't allowed
+            * Duplicate proxy addresses
+            * Azure AD Mail and ProxyAddresses attribute change
+        </Summary>
+        <Recommendation>
+            Define improvements to the process to discover and address licensing errors.
+
+            #### Learn More
+            [Use Audit logs to monitor group-based licensing activity | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/enterprise-users/licensing-group-advanced#use-audit-logs-to-monitor-group-based-licensing-activity)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Entitlement Management</Category>
+        <Area>License</Area>
+        <ID>AR0049</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>Lic_Does_your_existing_license_assignment_strategy_fully_cover_Joiners_Movers_Leavers_consistently</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>Comprehensive licensing strategy</Name>
+        <Summary>
+            Existing process does not fully cover Joiners/Movers/Leavers consistently
+        </Summary>
+        <Recommendation>
+            Define lifecycle management improvements to the process. If GBL is deployed, define a group membership lifecycle.
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Entitlement Management</Category>
+        <Area>License</Area>
+        <ID>AR0050</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>Lic_If_yes__is_GBL_deployed_against_on_premises_groups_that_lack_lifecycle_management</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P3"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Group based licensing with on premises groups</Name>
+        <Summary>
+            GBL is deployed against on-premises groups that lack lifecycle management
+        </Summary>
+        <Recommendation>
+            Consider using cloud groups to enable capabilities such as delegated ownership, attribute based dynamic membership, etc.
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Entitlement Management</Category>
+        <Area>License</Area>
+        <ID>AR0051</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>Lic_If_GBL_is_not_used__how_would_you_rate_your_current_approach_to_licensing</Name>
+            <Answers>
+                <Answer Value="Ad hoc" Priority = "P1"/>
+                <Answer Value="Standardized" Priority = "P2"/>
+                <Answer Value="Mature" Priority = "P3"/>
+            </Answers>
+        </QnA>
+        <Name>Static license assignment</Name>
+        <Summary>
+            Licenses are assigned directly to users which can make large-scale management difficult.
+
+            Azure Active Directory streamlines the management of licenses through Group Based Licensing. This way, IAM provides the group infrastructure and delegated the management of those groups to the proper teams in the organizations. There are multiple ways to set up the membership of groups in Azure Active Directory:
+
+            - Synchronized from on-premises: Groups can come from on premises directories, which could be a good fit for organizations that have established group management processes that can be extended to assign licenses in office 365
+            - Attribute-Based / Dynamic: Groups can be created in the cloud based on an expression based on user attributes (example: Department equals &quot;sales&quot;). Azure AD maintains the members of the group, keeping it consistent with the expression defined. Using this kind of group for license assignment enables an attribute-based license assignment, which is a good fit for organizations that have high data quality in their directory
+            - Delegated Ownership: Groups can be created in the cloud and can be designated owners. This way, you can empower business owners (example: Collaboration team, BI team) to define who should have access
+
+            Another aspect of license management is the definition of service plans (components of the license) that should be enabled based on job functions in the organization. Granting access to services plans that are not necessary can result in additional help desk volume (e.g. users see tools in the office portal that they have not been trained for, or should not be using), unnecessary provisioning, or worse, putting your compliance and governance at risk (e.g. provisioning OneDrive for business to individuals that might not be allowed to share content)
+
+            Some guidelines to define service plans to users:
+
+            - Define &quot;packages&quot; of service plans to be offered to users based on their role (e.g. white-collar worker versus floor worker)
+            - Create groups by cluster and assign the license with service plan
+            - Optionally, an attribute can be defined to contain the packages for users
+        </Summary>
+        <Recommendation>
+            | **If you find …** | **We recommend …** | **With this suggested priority …** |
+            | --- | --- | --- |
+            | … **adhoc manual process to assign licenses and assign components to users** | … deploy Group Based Licensing (GBL) | P1 |
+            | … **standardized but manual process to assign licenses and assign components to users** | … deploy Group Based Licensing (GBL) | P2 |
+            | … **mature process and tools to assign licenses to users (e.g. MIM / Oracle Access Manager, etc.), but rely on on-premises infrastructure** | … offload assignment from existing tools and deploy GBL, and define a group lifecycle management based on dynamic groups | P3 |
+
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0052</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Is_delta_sync_taking_over_30_minutes_for_95th_percentile</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Sync Perf - Over 30 minutes for 95 percentile</Name>
+        <Summary>
+            Delta sync is taking over 30 minutes for 95 percentile.
+        </Summary>
+        <Recommendation>
+            Deep dive and review setup against hardware [guidelines](https://aka.ms/aadconnectperf)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0053</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Are_there_significant_discrepancies_between_the_delta_sync_performance_of_staging_and_production</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Sync Perf - Staging vs Production discrepancy</Name>
+        <Summary>
+            Significant discrepancies were found between the delta sync performance of the staging and production servers.
+        </Summary>
+        <Recommendation>
+            Deep dive and review setup against hardware [guidelines](https://aka.ms/aadconnectperf)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0054</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Are_there_full_sync_cycles_that_are_not_needed</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Sync Perf - Frequent full sync cycles</Name>
+        <Summary>
+            Full sync cycles are being performed unnecessarily. 
+        </Summary>
+        <Recommendation>
+            Deep dive and understand why.
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Identity Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0055</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AADC_Is_there_a_consistent_volume_trend_of_add_deletes_over_1__and_or_updates_is_over_10</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P3"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Sync Perf - High volume</Name>
+        <Summary>
+            Consistently high volume trend of add/deletes is over 1% and/or updates is over 10%.
+        </Summary>
+        <Recommendation>
+            Review of what's causing it, for example a script on prem touching all objects.
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Operations</Area>
+        <ID>AR0056</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Do_you_have_owners_defined_for_the_following_tasks_in_your_organization</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P1"/>
+            </Answers>
+        </QnA>
+        <Name>Owners of Key Tasks</Name>
+        <Summary>
+            Managing Azure AD requires the continuous execution of key operational tasks and processes which are not necessarily mapped to a rollout project. Nonetheless, it is important to establish them for an optimized operation of customer's environment.
+        </Summary>
+        <Recommendation>
+            Assign missing owners and align ownership. Operationalize process per the suggestions in the table below:
+
+            | **Task** | **Microsoft Recommendation** |
+            | --- | --- |
+            | **Manage lifecycle of SSO Configuration in Azure AD** | IAM Operations Team |
+            | **Design Conditional Access Policies for Azure AD Applications** | InfoSec Architecture Team |
+            | **Archive Sign-In Activity in a SIEM system** | InfoSec Operations Team |
+            | **Archive Risk Events in a SIEM system** | InfoSec Operations Team |
+            | **Triage Security Reports** | InfoSec Operations Team |
+            | **Triage Risk Events** | InfoSec Operations Team |
+            | **Triage Users Flagged for risk, and Vulnerability reports from Azure AD Identity Protection (P2)** | InfoSec Operations Team |
+            | **Investigate Security Reports** | InfoSec Operations Team |
+            | **Investigate Risk Events** | InfoSec Operations Team |
+            | **Investigate Users Flagged for risk, and Vulnerability reports from Identity Protection (P2)** | InfoSec Operations Team |
+
+            #### Learn More
+
+            - [Assigning administrator roles in Azure Active Directory | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/active-directory-assign-admin-roles-azure-portal)
+            - [Governance in Azure | Microsoft Docs](https://docs.microsoft.com/en-us/azure/security/governance-in-azure)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <ID>AR0057</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Do_you_have_a_self_service_password_reset_solution</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>Password Management</Name>
+        <Summary>
+            Password Change/Reset is one of the biggest sources of volume and cost of help desk calls. In addition to this, changing the password as a tool to mitigate a user risk is a fundamental tool to improve the security posture in your organization.
+        </Summary>
+        <Recommendation>
+            Deploy Azure AD Self-Service Password Reset (SSPR) and on-premises Password Protection to allow users to self-service the reset of passwords and reduce the volume and cost of help desk calls.
+
+            #### Learn More
+
+            - [Azure AD tiered password security | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/active-directory-secure-passwords)
+            - [Azure AD self-service password reset overview | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/authentication/active-directory-passwords-overview)
+            - [Dynamically banned passwords in Azure AD | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/authentication/concept-password-ban-bad)
+            - [Deploy Azure AD password protection preview | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/authentication/howto-password-ban-bad-on-premises)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <ID>AR0058</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_If_yes__is_this_using_Azure_AD_s_self_service_password_reset_solution</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P3"/>
+            </Answers>
+        </QnA>
+        <Name>Cloud based Self Service Password Reset</Name>
+        <Summary>
+            An existing self-service password management solution that relies in on-premises product (e.g. MIM) 
+        </Summary>
+        <Recommendation>
+            Deploy Azure AD Self-Service Password Reset (SSPR) and on-premises Password Protection.
+
+            #### Learn More
+
+            - [Azure AD tiered password security | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/active-directory-secure-passwords)
+            - [Azure AD self-service password reset overview | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/authentication/active-directory-passwords-overview)
+            - [Dynamically banned passwords in Azure AD | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/authentication/concept-password-ban-bad)
+            - [Deploy Azure AD password protection preview | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/authentication/howto-password-ban-bad-on-premises)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <ID>AR0059</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Is_the_password_reset_part_of_the_operational_procedures_to_remediate_a_user_incident</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>User Risk Incident - Password Reset</Name>
+        <Summary>
+            Automated self-service password reset is not used in remediation of users at risk.
+        </Summary>
+        <Recommendation>
+            If AAD P2 is available, deploy Identity Protection with SSPR and use it as part of User Risk Policy.
+
+            If AAD P2 is not available, ensure automation is in place to detect user risk events based on the audit log and trigger a workflow to address user risk.
+
+            #### Learn More
+
+            - [Use risk detections for user sign-ins to trigger Azure AD Multi-Factor Authentication or password changes | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/authentication/tutorial-risk-based-sspr-mfa)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <ID>AR0060</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Password_policy_uses_complexity_based_rules</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Password complexity</Name>
+        <Summary>
+            Managing passwords securely is of the most critical part of the identity system, and oftentimes the biggest target of attacks.
+
+            Password policy uses complexity-based rules such as:
+            - Multiple Character Sets
+            - Expiration
+        </Summary>
+        <Recommendation>
+            Reconsider in favor of Microsoft Recommended Practices and switch to password that are not easy to guess, to either not expire or a long expiration period.
+
+            The primary goal of a more secure password system is password diversity. You want your password policy to contain lots of different and hard to guess passwords. Here are a few recommendations for keeping your organization as secure as possible.
+            - Maintain an 8-character minimum length requirement
+            - Don't require character composition requirements. For example, *&amp;((^%$
+            - Don't require mandatory periodic password resets for user accounts
+
+            #### Learn More
+            - [Password Guidance](https://aka.ms/passwordguidance)
+            - [Your Pa$$word doesn't matter](https://techcommunity.microsoft.com/t5/azure-active-directory-identity/your-pa-word-doesn-t-matter/ba-p/731984)
+            - [All your creds are belong to us!](https://aka.ms/allyourcredsarebelongtous)
+            - [Password policy recommendations](https://docs.microsoft.com/en-us/microsoft-365/admin/misc/password-policy-recommendations?view=o365-worldwide)
+        </Recommendation>
+    </recommendation>
+
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <ID>AR0061</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Ban_Weak_Passwords</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>Weak Passwords</Name>
+        <Summary>
+            No mechanism to protect against weak passwords.
+
+        </Summary>
+        <Recommendation>
+            Deploy Azure AD SSPR and password protection.
+
+            #### Learn More
+            - [Eliminate weak passwords in the cloud](https://docs.microsoft.com/en-us/azure/active-directory/authentication/concept-password-ban-bad)
+            - [Eliminate weak passwords on-premises](https://docs.microsoft.com/en-us/azure/active-directory/authentication/concept-password-ban-bad-on-premises)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <ID>AR0062</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Ban_Weak_Passwords</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P1"/>
+            </Answers>
+        </QnA>
+        <Name>Passwordless</Name>
+        <Summary>
+            The cost of using passwords and the associated security risk now outweigh the benefits. Even the strongest passwords are easily phishable and vulnerable to attacks, and user resistance to password requirements is high. 
+
+        </Summary>
+        <Recommendation>
+            Consider enabling passwordless.
+
+            Passwordless authentication is a form of multifactor authentication that replaces the password with a secure alternative. 
+
+            #### Learn More
+            - [Passwordless Authentication](https://www.microsoft.com/en-us/security/business/identity-access-management/passwordless-authentication)
+            - [Passwordless authentication options for Azure Active Directory](https://docs.microsoft.com/en-us/azure/active-directory/authentication/concept-authentication-passwordless)
+            - [10 Reasons to Love Passwordless #10: Never use a password](https://techcommunity.microsoft.com/t5/azure-active-directory-identity/10-reasons-to-love-passwordless-10-never-use-a-password/ba-p/2111909)
+        </Recommendation>
+    </recommendation>        
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <ID>AR0063</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Enforce_MFA_registration</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P1"/>
+            </Answers>
+        </QnA>
+        <Name>MFA Registration</Name>
+        <Summary>
+            No MFA registration of users at scale.
+
+        </Summary>
+        <Recommendation>
+            Register all users for MFA, so it can be used as a mechanism to authenticate in addition to just passsords.
+
+            #### Learn More
+            - [Configure the Azure AD Multi-Factor Authentication registration policy](https://docs.microsoft.com/en-us/azure/active-directory/identity-protection/howto-identity-protection-configure-mfa-policy)            
+        </Recommendation>
+    </recommendation>    
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <ID>AR0064</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Detection_of_Leaked_Passwords</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P1"/>
+            </Answers>
+        </QnA>
+        <Name>Leaked Password Detection</Name>
+        <Summary>
+            No mechanism to detect leaked passwords.
+        </Summary>
+        <Recommendation>
+            Deploy password hash sync (PHS) to gain insights
+
+            #### Learn More
+            - [What is password hash synchronization with Azure AD?](https://docs.microsoft.com/en-us/azure/active-directory/hybrid/whatis-phs)
+        </Recommendation>
+    </recommendation>    
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <ID>AR0065</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Enable_ADFS_Smart_Soft_Lockout</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>ADFS Smart - Soft Lockout</Name>
+        <Summary>
+            Customer has AD FS and it is not feasible to move to managed authentication and Extranet Soft Lockout is not deployed, or Smart Lockout is not deployed.
+        </Summary>
+        <Recommendation>
+            Deploy AD FS extranet soft lockout and / or Smart Lockout
+
+            #### Learn More
+            - [Azure AD and AD FS best practices: Defending against password spray attacks](https://cloudblogs.microsoft.com/enterprisemobility/2018/03/05/azure-ad-and-adfs-best-practices-defending-against-password-spray-attacks/)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <ID>AR0066</ID> 
+        <Name>MFA for Privileged Roles</Name>
+        <Summary>
+            Passwords by themselves are not secure enough to prevent bad actors to get access to your environment. It is key to provision strong credentials to all users to enable multi-factor authentication (MFA) access policies with and self-service password reset using strong credentials.
+
+            Not all privileged accounts are registered and using MFA.
+        </Summary>
+        <Recommendation>
+            Enforce MFA for all privileged accounts and require MFA for all sign-ins (avoid excluding MFA from trusted networks for these roles).
+
+            - [Conditional Access: Require MFA for administrators](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/howto-conditional-access-policy-admin-mfa)
+        </Recommendation>        
+        <Sources>
+            <File>roleDefinitions.csv</File>
+            <File>roleAssignments.csv</File>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            
+            $res =  "" | select Priority,Data
+
+            # concentrate on the 13 roles protected by security defaults
+            # https://docs.microsoft.com/en-us/azure/active-directory/fundamentals/concept-fundamentals-security-defaults#protecting-administrators
+            $securityDefaultRoles = @(
+                "Global administrator","Application administrator","Authentication administrator",
+                "Billing administrator","Cloud application administrator","Conditional Access administrator",
+                "Exchange administrator","Helpdesk administrator","Password administrator",
+                "Privileged authentication administrator","Privileged Role Administrator","Security administrator",
+                "SharePoint administrator","User administrator"
+            )
+
+            # get the role definitions of assigned roles
+            $roleDefintions = @($Data['roleDefinitions.csv'] | Where-Object { $_.DisplayName -in $securityDefaultRoles })
+
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            # policies covering roles and requiring MFA (only)
+            $policiesWithRolesIncluded = @($enabledCAPolicies | Where-Object {
+                $_.conditions.users.includeRoles.Count -gt 0 -and
+                $_.conditions.applications.includeApplications -contains "All"
+                $_.conditions.platforms -eq $null -and
+                $_.conditions.locations -eq $null -and
+                $_.conditions.devices -eq $null -and
+                $_.grantControls.builtInControls.Count -eq 1 -and
+                $_.grantControls.builtInControls -contains "mfa"
+            })
+
+            # list roles with CA policies covering them
+            $rolesToCA = @($roleDefintions | Select-Object displayName, `
+                @{ Name = 'conditionalAccessPoliciesCount'; Expression = {
+                    $roleId= $_.id; @($policiesWithRolesIncluded | Where-Object{ $_.conditions.users.includeRoles -contains $roleId }).Count 
+                }}, `
+                @{ Name = 'conditionalAccessPolicies'; Expression = {
+                    $roleId= $_.id; @($policiesWithRolesIncluded | Where-Object{ $_.conditions.users.includeRoles -contains $roleId } | Select-Object -ExpandProperty displayName) -join ", " 
+                }}
+            )
+
+            # list roles not protected by CA
+            $res.Data = @($rolesToCA | Where-Object { $_.conditionalAccessPoliciesCount -eq 0 } | Select-Object -Property displayName,conditionalAccessPolicies)
+
+            $res.Priority = "Passed"
+            if ($res.Data.Count -gt 0) {
+                $res.Priority = "P0"
+            }
+
+            return $res
+        </PowerShell>
+    </recommendation>    
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <ID>AR0067</ID> 
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Do_you_provision_strong_credentials_alongside_identity_provisioning_or_device_provisioning</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P1"/>
+            </Answers>
+        </QnA>
+        <Name>Resilient Access Control Strategy</Name>
+        <Summary>
+            Organizations that rely on a single access control, such as multi-factor authentication (MFA) or a single network location, to secure their IT systems are susceptible to access failures to their apps and resources if that single access control becomes unavailable or misconfigured. 
+        </Summary>
+        <Recommendation>
+            Register additional factors for users as per the guide below.
+
+            - [Create a resilient access control management strategy - Azure Active Directory | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/authentication/concept-resilient-controls)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <ID>AR0068</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Are_strong_credentials_used_in_conditional_access_policies</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P1"/>
+            </Answers>
+        </QnA>
+        <Name>Require MFA for all users</Name>
+        <Summary>
+            MFA is not part of authentication policies (e.g. Conditional Access, Per User MFA, IdP on prem MFA) for all users.
+        </Summary>
+        <Recommendation>
+            Protect user authentication with MFA using Conditional Access.
+
+            - [Conditional Access: Require MFA for all users](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/howto-conditional-access-policy-all-users-mfa)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <ID>AR0069</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Have_you_enabled_Password_Hash_Sync</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P1"/>
+            </Answers>
+        </QnA>
+        <Name>On-premises outage resiliency</Name>
+        <Summary>
+            Attacks such as Solorigate and non-Petya are known to infect on-premises networks very severely. In addition to the benefits of simplicity and enabling leak credential detection, Azure AD Password Hash Sync (PHS) and Azure AD MFA allow users to access SaaS applications and Office 365 despite of on-premises outages.
+
+            It is possible to enable PHS, while keeping federation. This allows a fallback of authentication when federation services are not available.
+        </Summary>
+        <Recommendation>
+            Deploy Password Hash Sync and define a disaster recovery plan that includes using PHS for authentication
+
+            - [Implement password synchronization with Azure AD Connect sync | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/connect/active-directory-aadconnectsync-implement-password-synchronization)
+            - [Choose the right authentication method for your Azure Active Directory hybrid identity solution](https://docs.microsoft.com/en-au/azure/active-directory/hybrid/choose-ad-authn)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <ID>AR0070</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Is_the_procedure_to_switch_to_PHS_practiced_enabled_to_the_IAM_Ops_team</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>On-premises outage strategy</Name>
+        <Summary>
+            On-premises outage resiliency strategy is not integrated with Azure AD.
+        </Summary>
+        <Recommendation>
+            Deploy Password Hash Sync and update disaster recovery plan to leverage PHS.
+
+            - [Implement password synchronization with Azure AD Connect sync | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/connect/active-directory-aadconnectsync-implement-password-synchronization)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Credentials Management</Area>
+        <ID>AR0071</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>Do_you_enforce_a_policy_that_requires_all_applications_to_use_a_certificate_credential</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>Programmatic Usage of Weak Credentials</Name>
+        <Summary>
+            Poor credential management increases the risk of credential theft.
+
+            There is a known dependency on client secrets and/or passwords flows for scripts or applications.
+        </Summary>
+        <Recommendation>
+            Move away to use Azure Managed Identities, Certificates or Windows Integrated Authentication whenever possible. 
+            For applications where this is not possible, consider using Azure KeyVault, code / config review to discover and remediate passwords in config files or source code.
+
+            - [Azure AD-managed identities for Azure resources documentation](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Authentication Experience</Area>
+        <ID>AR0072</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Have_you_deployed_Hybrid_Azure_AD_joined_in_your_environment</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>Hybrid Azure AD Join</Name>
+        <Summary>
+            Authenticating the device and account for its trust type improves your security posture and usability by:
+
+            - Avoid friction (e.g. MFA) when the device is trusted
+            - Blocks access from untrusted joined devices
+            
+            Hybrid Azure AD joined can be enabled only to express conditional access policies based on the domain joined status of the device. 
+            Device Management and Compliance is enforced and attested outside, typically using Group Policy Objects, System Center Configuration Manager or similar tools.
+        </Summary>
+        <Recommendation>
+            Register the devices to the cloud and use Hybrid Azure AD Join as a control in Conditional Access policies.
+
+            - [Identity and device access configurations](https://docs.microsoft.com/en-us/microsoft-365/security/office-365-security/microsoft-365-policies-configurations?view=o365-worldwide)
+            - [Plan your hybrid Azure Active Directory join implementation](https://docs.microsoft.com/en-us/azure/active-directory/devices/hybrid-azuread-join-plan)
+            - [Require Hybrid Azure AD joined devices](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/require-managed-devices#require-hybrid-azure-ad-joined-devices)
+        </Recommendation>
+    </recommendation>    
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Authentication Experience</Area>
+        <ID>AR0073</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Do_you_use_device_compliance_as_a_control_in_Conditional_Access</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>Hybrid Azure AD Join - Device Trust</Name>
+        <Summary> 
+            Authenticating the device and account for its trust type improves your security posture and usability by:
+
+            - Avoid friction (e.g. MFA) when the device is trusted
+            - Blocks access from untrusted joined devices
+            
+            Hybrid Azure AD joined can be enabled only to express conditional access policies based on the domain joined status of the device. 
+            Device Management and Compliance is enforced and attested outside, typically using Group Policy Objects, System Center Configuration Manager or similar tools.
+
+            **Domain Joined Windows Devices are already registered in the cloud, but are not used in conditional access policies**
+        </Summary>
+        <Recommendation>
+            Use Hybrid Azure AD Join as a control in Conditional Access policies
+
+            - [Require Hybrid Azure AD joined devices](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/require-managed-devices#require-hybrid-azure-ad-joined-devices)
+        </Recommendation>
+    </recommendation>        
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Authentication Experience</Area>
+        <ID>AR0074</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Do_you_have_mobile_management_policies_defined</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>Mobiles - Device Trust</Name>
+        <Summary> 
+            Authenticating the device and account for its trust type improves your security posture and usability by:
+
+            - Avoid friction (e.g. MFA) when the device is trusted
+            - Blocks access from untrusted joined devices
+            
+            Microsoft Intune can be used to manage the device and enforce compliance policies, attest device health, and set conditional access policies based on whether the device is compliant; Microsoft Intune can manage iOS devices, Mac desktops (Via JAMF integration), Windows desktops (natively using MDM for windows 10, and co-management with System Center Configuration Manager) and Android mobile devices.
+        </Summary>
+        <Recommendation>
+            Use Compliant Device as a control in Conditional Access policies.
+
+            - [Require managed devices for cloud app access with Conditional Access](quire-device-to-be-marked-as-compliant)
+        </Recommendation>
+    </recommendation>        
+
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Authentication Experience</Area>
+        <ID>AR0077</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Do_your_users_use_Windows_Hello_in_their_Windows_10_Desktops</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>Windows Hello for Business - Enabled</Name>
+        <Summary> 
+            In Windows 10, Windows Hello for Business (WH4B) replaces passwords with strong two-factor authentication on PCs and mobile devices. This enables a more streamlined MFA experience for users, and reduces reliance on passwords
+        </Summary>
+        <Recommendation>
+            Deploy WH4B to all Windows 10 Devices
+
+            #### Learn More
+
+            - [Windows Hello for Business (Windows 10) | Microsoft Docs](https://docs.microsoft.com/en-us/windows/security/identity-protection/hello-for-business/hello-identity-verification)
+            - [Manage Windows Hello in your organization (Windows 10) | Microsoft Docs](https://docs.microsoft.com/en-us/windows/security/identity-protection/hello-for-business/hello-manage-in-organization)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Role Management</Area>
+        <ID>AR0078</ID>
+        <Name>Use PIM to grant just-in-time access</Name>        
+        <Sources>
+            <File>roleDefinitions.csv</File>
+            <File>roleAssignments.csv</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            
+            $res =  "" | select Priority,Data
+
+            # concentrate on the 13 roles protected by security defaults
+            # https://docs.microsoft.com/en-us/azure/active-directory/fundamentals/concept-fundamentals-security-defaults#protecting-administrators
+            $securityDefaultRoles = @(
+                "Global administrator","Application administrator","Authentication administrator",
+                "Billing administrator","Cloud application administrator","Conditional Access administrator",
+                "Exchange administrator","Helpdesk administrator","Password administrator",
+                "Privileged authentication administrator","Privileged Role Administrator","Security administrator",
+                "SharePoint administrator","User administrator"
+            )
+
+            $scopedRoleIds = $Data['roleDefinitions.csv'] | Where-Object { $_.DisplayName -in $securityDefaultRoles } | Select-Object -ExpandProperty id
+
+            # look for active permanent role assignements for those roles
+            $scopedActivePermanentAssignments = @($Data['roleAssignments.csv'] | Where-Object { $_.roleDefinitionId -in $scopedRoleIds -and $_.assignmentType -eq "Active" -and [string]::IsNullOrWhiteSpace($_.endDateTime) })
+
+            $res.Priority = "Passed"
+            if ($scopedActivePermanentAssignments.Count -gt 0) {
+                $res.Priority = "P1"
+            }
+
+            $res.Data = @($scopedActivePermanentAssignments | Select-Object -Property @{ Name = "roleDisplayName"; Expression = { $roleDef = $_.roleDefinitionId; $Data['roleDefinitions.csv'] | Where-Object { $_.id -eq $roleDef} | Select-Object -ExpandProperty displayName}},principalId,principalType)
+
+            return $res
+        </PowerShell>
+        <Summary>
+            One of the principles of least privilege is that access should be granted only for a specific period of time.
+            Azure AD Privileged Identity Management (PIM) lets you grant just-in-time access to your administrators. 
+        </Summary>
+        <Recommendation>
+            Enable PIM in azure AD and set eligible assignment to Azure AD roles where these can be activated for a limited time when needed.
+
+            - [Azure AD Privileged Identity Management (PIM)](https://docs.microsoft.com/en-us/azure/active-directory/privileged-identity-management/pim-configure)
+        </Recommendation>
+    </recommendation>
+
+
+    <recommendation>
+        <Sources>
+            <File>roleDefinitions.csv</File>
+            <File>roleAssignments.csv</File>
+            <File>conditionalAccessPolicies.json</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            
+            $res =  "" | select Priority,Data
+
+            # get role ids of each roles with an assignment
+            $scopedAssignments = @($Data['roleAssignments.csv'] | Select-Object -ExpandProperty roleDefinitionId)
+
+            # get the role definitions of assigned roles
+            $roleDefintions = @($Data['roleDefinitions.csv'] | Where-Object { $_.id -in $scopedAssignments})
+
+            # filter enabled policies
+            $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
+
+            $policiesWithRolesIncluded = @($enabledCAPolicies | Where-Object {
+                $_.conditions.users.includeRoles.Count -gt 0
+            })
+
+            # list roles with CA policies covering them
+            $rolesToCA = @($roleDefintions | Select-Object displayName, `
+                @{ Name = 'conditionalAccessPoliciesCount'; Expression = {
+                    $roleId= $_.id; @($policiesWithRolesIncluded | Where-Object{ $_.conditions.users.includeRoles -contains $roleId }).Count 
+                }}, `
+                @{ Name = 'conditionalAccessPolicies'; Expression = {
+                    $roleId= $_.id; @($policiesWithRolesIncluded | Where-Object{ $_.conditions.users.includeRoles -contains $roleId } | Select-Object -ExpandProperty displayName) -join ", " 
+                }}
+            )
+
+            # list roles not protected by CA
+            $res.Data = @($rolesToCA | Where-Object { $_.conditionalAccessPoliciesCount -eq 0 } | Select-Object -Property displayName,conditionalAccessPolicies)
+
+            $res.Priority = "Passed"
+            if ($res.Data.Count -gt 0) {
+                $res.Priority = "P1"
+            }
+
+            return $res
+        </PowerShell>
+        <Category>Access Management</Category>
+        <Area>Role Management</Area>
+        <ID>AR0079</ID>
+        <Name>Turn on MFA for all your administrator accounts</Name>
+        <Summary>
+            [Based on our studies](https://techcommunity.microsoft.com/t5/azure-active-directory-identity/your-pa-word-doesn-t-matter/ba-p/731984), your account is 99.9% less likely to be compromised if you use multi-factor authentication (MFA). 
+        </Summary>
+        <Recommendation>
+            You can enable MFA on Azure AD roles using two methods:
+
+            - [Role settings](https://docs.microsoft.com/en-us/azure/active-directory/privileged-identity-management/pim-how-to-change-default-settings) in Privileged Identity Management
+            - [Conditional Access](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/howto-conditional-access-policy-admin-mfa)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Authentication Experience</Area>
+        <ID>AR0080</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Do_you_have_any_applications_where_app_specific_local_username_password_is_used</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P1"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Applications with local accounts</Name>
+        <Summary> 
+            Providing a standardized single sign on mechanism to the entire enterprise is crucial for best user experience, reduction of risk, ability to report, and governance.
+
+            Applications that support SSO with Azure AD but are configured to use local accounts.
+        </Summary>
+        <Recommendation>
+            Re-configure the applications to use SSO with Azure AD.
+
+            #### Learn More
+
+            - [Plan a single sign-on deployment in Azure Active Directory](https://docs.microsoft.com/en-us/azure/active-directory/manage-apps/plan-sso-deployment)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>App Auth and Assignment</Area>
+        <ID>AR0081</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Do_you_have_any_applications_that_support_SAML_OpenID_Connect_but_SSO_is_configured_with_a_different_Identity_provider</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Applications not using Azure AD</Name>
+        <Summary> 
+            Applications that support SSO with Azure AD but are using another Identity Provider instead of Azure AD.
+        </Summary>
+        <Recommendation>
+            Re-configure the applications to use SSO with Azure AD.
+
+            #### Learn More
+
+            - [What is single sign-on in Azure Active Directory?](https://docs.microsoft.com/en-us/azure/active-directory/manage-apps/what-is-single-sign-on)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>App Auth and Assignment</Area>
+        <ID>AR0082</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_If_so__do_you_use_password_vaulting_with_these_apps</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>Applications eligible for Password SSO</Name>
+        <Summary>
+            Organization has applications that don't support federation protocols but support forms authentication.
+
+            Providing a standardized single sign on mechanism to the entire enterprise is crucial for best user experience, reduction of risk, ability to report, and governance.
+        </Summary>
+        <Recommendation>
+            Configure the application to use password single sign on with Azure AD.
+
+            #### Learn More
+
+            - [Add password-based single sign-on to an application in Azure Active Directory](https://docs.microsoft.com/en-us/azure/active-directory/manage-apps/configure-password-single-sign-on-non-gallery-applications)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>App Auth and Assignment</Area>
+        <ID>AR0083</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Do_you_have_a_process_to_discover_applications</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "Passed"/>
+                <Answer Value="No" Priority = "P2"/>
+            </Answers>
+        </QnA>
+        <Name>Detect unsactioned applications</Name>
+        <Summary> 
+            No mechanism to discover ungoverned applications in the environment.
+
+            Providing a standardized single sign on mechanism to the entire enterprise is crucial for best user experience, reduction of risk, ability to report, and governance.
+        </Summary>
+        <Recommendation>
+            Define a discovery process (e.g. CASB solution like Microsoft Cloud App Security).
+
+            #### Learn More
+
+            - [Microsoft Cloud App Security](https://docs.microsoft.com/en-us/cloud-app-security/)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>App Auth and Assignment</Area>
+        <ID>AR0084</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Are_there_any_applications_configured_in_AD_FS_that_support_SSO_against_Azure_AD</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Applications eligible for migration from ADFS</Name>
+        <Summary> 
+            Applications were found configured in AD FS that support SSO against Azure AD.
+
+            Providing a standardized single sign on mechanism to the entire enterprise is crucial for best user experience, reduction of risk, ability to report, and governance.
+        </Summary>
+        <Recommendation>
+            Re-configure the applications to use SSO with Azure AD.
+
+            #### Learn More
+
+            - [Migrate AD FS on-premises apps to Azure AD | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/manage-apps/migrate-adfs-apps-to-azure)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>App Auth and Assignment</Area>
+        <ID>AR0085</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Are_there_applications_configured_in_AD_FS_using_uncommon_configurations_that_are_not_supported_By_Azure_AD</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Applications not-eligible for migration from ADFS</Name>
+        <Summary> 
+            Applications were found configured in AD FS using uncommon configurations that are not supported By Azure AD.
+
+            Providing a standardized single sign on mechanism to the entire enterprise is crucial for best user experience, reduction of risk, ability to report, and governance.            
+        </Summary>
+        <Recommendation>
+            Reach out to application owners to understand if the special configuration is indeed a requirement of the application. 
+            
+            If the special configuration is NOT a requirement, re-configure the applications to use SSO with Azure AD. 
+            
+            If the special configuration is a requirement, provide configuration details and scenarios to your Microsoft Representative
+
+
+            #### Learn More
+
+            - [Migrate AD FS on-premises apps to Azure AD | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/manage-apps/migrate-adfs-apps-to-azure)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>App Auth and Assignment</Area>
+        <ID>AR0086</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Did_you_find_applications_that_have_assignment_to_individual_users</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Applications assigned to individual users</Name>
+        <Summary> 
+            Applications have assignment to individual users, and there is no attestation / governance in place.
+
+            Assigning users to applications is best mapped when using groups, because they allow great flexibility and ability to manage at scale:
+            - Attribute based using dynamic group membership
+            - Delegation to app owners
+
+        </Summary>
+        <Recommendation>
+            Implement attestation (access reviews) to applications with direct assignments.
+
+            #### Learn More
+
+            - [How to assign users and groups to an application | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/application-access-assignment-how-to-add-assignment)
+            - [Manage user access with Azure AD access reviews | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/governance/manage-user-access-with-access-reviews)
+        </Recommendation>
+    </recommendation>    
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>App Auth and Assignment</Area>
+        <ID>AR0087</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Did_you_find_applications_that_have_assignment_to_individual_groups</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Applications assigned to groups without governance</Name>
+        <Summary> 
+            Applications have assignment to groups, and there is no attestation / governance in place.
+        </Summary>
+        <Recommendation>
+            Implement attestation (access reviews) to groups used for application access.
+
+            #### Learn More
+
+            - [How to assign users and groups to an application | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/application-access-assignment-how-to-add-assignment)
+            - [Create an access review of groups and applications in Azure AD access reviews | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/governance/create-access-review)
+
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>App Auth and Assignment</Area>
+        <ID>AR0088</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmg_Did_you_find_that_applications_have_assignment_to_groups_and_groups_are_managed_by_IT</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Applications assigned to IT managed groups</Name>
+        <Summary> 
+            Applications have assignment to groups, and groups are managed by IT (as opposed to an access governance solution).
+        </Summary>
+        <Recommendation>
+            Improve management at scale through one of the mechanisms below, whenever it is applicable:
+            - delegating group management and governance to application owners
+            - allowing self-service access to the application 
+            - define dynamic groups if user attributes can consistently determine access to applications
+            - leverage an access governance solution (eg Azure AD Access Reviews)
+
+            #### Learn More
+
+            - [How to assign users and groups to an application | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/application-access-assignment-how-to-add-assignment)
+            - [Create an access review of groups and applications in Azure AD access reviews | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/governance/create-access-review)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>    
+        <Category>Access Management</Category>
+        <Area>Role Management</Area>
+        <ID>AR0089</ID>
+        <Name>Limit the number of Global Administrators</Name>
+        <Summary>
+            As a best practice, Microsoft recommends that you assign the Global Administrator role to fewer than five people in your organization.
+            Global Administrators hold keys to the kingdom, and it is in your best interest to keep the attack surface low. 
+        </Summary>
+        <Recommendation>
+            Review Global Administrator role assignements.
+        </Recommendation>
+        <Sources>
+            <File>roleDefinitions.csv</File>
+            <File>roleAssignments.csv</File>
+            <File>users.csv</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            
+            $res =  "" | select Priority,Data
+
+            $GARoleId = $Data['roleDefinitions.csv'] | Where-Object { $_.DisplayName -eq "Global Administrator" } | Select-Object -ExpandProperty id
+
+            # look for users with assigned roles
+            $userIdsWithGA = @($Data['roleAssignments.csv'] | Where-Object { $_.roleDefinitionId -eq $GARoleId -and $_.principalType -eq "user"} | Select-Object -ExpandProperty principalId)
+
+            # get GA users
+            $usersWithGA = @($Data['users.csv'] | Where-Object { $_.id -in $userIdsWithGA})
+
+            $res.Priority = "Passed"
+            if ($usersWithGA.Count -gt 5) {
+                $res.Priority = "P0"
+            }
+
+            $res.Data = $usersWithGA
+
+            return $res
+        </PowerShell>        
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Role Management</Area>
+        <ID>AR0076</ID>
+        <Name>Avoid synced privileged users</Name>
+        <Summary>
+            Avoid using on-premises synced accounts for Azure AD role assignments. 
+            If your on-premises account is compromised, it can compromise your Azure AD resources as well.
+        </Summary>
+        <Recommendation>
+            Avoid using on-premises synced accounts for Azure AD role assignments. 
+        </Recommendation>
+        <Sources>
+            <File>roleDefinitions.csv</File>
+            <File>roleAssignments.csv</File>
+            <File>users.csv</File>
+        </Sources>
+        <PowerShell>
+            param($Data)
+            
+            $res =  "" | select Priority,Data
+
+            # concentrate on the 13 roles protected by security defaults
+            # https://docs.microsoft.com/en-us/azure/active-directory/fundamentals/concept-fundamentals-security-defaults#protecting-administrators
+            $securityDefaultRoles = @(
+                "Global administrator","Application administrator","Authentication administrator",
+                "Billing administrator","Cloud application administrator","Conditional Access administrator",
+                "Exchange administrator","Helpdesk administrator","Password administrator",
+                "Privileged authentication administrator","Privileged Role Administrator","Security administrator",
+                "SharePoint administrator","User administrator"
+            )
+
+            $scopedRoleIds = $Data['roleDefinitions.csv'] | Where-Object { $_.DisplayName -in $securityDefaultRoles } | Select-Object -ExpandProperty id
+
+            # look for users with assigned roles
+            $usersWithRole = @($Data['roleAssignments.csv'] | Where-Object { $_.roleDefinitionId -in $scopedRoleIds -and $_.principalType -eq "user"} | Select-Object -ExpandProperty principalId)
+
+            # get the synced users
+            $syncedUsersWithRole = @($Data['users.csv'] | Where-Object { $_.id -in $usersWithRole -and ($_.onPremisesSyncEnabled -eq "True" -or $_.onPremisesImmutableId -eq "True")})
+
+            $res.Priority = "Passed"
+            if ($syncedUsersWithRole.Count -gt 0) {
+                $res.Priority = "P1"
+            }
+
+            $res.Data = $syncedUsersWithRole
+
+            return $res
+        </PowerShell>        
+    </recommendation>    
+    <!--
+    <recommendation>
+        <PowerShell>
+            param($Data)
+            $res =  "" | select Priority,Data
+            return $res
+        </PowerShell>
+        <Category></Category>
+        <Area></Area>
+        <ID></ID>
+        <Name></Name>
+        <Summary></Summary>
+        <Recommendation></Recommendation>
+    </recommendation>
+    -->
+</recommendations>
