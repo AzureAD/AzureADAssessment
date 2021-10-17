@@ -61,10 +61,29 @@ function Export-AADAssessmentReportData {
     # | Use-Progress -Activity 'Exporting groups' -Property displayName -PassThru -WriteSummary `
     # | Export-JsonArray (Join-Path $OutputDirectory "groups.json") -Depth 5 -Compress
 
-    Set-Content -Path (Join-Path $OutputDirectory "groups.csv") -Value 'id,groupTypes,displayName,mail'
+    Set-Content -Path (Join-Path $OutputDirectory "groups.csv") -Value 'id,groupTypes,displayName,mail,groupType'
     Import-Clixml -Path (Join-Path $SourceDirectory "groupData.xml") `
     | Use-Progress -Activity 'Exporting groups' -Property displayName -PassThru -WriteSummary `
-    | Select-Object -Property id, groupTypes, displayName, mail `
+    | Select-Object -Property id, groupTypes, displayName, mail, `
+    @{ Name = "groupType"; Expression = {
+        if ($_.groupTypes -contains "Unified") {
+            "Microsoft 365"
+        } else {
+            if ($_.securityEnabled) {
+                if ($_.mailEnabled) {
+                    "Mail-enabled Security"
+                } else {                
+                    "Security"
+                }
+            } else {
+                if ($_.mailEnabled) {
+                    "Distribution"
+                } else {                
+                    "Unknown" # not mail enabled neither security enabled
+                }
+            }
+        }
+    }} `
     | Export-Csv (Join-Path $OutputDirectory "groups.csv") -NoTypeInformation
 
     ## Option 1 from Data Collection: Expand Group Membership to get transitiveMembers.
