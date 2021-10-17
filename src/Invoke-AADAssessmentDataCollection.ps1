@@ -258,7 +258,7 @@ function Invoke-AADAssessmentDataCollection {
         # | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "groupData.xml")
 
         ## Option 2: Get groups without member data and let Azure AD calculate transitiveMembers.
-        $ReferencedIdCache.group | Get-MsGraphResults 'groups?$select=id,groupTypes,displayName,mail,proxyAddresses' -TotalRequests $ReferencedIdCache.group.Count -DisableUniqueIdDeduplication `
+        $ReferencedIdCache.group | Get-MsGraphResults 'groups?$select=id,groupTypes,displayName,mail,proxyAddresses,mailEnabled,securityEnabled' -TotalRequests $ReferencedIdCache.group.Count -DisableUniqueIdDeduplication `
         | Select-Object -Property "*" -ExcludeProperty '@odata.type' `
         | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "groupData.xml")
 
@@ -289,7 +289,8 @@ function Invoke-AADAssessmentDataCollection {
             $OrganizationData.technicalNotificationMails | Get-MsGraphResults 'users?$select=id' -Filter "proxyAddresses/any(c:c eq 'smtp:{0}') or otherMails/any(c:c eq '{0}')" `
             | ForEach-Object { [void]$ReferencedIdCache.user.Add($_.id) }
         }
-        $ReferencedIdCache.user | Get-MsGraphResults 'users?$select=id,userPrincipalName,userType,displayName,accountEnabled,onPremisesSyncEnabled,onPremisesImmutableId,mail,otherMails,proxyAddresses,assignedPlans' -TotalRequests $ReferencedIdCache.user.Count -DisableUniqueIdDeduplication `
+        # get userinformations
+        $ReferencedIdCache.user | Get-MsGraphResults 'users/{0}?$select=id,userPrincipalName,userType,displayName,accountEnabled,onPremisesSyncEnabled,onPremisesImmutableId,mail,otherMails,proxyAddresses,assignedPlans,signInActivity' -TotalRequests $ReferencedIdCache.user.Count -DisableUniqueIdDeduplication -ApiVersion 'beta' `
         | Select-Object -Property "*" -ExcludeProperty '@odata.type' `
         | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "userData.xml")
         $ReferencedIdCache.user.Clear()
