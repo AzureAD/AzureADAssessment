@@ -112,7 +112,8 @@ function Get-MsGraphResults {
 
             Write-Debug -Message (ConvertTo-Json ([PSCustomObject]@{
                         'Request'                             = '{0} {1}' -f $_.TargetObject.Method, $_.TargetObject.RequestUri.AbsoluteUri
-                        'Response.StatusCode'                 = $_.Exception.Response.StatusCode
+                        'Response'                            = '{0} {1} HTTP/{2}' -f $_.Exception.Response.StatusCode.value__, $_.Exception.Response.StatusDescription, $_.Exception.Response.ProtocolVersion
+                        'Response.Content-Type'               = $_.Exception.Response.Headers.GetValues('Content-Type') -join '; '
                         'Response.Content'                    = $ResponseContent
                         'Response.Header.Date'                = $_.Exception.Response.Headers.GetValues('Date')[0]
                         'Response.Header.request-id'          = $_.Exception.Response.Headers.GetValues('request-id')[0]
