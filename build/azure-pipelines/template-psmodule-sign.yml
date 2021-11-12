@@ -14,6 +14,10 @@ parameters:
 - name: artifactOutput
   type: string
   default: 'PSModuleSigned'
+- name: SigningCertificateAzureConnection
+  type: string
+- name: SigningCertificateKeyVaultName
+  type: string
 - name: SigningCertificateSecretName
   type: string
   default:
@@ -35,8 +39,8 @@ steps:
   - task: AzureKeyVault@1
     displayName: 'Download Signing Certificate'
     inputs:
-      azureSubscription: 'GTP - Architecture (980e0e9f-178a-4c38-9372-f17806c6b944)'
-      KeyVaultName: 'codesign-kv'
+      azureSubscription: '${{ parameters.SigningCertificateAzureConnection }}'
+      KeyVaultName: '${{ parameters.SigningCertificateKeyVaultName }}'
       SecretsFilter: '${{ parameters.SigningCertificateSecretName }}'
       RunAsPreJob: false
 
