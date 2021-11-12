@@ -16,8 +16,10 @@ parameters:
   default: 'PSModuleSigned'
 - name: SigningCertificateAzureConnection
   type: string
+  default:
 - name: SigningCertificateKeyVaultName
   type: string
+  default:
 - name: SigningCertificateSecretName
   type: string
   default:
