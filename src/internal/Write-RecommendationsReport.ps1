@@ -14,7 +14,7 @@
     $md += " | | |`n"
     $md += " | --- | --- |`n"
     $md += " |**Organization Name**|$(Get-ObjectPropertyValue $qna['AD_OrgName'] 'value')|`n"
-    $md += " |**Organization Name**|$(Get-ObjectPropertyValue $qna['AD_TenantId'] 'value')|`n"
+    $md += " |**Tenant ID**|$(Get-ObjectPropertyValue $qna['AD_TenantId'] 'value')|`n"
     $md += " |**Organization Primary Contact**|$(Get-ObjectPropertyValue $qna['AD_OrgPrimaryContact'] 'value')|`n"
     $md += " |**Assessment Carried Out By**|$(Get-ObjectPropertyValue $qna['AD_AssessorName'] 'value')|`n"
     $md += " |**Assessment Date**|$(Get-ObjectPropertyValue $qna['AD_AssessmentDate'] 'value')|`n"

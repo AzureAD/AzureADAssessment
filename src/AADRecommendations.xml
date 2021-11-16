@@ -59,9 +59,14 @@
         <Category>Access Management</Category>
         <Area>Access Policies</Area>
         <ID>AR0002</ID>
-        <Name>Definte Trusted networks</Name>
+        <Name>Trusted Networks not defined</Name>
         <Summary>Trusted network is a signal leveraged by identity protection to improve risk detection. Defining your trusted networks will improve detection of risk events</Summary>
-        <Recommendation>Define trusted networks</Recommendation>
+        <Recommendation>
+            Define trusted networks
+
+            #### Learn More
+            - [Configure named locations in Azure Active Directory | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/active-directory-named-locations)
+        </Recommendation>
     </recommendation>
     <recommendation>
         <Sources>
@@ -111,9 +116,9 @@
         <Category>Access Management</Category>
         <Area>Access Policies</Area>
         <ID>AR0003</ID>
-        <Name>Conditional Access Controls (network, device and/or risks)</Name>
+        <Name>Conditional Access Controls using networks or device trust</Name>
         <Summary>Protect your users sign-ins by applying conditional access policies including risk, device or network location controls to improve your security</Summary>
-        <Recommendation>Design conditional access to include risk, device and/or netowrk location conditions</Recommendation>
+        <Recommendation>Design conditional access to include risk, device and/or network location conditions</Recommendation>
     </recommendation>
     <recommendation>
         <Sources>
@@ -2908,7 +2913,146 @@
 
             return $res
         </PowerShell>        
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>App Auth and Assignment</Area>
+        <ID>AR0090</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmg_Did_you_find_that_applications_have_assignment_to_groups_and_groups_are_managed_by_IT</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Applications assigned to IT managed groups</Name>
+        <Summary> 
+            Applications have assignment to groups, and groups are managed by IT (as opposed to an access governance solution).
+        </Summary>
+        <Recommendation>
+            Improve management at scale through one of the mechanisms below, whenever it is applicable:
+            - delegating group management and governance to application owners
+            - allowing self-service access to the application 
+            - define dynamic groups if user attributes can consistently determine access to applications
+            - leverage an access governance solution (eg Azure AD Access Reviews)
+
+            #### Learn More
+
+            - [How to assign users and groups to an application | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/application-access-assignment-how-to-add-assignment)
+            - [Create an access review of groups and applications in Azure AD access reviews | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/governance/create-access-review)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Access Policies </Area>
+        <ID>AR0091</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Did_you_find_customer_is_federated_does_not_use_insideCorporateNetwork_claim_but_there_are_no_trusted_networks_defined</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P1"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Federated Identity Provider not configured with insideCorporateNetwork and trusted networks</Name>
+        <Summary> 
+            Tenant is federated with an Identity Provider and does not use "insideCorporateNetwork" claim and does not have any trusted networks defined.
+        </Summary>
+        <Recommendation>
+            - Include insideCorporateNetwork claim from federated identity provder
+            - Define trusted networks to improve detection of risk events
+
+            #### Learn More
+
+            - [Trusted Locations | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/location-condition#trusted-locations)
+        </Recommendation>
     </recommendation>    
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Access Policies</Area>
+        <ID>AR0092</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Did_you_find_customer_is_federated_uses_insideCorporateNetwork_claim_there_are_no_trusted_networks_defined</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>No trusted networks defined</Name>
+        <Summary> 
+            Tenant is federated with an Identity Provider and does not have any trusted networks defined.
+            (AAD Portal > Users > Per-user MFA > Service Settings)
+        </Summary>
+        <Recommendation>
+            - Define trusted networks to improve detection of risk events
+
+            #### Learn More
+
+            - [Trusted Locations | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/location-condition#trusted-locations)
+        </Recommendation>
+    </recommendation>    
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Access Policies</Area>
+        <ID>AR0093</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>Sec_Do_you_still_have_trusted_IPs_within_MFA_old_config</Name>
+            <Answers> 
+                <Answer Value="Yes" Priority = "P2"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Legacy MFA - Trusted IPs</Name>
+        <Summary> 
+            Tenant is configured with IP ranges in the old MFA settings page.
+            (AAD Portal > Users > Per-user MFA > Service Settings)
+
+        </Summary>
+        <Recommendation>
+            - Migrate these IP ranges to named locations in Conditional Access and mark them as trusted.
+
+            #### Learn More
+
+            - [Trusted Locations | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/location-condition#trusted-locations)
+        </Recommendation>
+    </recommendation>    
+
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Access Policies</Area>
+        <ID>AR0094</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>Sec_Is_Allow_users_to_remember_multi_factor_authentication_on_devices_they_trust_enabled</Name>
+            <Answers>
+                <Answer Value="Yes" Priority = "P1"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>Legacy MFA - Reauthentication Prompts</Name>
+        <Summary> 
+            Tenant is configured with legacy re-authentication settings which can lead to MFA overprompting and poor user experience.
+            (AAD Portal > Users > Per-user MFA > Service Settings)
+        </Summary>
+        <Recommendation>
+            - Use device based trust instead of frequent tenant-wide re-authentication prompts which can lead to users being trained to be phished.
+            - Where device based trust cannot be used migrate this setting to a Conditional Access policy so it can be applied to a limited scope of apps and users.
+
+            #### Learn More
+            
+            - [Optimize reauthentication prompts and understand session lifetime for Azure AD MFA | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/authentication/concepts-azure-multi-factor-authentication-prompts-session-lifetime)
+        </Recommendation>
+    </recommendation>    
+
+
     <!--
     <recommendation>
         <PowerShell>
