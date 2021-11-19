@@ -23,6 +23,9 @@ parameters:
 - name: SigningCertificateSecretName
   type: string
   default:
+- name: EsrpCodeSigningServiceName
+  type: string
+  default: 
 
 steps:
 #- download: none
@@ -50,16 +53,53 @@ steps:
     displayName: 'Sign PowerShell Module Files'
     inputs:
       filePath: '$(System.DefaultWorkingDirectory)/build/Sign-PSModule.ps1'
-      arguments: '-ModuleManifestPath "$(Pipeline.Workspace)/${{ parameters.artifactOutput }}/*" -SigningCertificate "$(${{ parameters.SigningCertificateSecretName }})"'
+      arguments: '-ModuleManifestPath "$(Pipeline.Workspace)/${{ parameters.artifactOutput }}/*" -SigningCertificate "$(${{ parameters.SigningCertificateSecretName }})" -AddCatalogFile'
       pwsh: true
 
-- ${{ if eq(parameters.SigningCertificateSecretName,'') }}:
+- ${{ if ne(parameters.EsrpCodeSigningServiceName,'') }}:
   - task: EsrpCodeSigning@1
     displayName: 'Sign PowerShell Module Files'
     inputs:
-      ConnectedServiceName: 'ESRP - MSFT Identity - Community Projects'
-      FolderPath: $(Pipeline.Workspace)/${{ parameters.artifactOutput }}
-      Pattern: '*.psm1,*.ps1'
+      ConnectedServiceName: '${{ parameters.EsrpCodeSigningServiceName }}'
+      FolderPath: '$(Pipeline.Workspace)/${{ parameters.artifactOutput }}'
+      Pattern: '*.psd1,*.psm1,*.ps1'
+      signConfigType: inlineSignParams
+      inlineOperation: >-
+        [
+          {
+              "KeyCode" : "CP-230012",
+              "OperationCode" : "SigntoolSign",
+              "Parameters" : {
+                  "OpusName" : "Microsoft",
+                  "OpusInfo" : "http://www.microsoft.com",
+                  "FileDigest" : "/fd \"SHA256\"",
+                  "PageHash" : "/PH",
+                  "TimeStamp" : "/tr \"http://rfc3161.gtm.corp.microsoft.com/TSS/HttpTspServer\" /td sha256"
+              },
+              "ToolName" : "sign",
+              "ToolVersion" : "1.0"
+          },
+          {
+              "KeyCode" : "CP-230012",
+              "OperationCode" : "SigntoolVerify",
+              "Parameters" : {},
+              "ToolName" : "sign",
+              "ToolVersion" : "1.0"
+          }
+        ]
+
+  - pwsh: 'New-FileCatalog "$env:StagingDirectory/$env:ModuleName/$env:ModuleName.cat" -Path "$env:StagingDirectory/$env:ModuleName" -CatalogVersion 2.0'
+    displayName: 'Create File Catalog'
+    env:
+      StagingDirectory: '$(Pipeline.Workspace)/${{ parameters.artifactOutput }}'
+      ModuleName: '${{ parameters.moduleName }}'
+
+  - task: EsrpCodeSigning@1
+    displayName: 'Sign File Catalog'
+    inputs:
+      ConnectedServiceName: '${{ parameters.EsrpCodeSigningServiceName }}'
+      FolderPath: '$(Pipeline.Workspace)/${{ parameters.artifactOutput }}'
+      Pattern: '*.cat'
       signConfigType: inlineSignParams
       inlineOperation: >-
         [
