@@ -9,10 +9,10 @@ If you are a Microsoft employee or partner performing the assessment for a custo
 If you run into any errors please see the [FAQ section](#faq) at the end of this document.
 
 ```PowerShell
-Install-Module AzureADAssessment -Force -AcceptLicense -Scope CurrentUser
+Install-Module AzureADAssessment -Force -Scope CurrentUser
 
 ## If you have already installed the module, run the following instead to ensure you have the latest version.
-Update-Module AzureADAssessment -Force -AcceptLicense -Scope CurrentUser
+Update-Module AzureADAssessment -Force -Scope CurrentUser
 ```
 
 ## Run the Data Collection
@@ -68,17 +68,32 @@ Invoke-AADAssessmentHybridDataCollection "C:\Temp"
 
 ## <h2 id="faq">Frequently Asked Questions</h2>
 ### When trying to install the module I'm receiving the error 'A parameter cannot be found that matches parameter name 'AcceptLicense' 
-Run the following command to update PowerShellGet to the latest version.
+Run the following command to update PowerShellGet to the latest version before attempting to install the AzureADAssessment module again.
 
 ```PowerShell
 ## Update Nuget Package and PowerShellGet Module
-Install-PackageProvider NuGet -Force
-Install-Module PowerShellGet -Force
+Install-PackageProvider NuGet -Scope CurrentUser -Force
+Install-Module PowerShellGet -Scope CurrentUser -Force -AllowClobber
+## Remove old modules from existing session
+Remove-Module PowerShellGet,PackageManagement -Force -ErrorAction Ignore
+## Import updated module
+Import-Module PowerShellGet -MinimumVersion 2.0 -Force
+Import-PackageProvider PowerShellGet -MinimumVersion 2.0 -Force
 ```
-Once completed, close all open PowerShell windows, open a new PowerShell window and run the command below to install the module.
+
+### If at any point you see the error, `<Path> cannot be loaded because running scripts is disabled on this system. For more information, see about_Execution_Policies at http://go.microsoft.com/fwlink/?LinkID=135170.`, you must enable local scripts to be run.
 
 ```PowerShell
-Install-Module AzureADAssessment -Force -AcceptLicense -Scope CurrentUser
+## Set globally on device
+Set-ExecutionPolicy RemoteSigned
+## Or set for just for current PowerShell session.
+Set-ExecutionPolicy RemoteSigned -Scope Process
+```
+
+### The signing certificate for MSAL.PS is changing to use Microsoft's code signing process. If you see the following error, `PackageManagement\Install-Package : Authenticode issuer 'CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US' of the new module 'MSAL.PS' with version 'x.x.x.x' from root certificate authority 'CN=Microsoft Root Certificate Authority 2011, O=Microsoft Corporation, L=Redmond, S=Washington, C=US' is not matching with the authenticode issuer 'CN=Jason Thompson, O=Jason Thompson, L=Cincinnati, S=Ohio, C=US' of the previously-installed module 'MSAL.PS' with version 'x.x.x.x' from root certificate authority 'CN=DigiCert Assured ID Root CA, OU=www.digicert.com, O=DigiCert Inc, C=US'. If you still want to install or update, use -SkipPublisherCheck parameter.`, you can resolve it using the following command.
+
+```PowerShell
+Install-Module MSAL.PS -SkipPublisherCheck -Force
 ```
 
 ### Unable to sign in with device code flow
