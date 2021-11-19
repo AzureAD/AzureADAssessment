@@ -8,7 +8,10 @@ param
     [object] $SigningCertificate = (Get-ChildItem Cert:\CurrentUser\My\E7413D745138A6DC584530AECE27CEFDDA9D9CD6 -CodeSigningCert),
     # Uses the specified time stamp server to add a time stamp to the signature.
     [Parameter(Mandatory = $false)]
-    [string] $TimestampServer = 'http://timestamp.digicert.com'
+    [string] $TimestampServer = 'http://timestamp.digicert.com',
+    # Generate and sign catalog file
+    [Parameter(Mandatory = $false)]
+    [switch] $AddFileCatalog
 )
 
 ## Initialize
@@ -33,3 +36,10 @@ for ($i = 0; $i -lt $FileList.Count; $i++) {
 
 ## Sign PowerShell Files
 Set-AuthenticodeSignature $FileList -Certificate $SigningCertificate -HashAlgorithm SHA256 -IncludeChain NotRoot -TimestampServer $TimestampServer
+
+## Generate and Sign File Catalog
+if ($AddFileCatalog) {
+    $FileCatalogPath = Join-Path $ModuleManifestFileInfo.Directory ('{0}.cat' -f $ModuleManifestFileInfo.Name)
+    $FileCatalogPath = New-FileCatalog $FileCatalogPath -Path $ModuleManifestFileInfo.Directory -CatalogVersion 2.0
+    Set-AuthenticodeSignature $FileCatalog.FullName -Certificate $SigningCertificate -HashAlgorithm SHA256 -IncludeChain NotRoot -TimestampServer $TimestampServer
+}
