@@ -19,6 +19,10 @@ function Expand-ODataId {
 
     process {
         foreach ($InputObject in $InputObjects) {
+            ## MS Graph references in Gov tenants do not follow odata naming schema.
+            if ($InputObject.psobject.Properties.Name.Contains('url')) {
+                $InputObject | Add-Member -Name '@odata.id' -MemberType AliasProperty -Value 'url'
+            }
             if ($InputObject.'@odata.id' -match 'directoryObjects/(.+)/.+\.(.+)$') {
                 $InputObject | Add-Member -Name 'id' -MemberType NoteProperty -Value $Matches[1] -ErrorAction Ignore
                 $InputObject | Add-Member -Name '@odata.type' -MemberType NoteProperty -Value ('#microsoft.graph.{0}' -f ($Matches[2][0].ToString().ToLower() + $Matches[2].Substring(1))) -ErrorAction Ignore
