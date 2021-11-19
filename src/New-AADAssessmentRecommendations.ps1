@@ -171,6 +171,8 @@ function New-AADAssessmentRecommendations {
 
         
         #Set-Content -Value ($idUniqueCheck.GetEnumerator()  | Sort-Object name | Select-Object name) -Path ./log.txt
+        #Write-Output "Total checks: $($idUniqueCheck.Count)"
+
         Write-Output "Completed $($recommendationList.Length) checks."
 
         Write-Verbose "Writing recommendations"
