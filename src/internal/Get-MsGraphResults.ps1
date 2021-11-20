@@ -149,7 +149,7 @@ function Get-MsGraphResults {
                     Write-Error -Message $BatchResponse.body.error.message -ErrorId $BatchResponse.body.error.code -ErrorAction Stop
                 }
                 else {
-                    if ($ResponseContent.error.code -eq 'Request_ResourceNotFound') {
+                    if ($BatchResponse.body.error.code -eq 'Request_ResourceNotFound') {
                         Write-Error -Message $BatchResponse.body.error.message -ErrorId $BatchResponse.body.error.code -ErrorVariable cmdError -ErrorAction SilentlyContinue
                         Write-Warning $BatchResponse.body.error.message
                     }
