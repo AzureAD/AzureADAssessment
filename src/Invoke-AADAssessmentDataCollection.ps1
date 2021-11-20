@@ -54,7 +54,7 @@ function Invoke-AADAssessmentDataCollection {
 
         if ($MyInvocation.CommandOrigin -eq 'Runspace') {
             ## Reset Parent Progress Bar
-            New-Variable -Name stackProgressId -Scope Script -Value (New-Object 'System.Collections.Generic.Stack[int]') -ErrorAction SilentlyContinue
+            New-Variable -Name stackProgressId -Scope Script -Value (New-Object 'System.Collections.Generic.Stack[int]') -ErrorAction Ignore
             $stackProgressId.Clear()
             $stackProgressId.Push(0)
         }
@@ -241,14 +241,16 @@ function Invoke-AADAssessmentDataCollection {
 
         ### Group Data - 13
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Groups' -PercentComplete 78
-        # add technical notifications groups
+        # Add Technical Notifications Groups
         if ($OrganizationData) {
             $OrganizationData.technicalNotificationMails | Get-MsGraphResults 'groups?$select=id' -Filter "proxyAddresses/any(c:c eq 'smtp:{0}')" `
             | ForEach-Object { [void]$ReferencedIdCache.group.Add($_.id) }
         }
         # Add nested groups
-        $ReferencedIdCache.group.guid | Get-MsGraphResults 'groups/{0}/transitiveMembers/microsoft.graph.group?$count=true&$select=id' -Top 999 -TotalRequests $ReferencedIdCache.group.Count -DisableUniqueIdDeduplication `
-        | ForEach-Object { [void]$ReferencedIdCache.group.Add($_.id) }
+        if ($ReferencedIdCache.group.Count) {
+            $ReferencedIdCache.group.guid | Get-MsGraphResults 'groups/{0}/transitiveMembers/microsoft.graph.group?$count=true&$select=id' -Top 999 -TotalRequests $ReferencedIdCache.group.Count -DisableUniqueIdDeduplication `
+            | ForEach-Object { [void]$ReferencedIdCache.group.Add($_.id) }
+        }
 
         ## Option 1: Populate direct members on groups (including nested groups) and calculate transitiveMembers later.
         ## $expand on group members caps results at 20 members with no NextLink so call members endpoint for each.
@@ -280,17 +282,18 @@ function Invoke-AADAssessmentDataCollection {
             }
         } `
         | Export-Csv (Join-Path $OutputDirectoryAAD "groupTransitiveMembers.csv") -NoTypeInformation
+        #| Export-Clixml -Path (Join-Path $OutputDirectoryAAD "groupTransitiveMembers.xml")  # Does this use less memory than Export-Csv?
         $ReferencedIdCache.group.Clear()
 
         ### User Data - 15
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Users' -PercentComplete 90
-        # add technical notifications users
+        # Add Technical Notifications Users
         if ($OrganizationData) {
             $OrganizationData.technicalNotificationMails | Get-MsGraphResults 'users?$select=id' -Filter "proxyAddresses/any(c:c eq 'smtp:{0}') or otherMails/any(c:c eq '{0}')" `
             | ForEach-Object { [void]$ReferencedIdCache.user.Add($_.id) }
         }
-        # get userinformations
-        $ReferencedIdCache.user | Get-MsGraphResults 'users/{0}?$select=id,userPrincipalName,userType,displayName,accountEnabled,onPremisesSyncEnabled,onPremisesImmutableId,mail,otherMails,proxyAddresses,assignedPlans,signInActivity' -TotalRequests $ReferencedIdCache.user.Count -DisableUniqueIdDeduplication -ApiVersion 'beta' `
+        # Get Users
+        $ReferencedIdCache.user | Get-MsGraphResults 'users?$select=id,userPrincipalName,userType,displayName,accountEnabled,onPremisesSyncEnabled,onPremisesImmutableId,mail,otherMails,proxyAddresses,assignedPlans' -TotalRequests $ReferencedIdCache.user.Count -DisableUniqueIdDeduplication -ApiVersion 'beta' `
         | Select-Object -Property "*" -ExcludeProperty '@odata.type' `
         | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "userData.xml")
         $ReferencedIdCache.user.Clear()

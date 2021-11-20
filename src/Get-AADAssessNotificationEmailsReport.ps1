@@ -114,20 +114,49 @@ function Get-AADAssessNotificationEmailsReport {
 
         ## Get email addresses of all users with privileged roles
         if (!$DirectoryRoleData) {
-            $DirectoryRoleData = Get-MsGraphResults 'directoryRoles?$select=id,displayName&$expand=members'
+            $DirectoryRoleData = Get-MsGraphResults 'directoryRoles?$select=id,displayName' `
+            | Expand-MsGraphRelationship -ObjectType directoryRoles -PropertyName members -References
         }
 
         foreach ($role in $DirectoryRoleData) {
             foreach ($roleMember in $role.members) {
+                $member = $null
+                if ($roleMember.'@odata.type' -eq '#microsoft.graph.user') {
+                    if ($UserData) {
+                        if ($UserData -is [System.Collections.Generic.Dictionary[guid, pscustomobject]]) {
+                            $member = $UserData.Values | Where-Object id -EQ $roleMember.id | Select-Object -First 1
+                        }
+                        else {
+                            $member = $UserData | Where-Object id -EQ $roleMember.id | Select-Object -First 1
+                        }
+                    }
+                    else {
+                        $member = Get-MsGraphResults 'users?$select=id,userPrincipalName,displayName,mail,otherMails,proxyAddresses' -UniqueId $roleMember.id | Select-Object -First 1
+                    }
+                }
+                elseif ($roleMember.'@odata.type' -eq '#microsoft.graph.group') {
+                    if ($GroupData) {
+                        if ($GroupData -is [System.Collections.Generic.Dictionary[guid, pscustomobject]]) {
+                            $member = $GroupData.Values | Where-Object id -EQ $roleMember.id | Select-Object -First 1
+                        }
+                        else {
+                            $member = $GroupData | Where-Object id -EQ $roleMember.id | Select-Object -First 1
+                        }
+                    }
+                    else {
+                        $member = Get-MsGraphResults 'groups?$select=id,displayName,mail,proxyAddresses' -UniqueId $roleMember.id | Select-Object -First 1
+                    }
+                }
+
                 [PSCustomObject]@{
                     notificationType           = $role.displayName
                     notificationScope          = 'Role'
                     recipientType              = (Get-ObjectPropertyValue $roleMember '@odata.type') -replace '#microsoft.graph.', ''
-                    recipientEmail             = (Get-ObjectPropertyValue $roleMember 'mail')
-                    recipientEmailAlternate    = (Get-ObjectPropertyValue $roleMember 'otherMails') -join ';'
-                    recipientId                = (Get-ObjectPropertyValue $roleMember 'id')
-                    recipientUserPrincipalName = (Get-ObjectPropertyValue $roleMember 'userPrincipalName')
-                    recipientDisplayName       = (Get-ObjectPropertyValue $roleMember 'displayName')
+                    recipientEmail             = (Get-ObjectPropertyValue $member 'mail')
+                    recipientEmailAlternate    = (Get-ObjectPropertyValue $member 'otherMails') -join ';'
+                    recipientId                = (Get-ObjectPropertyValue $member 'id')
+                    recipientUserPrincipalName = (Get-ObjectPropertyValue $member 'userPrincipalName')
+                    recipientDisplayName       = (Get-ObjectPropertyValue $member 'displayName')
                 }
             }
 
