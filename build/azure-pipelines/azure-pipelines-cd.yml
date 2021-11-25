@@ -61,7 +61,7 @@ stages:
         Recurse: true
     - task: ManifestGeneratorTask@0
       inputs:
-        BuildDropPath: '$(Pipeline.Workspace)/CI/$(artifactModuleSigned)'
+        BuildDropPath: '$(Pipeline.Workspace)/$(artifactModuleSigned)'
 
   - job: Sign
     dependsOn:
