@@ -59,7 +59,7 @@ stages:
         Path: '$(Pipeline.Workspace)/CI/$(artifactModule)'
         Settings: 'required'
         Recurse: true
-    - task: SBOManifestGeneratorTask@0
+    - task: AzureArtifacts.manifest-generator-task.manifest-generator-task.ManifestGeneratorTask
       inputs:
         BuildDropPath: '$(Pipeline.Workspace)/CI/$(artifactModule)'
 
