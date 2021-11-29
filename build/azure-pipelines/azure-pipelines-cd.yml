@@ -59,7 +59,7 @@ stages:
         Path: '$(Pipeline.Workspace)/CI/$(artifactModule)'
         Settings: 'required'
         Recurse: true
-        
+
   - job: Sign
     dependsOn:
     - Prepare
