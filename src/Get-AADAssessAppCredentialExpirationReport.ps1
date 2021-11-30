@@ -40,23 +40,58 @@ function Get-AADAssessAppCredentialExpirationReport {
 
             process {
                 foreach ($credential in $InputObject.keyCredentials) {
-                    [PSCustomObject]@{
-                        displayName             = $InputObject.displayName
-                        objectType              = $ObjectType
-                        credentialType          = $credential.type
-                        credentialStartDateTime = $credential.startDateTime
-                        credentialEndDateTime   = $credential.endDateTime
-                        credentialUsage         = $credential.usage
+                    # check for hasExtensionAttribute
+                    $hasExtendedValue = $null
+                    if ( [bool]($credential.PSobject.Properties.name -match "hasExtendedValue") ) {
+                        $hasExtendedValue = $credential.hasExtendedValue
+                    }
+                    if ($credential.type -eq "AsymmetricX509Cert" -and ![string]::IsNullOrEmpty($credential.key)) {
+                        # credential is a cert and has a key
+                        $cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new([System.Convert]::FromBase64String($credential.key))
+                        [PSCustomObject]@{
+                            displayName                 = $InputObject.displayName
+                            objectType                  = $ObjectType
+                            credentialType              = $credential.type
+                            credentialStartDateTime     = $credential.startDateTime
+                            credentialEndDateTime       = $credential.endDateTime
+                            credentialUsage             = $credential.usage
+                            certSubject                 = $cert.Subject
+                            certIssuer                  = $cert.Issuer
+                            certIsSelfSigned            = ($cert.Subject -eq $cert.Issuer)
+                            certKeySize                 = $cert.PublicKey.Key.KeySize
+                            credentialHasExtendedValue  = $hasExtendedValue
+                        }
+                    }
+                    else {
+                        [PSCustomObject]@{
+                            displayName                 = $InputObject.displayName
+                            objectType                  = $ObjectType
+                            credentialType              = $credential.type
+                            credentialStartDateTime     = $credential.startDateTime
+                            credentialEndDateTime       = $credential.endDateTime
+                            credentialUsage             = $credential.usage
+                            certSubject                 = $null
+                            certIssuer                  = $null
+                            certIsSelfSigned            = $null
+                            certKeySize                 = $null
+                            credentialHasExtendedValue  = $hasExtendedValue
+                        }
                     }
                 }
 
                 foreach ($credential in $InputObject.passwordCredentials) {
                     [PSCustomObject]@{
-                        displayName             = $InputObject.displayName
-                        objectType              = $ObjectType
-                        credentialType          = "Password"
-                        credentialStartDateTime = $credential.startDateTime
-                        credentialEndDateTime   = $credential.endDateTime
+                        displayName                 = $InputObject.displayName
+                        objectType                  = $ObjectType
+                        credentialType              = "Password"
+                        credentialStartDateTime     = $credential.startDateTime
+                        credentialEndDateTime       = $credential.endDateTime
+                        credentialUsage             = $null
+                        certSubject                 = $null
+                        certIssuer                  = $null
+                        certIsSelfSigned            = $null
+                        certKeySize                 = $null
+                        credentialHasExtendedValue  = $null
                     }
                 }
             }
