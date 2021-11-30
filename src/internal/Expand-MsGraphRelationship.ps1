@@ -24,6 +24,9 @@ function Expand-MsGraphRelationship {
         # Only retrieve relationship object references.
         [Parameter(Mandatory = $false)]
         [switch] $References,
+        # Filters properties (columns).
+        [Parameter(Mandatory = $false)]
+        [string[]] $Select,
         # Number of results per request
         [Parameter(Mandatory = $false)]
         [int] $Top,
@@ -36,6 +39,7 @@ function Expand-MsGraphRelationship {
         $InputObjects = New-Object 'System.Collections.Generic.List[psobject]'
         $uri = ('{0}/{{0}}/{1}' -f $ObjectType, $PropertyName)
         if ($References) { $uri = '{0}/$ref' -f $uri }
+        elseif ($Select) { $uri = $uri + ('?$select={0}' -f ($Select -join ',')) }
     }
 
     process {
