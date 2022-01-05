@@ -100,10 +100,15 @@ function Get-MsGraphResults {
 
             ## Get Response Body
             if ($_.ErrorDetails) {
+                $Response = '{0} {1} HTTP/{2}' -f $_.Exception.Response.StatusCode.value__, $_.Exception.Response.ReasonPhrase, $_.Exception.Response.Version
+                $ContentType = $_.Exception.Response.Content.Headers.ContentType.ToString()
                 $ResponseContent = ConvertFrom-Json $_.ErrorDetails.Message
             }
             elseif ($_.Exception -is [System.Net.WebException]) {
                 if ($_.Exception.Response) {
+                    $Response = '{0} {1} HTTP/{2}' -f $_.Exception.Response.StatusCode.value__, $_.Exception.Response.StatusDescription, $_.Exception.Response.ProtocolVersion
+                    $ContentType = $_.Exception.Response.Headers.GetValues('Content-Type') -join '; '
+
                     $StreamReader = New-Object System.IO.StreamReader -ArgumentList $_.Exception.Response.GetResponseStream()
                     try { $ResponseContent = ConvertFrom-Json $StreamReader.ReadToEnd() }
                     finally { $StreamReader.Close() }
@@ -112,8 +117,8 @@ function Get-MsGraphResults {
 
             Write-Debug -Message (ConvertTo-Json ([PSCustomObject]@{
                         'Request'                             = '{0} {1}' -f $_.TargetObject.Method, $_.TargetObject.RequestUri.AbsoluteUri
-                        'Response'                            = '{0} {1} HTTP/{2}' -f $_.Exception.Response.StatusCode.value__, $_.Exception.Response.StatusDescription, $_.Exception.Response.ProtocolVersion
-                        'Response.Content-Type'               = $_.Exception.Response.Headers.GetValues('Content-Type') -join '; '
+                        'Response'                            = $Response
+                        'Response.Content-Type'               = $ContentType
                         'Response.Content'                    = $ResponseContent
                         'Response.Header.Date'                = $_.Exception.Response.Headers.GetValues('Date')[0]
                         'Response.Header.request-id'          = $_.Exception.Response.Headers.GetValues('request-id')[0]
