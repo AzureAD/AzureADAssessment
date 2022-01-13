@@ -25,6 +25,7 @@ function Export-AADAssessmentReportData {
     Import-Clixml -Path (Join-Path $SourceDirectory "appRoleAssignmentData.xml") `
     | Use-Progress -Activity 'Exporting appRoleAssignments' -Property id -PassThru -WriteSummary `
     | Format-Csv `
+    | select-object *,@{Name="createdDateTime"; Expression={$_.creationTimestamp}} -ExcludeProperty creationTimestamp -ErrorAction SilentlyContinue `
     | Export-Csv (Join-Path $OutputDirectory "appRoleAssignments.csv") -NoTypeInformation
 
     Set-Content -Path (Join-Path $OutputDirectory "oauth2PermissionGrants.csv") -Value 'id,consentType,clientId,principalId,resourceId,scope'
@@ -33,12 +34,12 @@ function Export-AADAssessmentReportData {
     | Export-Csv (Join-Path $OutputDirectory "oauth2PermissionGrants.csv") -NoTypeInformation
 
     Import-Clixml -Path (Join-Path $SourceDirectory "servicePrincipalData.xml") `
-    | Use-Progress -Activity 'Exporting servicePrincipals' -Property displayName -PassThru -WriteSummary `
+    | Use-Progress -Activity 'Exporting servicePrincipals (JSON)' -Property displayName -PassThru -WriteSummary `
     | Export-JsonArray (Join-Path $OutputDirectory "servicePrincipals.json") -Depth 5 -Compress
 
     Set-Content -Path (Join-Path $OutputDirectory "servicePrincipals.csv") -Value 'id,appId,servicePrincipalType,displayName,accountEnabled,appOwnerOrganizationId,appRoles,oauth2PermissionScopes,keyCredentials,passwordCredentials'
     Import-Clixml -Path (Join-Path $SourceDirectory "servicePrincipalData.xml") `
-    | Use-Progress -Activity 'Exporting servicePrincipals' -Property displayName -PassThru -WriteSummary `
+    | Use-Progress -Activity 'Exporting servicePrincipals (CSV)' -Property displayName -PassThru -WriteSummary `
     | Select-Object -Property id, appId, servicePrincipalType, displayName, accountEnabled, appOwnerOrganizationId `
     | Export-Csv (Join-Path $OutputDirectory "servicePrincipals.csv") -NoTypeInformation
 
@@ -134,26 +135,26 @@ function Export-AADAssessmentReportData {
     | Use-Progress -Activity 'Exporting ConsentGrantReport' -Property clientDisplayName -PassThru -WriteSummary `
     | Export-Csv -Path (Join-Path $OutputDirectory "ConsentGrantReport.csv") -NoTypeInformation
 
-    # [array] $groupTransitiveMembership = Import-Csv -Path (Join-Path $OutputDirectory "groupTransitiveMembers.csv")
-    # Set-Content -Path (Join-Path $OutputDirectory "roleAssignments.csv") -Value 'roleDefinitionId,directoryScopeId,memberType,assignmentType,endDateTime,principalId,principalType'
-    # Import-Csv -Path (Join-Path $OutputDirectory "roleAssignmentsData.csv") `
-    # | Use-Progress -Activity 'Exporting Role Assignments' -Property roleDefinitionId -PassThru -WriteSummary `
-    # | ForEach-Object  {
-    #     $_
-    #     if ($_.principalType -eq "group") {
-    #         $groupId = $_.principalId
-    #         # prefill resulting assignment
-    #         $resultingAssignement = $_
-    #         $resultingAssignement.memberType = "Group"
-    #         $resultingAssignement.principalType = ""
-    #         $resultingAssignement.principalId = ""
-    #         # look for memberships
-    #         $groupTransitiveMembership | Where-Object { $_.id -eq $groupId } | ForEach-Object {
-    #             $resultingAssignement.principalType = $_.memberType
-    #             $resultingAssignement.principalId = $_.memberId
-    #             $resultingAssignement
-    #         }
-    #     }
-    # } `
-    # | Export-Csv -Path (Join-Path $OutputDirectory "roleAssignments.csv") -NoTypeInformation
+    [array] $groupTransitiveMembership = Import-Csv -Path (Join-Path $OutputDirectory "groupTransitiveMembers.csv")
+    Set-Content -Path (Join-Path $OutputDirectory "roleAssignments.csv") -Value 'roleDefinitionId,directoryScopeId,memberType,assignmentType,endDateTime,principalId,principalType'
+    Import-Csv -Path (Join-Path $OutputDirectory "roleAssignmentsData.csv") `
+    | Use-Progress -Activity 'Exporting Role Assignments' -Property roleDefinitionId -PassThru -WriteSummary `
+    | ForEach-Object  {
+        $_
+        if ($_.principalType -eq "group") {
+            $groupId = $_.principalId
+            # prefill resulting assignment
+            $resultingAssignement = $_
+            $resultingAssignement.memberType = "Group"
+            $resultingAssignement.principalType = ""
+            $resultingAssignement.principalId = ""
+            # look for memberships
+            $groupTransitiveMembership | Where-Object { $_.id -eq $groupId } | ForEach-Object {
+                $resultingAssignement.principalType = $_.memberType
+                $resultingAssignement.principalId = $_.memberId
+                $resultingAssignement
+            }
+        }
+    } `
+    | Export-Csv -Path (Join-Path $OutputDirectory "roleAssignments.csv") -NoTypeInformation
 }
