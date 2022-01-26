@@ -135,11 +135,56 @@ function Export-AADAssessmentReportData {
     | Use-Progress -Activity 'Exporting ConsentGrantReport' -Property clientDisplayName -PassThru -WriteSummary `
     | Export-Csv -Path (Join-Path $OutputDirectory "ConsentGrantReport.csv") -NoTypeInformation
 
+    Set-Content -Path (Join-Path $OutputDirectory "administrativeUnits.csv") -Value 'id,displayName,visibility,users,groups'
+    Import-Clixml -Path (Join-Path $SourceDirectory "administrativeUnitsData.xml") `
+    | Use-Progress -Activity 'Exporting Administrative Units' -Property displayName -PassThru -WriteSummary `
+    | Select-Object id,displayName,visibility, `
+        @{Name="users";Expression={($_.members | Where-Object { $_."@odata.type" -like "*.user"}).count}}, `
+        @{Name="groups";Expression={($_.members | Where-Object { $_."@odata.type" -like "*.group"}).count}}`
+    | Export-Csv -Path (Join-Path $OutputDirectory "administrativeUnits.csv") -NoTypeInformation
+
     [array] $groupTransitiveMembership = Import-Csv -Path (Join-Path $OutputDirectory "groupTransitiveMembers.csv")
-    Set-Content -Path (Join-Path $OutputDirectory "roleAssignments.csv") -Value 'roleDefinitionId,directoryScopeId,memberType,assignmentType,endDateTime,principalId,principalType'
+    [array] $applications = Get-Content -Path (Join-Path $OutputDirectory "applications.json") | ConvertFrom-Json -Depth 5
+    [array] $servicePrincipals = Import-Csv -Path (Join-Path $OutputDirectory "servicePrincipals.csv")
+    [array] $administrativeUnits = Import-Csv -Path (Join-Path $OutputDirectory "administrativeUnits.csv")
+    Set-Content -Path (Join-Path $OutputDirectory "roleAssignments.csv") -Value 'roleDefinitionId,directoryScopeName,directoryScopeType,memberType,assignmentType,endDateTime,principalId,principalType'
     Import-Csv -Path (Join-Path $OutputDirectory "roleAssignmentsData.csv") `
     | Use-Progress -Activity 'Exporting Role Assignments' -Property roleDefinitionId -PassThru -WriteSummary `
+    | Select-Object -property *,@{Name="directoryScopeName";Expression={"Global"}},@{Name="directoryScopeType";Expression={"Directory"}}
     | ForEach-Object  {
+        if ($_.directoryScopeId -ne "/") {
+            # resolve scope informations (type, displayname and isolate object id)
+            if ($_.directoryScopeId -like "/administrativeUnits/*") {
+                # Administrative units
+                $auid = $_.directoryScopeId -replace "^/administrativeUnits/",""
+                $_.directoryScopeType = "AdministrativeUnit"
+                $_.directoryScopeName = $auid
+                $_.directoryScopeId = $auid
+                $au = $administrativeUnits | Where-Object { $_.id -eq $auid } | Select-Object -First 1
+                if ($au) {
+                    $_.directoryScopeName = $au.displayName
+                }
+            } else {
+                # SP or App 
+                $apporspid = $_.directoryScopeId -replace "^/",""
+                $_.directoryScopeType = "Object"
+                $_.directoryScopeName = $apporspid
+                $_.directoryScopeId = $apporspid
+                # search in service principals
+                $sp = $servicePrincipals | Where-Object {$_.id -eq $apporspid} | Select-Object -First 1
+                if ($sp) {
+                    $_.directoryScopeType = "ServicePrincipal"
+                    $_.directoryScopeName = $sp.displayName
+                } else {
+                    # search in applications
+                    $app = $applications | Where-Object {$_.id -eq $apporspid} | Select-Object -First 1
+                    if ($app) {
+                        $_.directoryScopeType = "Application"
+                        $_.directoryScopeName = $app.displayName
+                    }
+                }
+            }
+        }
         $_
         if ($_.principalType -eq "group") {
             $groupId = $_.principalId
@@ -156,5 +201,6 @@ function Export-AADAssessmentReportData {
             }
         }
     } `
+    | Select-Object -Property roleDefinitionId,directoryScopeName,directoryScopeType,directoryScopeId,memberType,assignmentType,endDateTime,principalId,principalType `
     | Export-Csv -Path (Join-Path $OutputDirectory "roleAssignments.csv") -NoTypeInformation
 }

@@ -69,7 +69,14 @@ function Add-AadReferencesToCache {
                 break
             }
             aadRoleAssignment {
-                if ($InputObject.principalType -ieq "group") {
+                if ($InputObject.directoryScopeId -like "/administrativeUnits/*") {
+                    $id = $InputObject.directoryScopeId -replace "^/administrativeUnits/",""
+                    [void] $ReferencedIdCache.administrativeUnit.Add($id)
+                } elseif ($InputObject.directoryScopeId -match "^/[0-9a-f-]+$") {
+                    $id = $InputObject.directoryScopeId -replace "^/",""
+                    [void] $ReferencedIdCache.directoryScopeId.Add($id)
+                }
+                if ($InputObject.principalType -ieq "group") {  
                     # add groups to role groups on role assignements to have a specific pointer to look at transitive memberships
                     [void] $ReferencedIdCache.roleGroup.Add($InputObject.principalId)
                 } else {
