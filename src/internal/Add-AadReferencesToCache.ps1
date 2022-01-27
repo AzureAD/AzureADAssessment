@@ -79,6 +79,8 @@ function Add-AadReferencesToCache {
                 if ($InputObject.principalType -ieq "group") {  
                     # add groups to role groups on role assignements to have a specific pointer to look at transitive memberships
                     [void] $ReferencedIdCache.roleGroup.Add($InputObject.principalId)
+                    # add group to cache directly to get those groups information
+                    [void] $ReferencedIdCache.group.Add($InputObject.principalId)
                 } else {
                     [void] $ReferencedIdCache.$($InputObject.principalType).Add($InputObject.principalId)
                 }

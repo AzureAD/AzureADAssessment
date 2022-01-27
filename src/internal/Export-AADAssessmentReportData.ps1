@@ -147,7 +147,7 @@ function Export-AADAssessmentReportData {
     [array] $applications = Get-Content -Path (Join-Path $OutputDirectory "applications.json") | ConvertFrom-Json -Depth 5
     [array] $servicePrincipals = Import-Csv -Path (Join-Path $OutputDirectory "servicePrincipals.csv")
     [array] $administrativeUnits = Import-Csv -Path (Join-Path $OutputDirectory "administrativeUnits.csv")
-    Set-Content -Path (Join-Path $OutputDirectory "roleAssignments.csv") -Value 'roleDefinitionId,directoryScopeName,directoryScopeType,memberType,assignmentType,endDateTime,principalId,principalType'
+    Set-Content -Path (Join-Path $OutputDirectory "roleAssignments.csv") -Value 'roleDefinitionId,directoryScopeName,directoryScopeType,directoryScopeId,memberType,assignmentType,endDateTime,principalId,principalType'
     Import-Csv -Path (Join-Path $OutputDirectory "roleAssignmentsData.csv") `
     | Use-Progress -Activity 'Exporting Role Assignments' -Property roleDefinitionId -PassThru -WriteSummary `
     | Select-Object -property *,@{Name="directoryScopeName";Expression={"Global"}},@{Name="directoryScopeType";Expression={"Directory"}}
