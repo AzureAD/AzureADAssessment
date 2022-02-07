@@ -2,7 +2,7 @@ param
 (
     # Module to Launch
     [Parameter(Mandatory = $false)]
-    [string] $ModuleManifestPath = ".\src\*.psd1",
+    [string] $ModuleManifestPath = "..\src\*.psd1",
     # ScriptBlock to Execute After Module Import
     [Parameter(Mandatory = $false)]
     [scriptblock] $PostImportScriptBlock,
