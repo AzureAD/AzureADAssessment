@@ -437,8 +437,7 @@
 
             $policiesWithExcludes = @($enabledCAPolicies | Where-Object {
                 $_.conditions.users.excludeUsers.Count -gt 0 -or `
-                $_.conditions.users.excludeGroups.Count -gt 0 -or `
-                $_.conditions.users.excludeRoles.Count -gt 0
+                $_.conditions.users.excludeGroups.Count -gt 0 
             })
 
             $res.Priority = "Passed"
@@ -455,24 +454,34 @@
         <Area>Conditional Access</Area>
         <ID>AR0014</ID>
         <Name>Exclusions usage</Name>
-        <Summary>Policies should all have an exclusion (User/Group/Role)</Summary>
+        <Summary>Policies should all have an exclusion (User/Group)</Summary>
         <Recommendation>Exclude at least one group from every policy</Recommendation>
     </recommendation>
     <recommendation>
         <Sources>
             <File>conditionalAccessPolicies.json</File>
+            <File>roleDefinitions.csv</File>
+            <File>roleAssignments.csv</File>
+            <File>Users.csv</File>
         </Sources>
         <PowerShell>
             param($Data)
             $res =  "" | select Priority,Data
             
+            ## identify break glass accounts
+            # get ga role id
+            $gaRoleId = $Data["roleDefinitions.csv"] | Where-Object { $_.displayName -eq "Global Administrator"} | Select-Object -First 1 -ExpandProperty id
+            # get permanently assigned GA users ids
+            $GAids = $Data["roleAssignments.csv"] | Where-Object { $_.directoryScopeId -in ("/","unknown") -and $_.principalId -eq "user" -and $_.roleDefinitionId -eq $gaRoleId  -and $_.assignmentType -eq "Active" } | Select-Object -ExpandProperty principalId
+            # filter cloud users - only keep cloud GAs
+            $BGAids = $Data["users.csv"] | Where-Object { $_.id -in $GAids -and $_.onPremisesSyncEnabled -eq $false } | Select-Object -ExpandProperty id
+
             # filter enabled policies
             $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
 
             $policiesWithExcludedUsersOnly = @($enabledCAPolicies | Where-Object {
-                @($_.conditions.users.excludeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }) -gt 0 -or `
-                $_.conditions.users.excludeGroups.Count -eq 0 -or `
-                $_.conditions.users.excludeRoles.Count -eq 0
+                @($_.conditions.users.excludeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" -and $_ -notin $BGAids}).Count -gt 0 -and `
+                $_.conditions.users.excludeGroups.Count -eq 0 
             })
 
             $res.Priority = "Passed"
@@ -488,23 +497,34 @@
         <Category>Access Management</Category>
         <Area>Conditional Access</Area>
         <ID>AR0015</ID>
-        <Name>Only Users Excluded</Name>
-        <Summary>Excluding groups provide more flexibility to manage exclusions</Summary>
+        <Name>Only Users Excluded (ignoring break glass accounts)</Name>
+        <Summary>Excluding groups provide more flexibility to manage exclusions.</Summary>
         <Recommendation>Put excluded users in a group and exclude the group</Recommendation>
     </recommendation>
     <recommendation>
         <Sources>
             <File>conditionalAccessPolicies.json</File>
+            <File>roleDefinitions.csv</File>
+            <File>roleAssignments.csv</File>
+            <File>Users.csv</File>
         </Sources>
         <PowerShell>
             param($Data)
             $res =  "" | select Priority,Data
-            
+
+            ## identify break glass accounts
+            # get ga role id
+            $gaRoleId = $Data["roleDefinitions.csv"] | Where-Object { $_.displayName -eq "Global Administrator"} | Select-Object -First 1 -ExpandProperty id
+            # get permanently assigned GA users ids
+            $GAids = $Data["roleAssignments.csv"] | Where-Object { $_.directoryScopeId -in ("/","unknown") -and $_.principalId -eq "user" -and $_.roleDefinitionId -eq $gaRoleId  -and $_.assignmentType -eq "Active" } | Select-Object -ExpandProperty principalId
+            # filter cloud users - only keep cloud GAs
+            $BGAids = $Data["users.csv"] | Where-Object { $_.id -in $GAids -and $_.onPremisesSyncEnabled -eq $false } | Select-Object -ExpandProperty id
+
             # filter enabled policies
             $enabledCAPolicies = @($Data["conditionalAccessPolicies.json"] | Where-Object { $_.state -eq "enabled"})
 
             $policiesWithExcludedUsersandGroups = @($enabledCAPolicies | Where-Object {
-                @($_.conditions.users.excludeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" }) -gt 0 -and `
+                @($_.conditions.users.excludeUsers | Where-Object { $_ -match "^[0-9a-fA-F-]{36}$" -and $_ -notin $BGAids}).Count -gt 0 -and `
                 $_.conditions.users.excludeGroups.Count -gt 0
             })
             
@@ -521,7 +541,7 @@
         <Category>Access Management</Category>
         <Area>Conditional Access</Area>
         <ID>AR0016</ID>
-        <Name>Groups and Users Excluded</Name>
+        <Name>Groups and Users Excluded (ignoring break glass accounts)</Name>
         <Summary>Excluding groups provide more flexibility to manage exclusions</Summary>
         <Recommendation>Put excluded users in an existing excluded group or create a new group to be excluded</Recommendation>
     </recommendation>
@@ -587,7 +607,7 @@
         <Category>Access Management</Category>
         <Area>Conditional Access</Area>
         <ID>AR0018</ID>
-        <Name>Only Users Included</Name>
+        <Name>Users and groups included</Name>
         <Summary>Including groups provide more flexibility to manage inclusions</Summary>
         <Recommendation>Put included users in an existing excluded group or create a new group to be included</Recommendation>
     </recommendation>
@@ -2197,8 +2217,10 @@
                 $_.conditions.platforms -eq $null -and
                 $_.conditions.locations -eq $null -and
                 $_.conditions.devices -eq $null -and
-                $_.grantControls.builtInControls.Count -eq 1 -and
-                $_.grantControls.builtInControls -contains "mfa"
+                $null -ne $_.grantControls -and (
+                    $_.grantControls.builtInControls.Count -eq 1 -and
+                    $_.grantControls.builtInControls -contains "mfa"
+                )
             })
 
             # list roles with CA policies covering them
