@@ -1,5 +1,6 @@
 {
-    "aad.clientId": "65df9042-2439-4b70-94ac-6cc892f61d85",
+    "aad.clientId": "68bc31c0-f891-4f4c-9309-c6104f7be41b",
+    "aad.clientId1P": "65df9042-2439-4b70-94ac-6cc892f61d85",
     "ai.disabled": false,
     "ai.instrumentationKey": "9ef9a343-9c69-4468-a1a0-e1786a6d9f89",
     "ai.ingestionEndpoint": "https://dc.services.visualstudio.com/v2/track",
