@@ -17,7 +17,6 @@ function Disconnect-AADAssessment {
             ClientApplication = $null
             CloudEnvironment  = $null
             MsGraphToken      = $null
-            AadGraphToken     = $null
         }
 
     }

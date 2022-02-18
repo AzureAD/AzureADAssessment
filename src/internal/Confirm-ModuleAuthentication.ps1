@@ -20,9 +20,6 @@ function Confirm-ModuleAuthentication {
         # CorrelationId
         [Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
         [guid] $CorrelationId = (New-Guid),
-        # Scopes for AAD Graph
-        #[Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
-        #[string[]] $AadGraphScopes = 'https://graph.windows.net/Directory.Read.All',
         # Scopes for MS Graph
         [Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
         [string[]] $MsGraphScopes = @(
@@ -33,8 +30,8 @@ function Confirm-ModuleAuthentication {
             'Group.Read.All'
             'Policy.Read.All'
             'Directory.Read.All'
-            #'SecurityEvents.Read.All'
-            #'Reports.Read.All'
+            'SecurityEvents.Read.All'
+            'UserAuthenticationMethod.Read.All'
             #'AuditLog.Read.All'
         )
     )
@@ -73,14 +70,11 @@ function Confirm-ModuleAuthentication {
 
     ## Get Tokens
     $MsGraphToken = $null
-    #$AadGraphToken = $null
     if ($ClientApplication -is [Microsoft.Identity.Client.IPublicClientApplication]) {
         $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
         try {
-            #$MsGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes $MsGraphScopes -ExtraScopesToConsent $AadGraphScopes -UseEmbeddedWebView:$false -ForceRefresh:$ForceRefresh -CorrelationId $CorrelationId -Interactive:$Interactive -Verbose:$false -ErrorAction Stop
-            #$AadGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes $AadGraphScopes -UseEmbeddedWebView:$false -ForceRefresh:$ForceRefresh -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
+            #$MsGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes $MsGraphScopes -UseEmbeddedWebView:$false -ForceRefresh:$ForceRefresh -CorrelationId $CorrelationId -Interactive:$Interactive -Verbose:$false -ErrorAction Stop
             $MsGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes $MsGraphScopes -UseEmbeddedWebView:$true -ForceRefresh:$ForceRefresh -CorrelationId $CorrelationId -LoginHint $User @paramMsalToken -Verbose:$false -ErrorAction Stop
-            #$AadGraphToken = Get-MsalToken -PublicClientApplication $ClientApplication -Scopes 'https://graph.windows.net/.default' -UseEmbeddedWebView:$true -ForceRefresh:$ForceRefresh -CorrelationId $CorrelationId -LoginHint $User -Verbose:$false -ErrorAction Stop
         }
         catch { throw }
         finally {
@@ -95,8 +89,6 @@ function Confirm-ModuleAuthentication {
         if (!$script:ConnectState.MsGraphToken -or ($script:ConnectState.MsGraphToken.AccessToken -ne $MsGraphToken.AccessToken)) {
             Write-Verbose 'Connecting Modules...'
             #Connect-MgGraph -Environment $CloudEnvironment -TenantId $MsGraphToken.TenantId -AccessToken $MsGraphToken.AccessToken | Out-Null
-            #Connect-AzureAD -AzureEnvironmentName $mapMgEnvironmentToAzureEnvironment[$CloudEnvironment] -TenantId $AadGraphToken.TenantId -AadAccessToken $AadGraphToken.AccessToken -MsAccessToken $MsGraphToken.AccessToken -AccountId $AadGraphToken.Account.Username | Out-Null
-            #Write-Warning ('Because this command obtains an access token for use with other modules such as AzureAD, those external module commands cannot automatically refresh the tokens when they expire or are revoked. To maintain access, this command must be run again when the current token expires at "{0:t}".' -f [System.DateTimeOffset]::FromUnixTimeSeconds((Expand-JsonWebTokenPayload $AadGraphToken.AccessToken).exp).ToLocalTime())
             if ($script:MsGraphSession.Headers.ContainsKey('Authorization')) {
                 $script:MsGraphSession.Headers['Authorization'] = $MsGraphToken.CreateAuthorizationHeader()
             }
@@ -110,7 +102,6 @@ function Confirm-ModuleAuthentication {
         $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
         try {
             $MsGraphToken = Get-MsalToken -ConfidentialClientApplication $ClientApplication -Scopes 'https://graph.microsoft.com/.default' -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
-            #$AadGraphToken = Get-MsalToken -ConfidentialClientApplication $ClientApplication -Scopes 'https://graph.windows.net/.default' -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
         }
         catch { throw }
         finally {
@@ -121,10 +112,7 @@ function Confirm-ModuleAuthentication {
         }
         if (!$script:ConnectState.MsGraphToken -or ($script:ConnectState.MsGraphToken.AccessToken -ne $MsGraphToken.AccessToken)) {
             Write-Verbose 'Connecting Modules...'
-            #$JwtPayload = Expand-JsonWebTokenPayload $AadGraphToken.AccessToken
             #Connect-MgGraph -Environment $CloudEnvironment -TenantId $MsGraphToken.TenantId -AccessToken $MsGraphToken.AccessToken | Out-Null
-            #Connect-AzureAD -AzureEnvironmentName $mapMgEnvironmentToAzureEnvironment[$CloudEnvironment] -TenantId $JwtPayload.tid -AadAccessToken $AadGraphToken.AccessToken -MsAccessToken $MsGraphToken.AccessToken -AccountId $JwtPayload.sub | Out-Null
-            #Write-Warning ('Because this command obtains an access token for use with other modules such as AzureAD, those external module commands cannot automatically refresh the tokens when they expire or are revoked. To maintain access, this command must be run again when the current token expires at "{0:t}".' -f [System.DateTimeOffset]::FromUnixTimeSeconds((Expand-JsonWebTokenPayload $AadGraphToken.AccessToken).exp).ToLocalTime())
             if ($script:MsGraphSession.Headers.ContainsKey('Authorization')) {
                 $script:MsGraphSession.Headers['Authorization'] = $MsGraphToken.CreateAuthorizationHeader()
             }
@@ -134,7 +122,6 @@ function Confirm-ModuleAuthentication {
         }
     }
     $script:ConnectState.MsGraphToken = $MsGraphToken
-    #$script:ConnectState.AadGraphToken = $AadGraphToken
 
     if ($MsGraphSession) {
         Write-Output $script:MsGraphSession

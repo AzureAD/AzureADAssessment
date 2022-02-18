@@ -30,7 +30,6 @@ $script:ConnectState = @{
     ClientApplication = $null
     CloudEnvironment  = 'Global'
     MsGraphToken      = $null
-    AadGraphToken     = $null
 }
 
 $script:MsGraphSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
@@ -87,7 +86,7 @@ if (!$script:ModuleConfig.'ai.disabled') {
 
 ## HashArray with already read evidence
 $script:Evidences =  @{
-    'Tenant' = @{} # tenant files 
+    'Tenant' = @{} # tenant files
     'AADC' = @{} # aadconnect files indexed by server name
     'ADFS' = @{} # ADFS files indexed by server name
     'AADAP' = @{} # AAD Proxy Agent files indexed by server name
