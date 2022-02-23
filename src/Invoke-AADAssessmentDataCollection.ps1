@@ -67,23 +67,23 @@ function Invoke-AADAssessmentDataCollection {
 
         ### Organization Data - 0
         Write-Progress -Id 0 -Activity 'Microsoft Azure AD Assessment Data Collection' -Status 'Organization Details' -PercentComplete 0
-        $OrganizationData = Get-MsGraphResults 'organization?$select=id,verifiedDomains,technicalNotificationMails' -ErrorAction Stop
+        $OrganizationData = Get-MsGraphResults 'organization?$select=id,displayName,verifiedDomains,technicalNotificationMails' -ErrorAction Stop
         $InitialTenantDomain = $OrganizationData.verifiedDomains | Where-Object isInitial -EQ $true | Select-Object -ExpandProperty name -First 1
         $PackagePath = $PackagePath.Replace("AzureADAssessmentData.zip", "AzureADAssessmentData-$InitialTenantDomain.zip")
         $OutputDirectoryAAD = Join-Path $OutputDirectoryData "AAD-$InitialTenantDomain"
         Assert-DirectoryExists $OutputDirectoryAAD
 
-        #Export-Clixml -InputObject $OrganizationData -Depth 10 -Path (Join-Path $OutputDirectoryAAD "organizationData.xml")
         ConvertTo-Json -InputObject $OrganizationData -Depth 10 | Set-Content (Join-Path $OutputDirectoryAAD "organization.json")
 
         ### Generate Assessment Data
-        Assert-DirectoryExists $OutputDirectoryData
-        ConvertTo-Json -InputObject @{
-            AssessmentId           = if ($script:AppInsightsRuntimeState.OperationStack.Count -gt 0) { $script:AppInsightsRuntimeState.OperationStack.Peek().Id } else { New-Guid }
+        $AssessmentData = [PSCustomObject]@{
+            AssessmentId           = if ($script:AppInsightsRuntimeState.OperationStack.Count -gt 0) { $script:AppInsightsRuntimeState.OperationStack.Peek().Id.ToString() } else { (New-Guid).ToString() }
             AssessmentVersion      = $MyInvocation.MyCommand.Module.Version.ToString()
             AssessmentTenantId     = $OrganizationData.id
             AssessmentTenantDomain = $InitialTenantDomain
-        } | Set-Content $AssessmentDetailPath
+        }
+        Assert-DirectoryExists $OutputDirectoryData
+        ConvertTo-Json -InputObject $AssessmentData | Set-Content $AssessmentDetailPath
 
         ### Licenses - 1
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Subscribed SKU' -PercentComplete 5
@@ -121,78 +121,37 @@ function Invoke-AADAssessmentDataCollection {
         ### Directory Role Definitions - 6
         # TODO: currently limit to native roles. Custom are not returned by assignments
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Directory Role Definitions' -PercentComplete 30
-        Get-MsGraphResults 'roleManagement/directory/roleDefinitions' -Select 'id,displayName,isBuiltIn,isEnabled' -ApiVersion 'beta' `
-        | Where-Object { $_.isEnabled -and $_.isBuiltIn} `
-        | Select-Object id,displayName,isBuiltIn `
-        | Add-AadReferencesToCache -Type roleDefinition -ReferencedIdCache $ReferencedIdCache -PassThru `
+        Get-MsGraphResults 'roleManagement/directory/roleDefinitions' -Select 'id,templateId,displayName,isBuiltIn,isEnabled' -ApiVersion 'v1.0' `
+        | Where-Object { $_.isEnabled } `
+        | Select-Object id, templateId, displayName, isBuiltIn, isEnabled `
         | Export-Csv (Join-Path $OutputDirectoryAAD "roleDefinitions.csv") -NoTypeInformation
 
         ### Privileged Access AAD role Assignments - 7
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'PIM AAD Roles' -PercentComplete 35
-        if (!$UnifiedRole) {
-            Get-MsGraphResults 'privilegedAccess/aadRoles/roleAssignments' -Select 'id,roleDefinitionId,memberType,assignmentState,endDateTime,linkedEligibleRoleAssignmentId' -Filter "resourceId eq '$($OrganizationData.id)'" -Top 999 -ApiVersion 'beta' -QueryParameters @{ '$expand' = 'subject($select=id,type)' } `
-            | Where-Object { !$_.linkedEligibleRoleAssignmentId } `
-            | Select-Object -Property roleDefinitionId, `
-            @{ Name = "directoryScopeId"; Expression = {
-                "unknown"
-            }},memberType, `
-            @{ Name = "assignmentType"; Expression = {
-                $_.assignmentState
-            }},endDateTime, `
-            @{ Name = "principalId"; Expression = {
-                $_.subject.id
-            }}, `
-            @{ Name = "principalType"; Expression = {
-                $tmp = $_.subject.type.ToCharArray()
-                $tmp[0] = [char]::ToLower($tmp[0])
-                new-object -typeName string -ArgumentList (,$tmp)
-            }} `
-            | Add-AadReferencesToCache -Type aadRoleAssignment -ReferencedIdCache $ReferencedIdCache -PassThru `
-            | Export-Csv (Join-Path $OutputDirectoryAAD "roleAssignmentsData.csv") -NoTypeInformation
-        } else {
-            # Getting role assignments via unified role API
-            $ReferencedIdCache.roleDEfinition | Get-MsGraphResults "roleManagement/directory/roleAssignmentSchedules?`$filter=roleDefinitionId+eq+'{0}'&`$select=id,roleDefinitionId,directoryScopeId,memberType,scheduleInfo,status,assignmentType" -QueryParameters @{ '$expand' = 'principal($select=id)' } -ApiVersion 'beta' `
-            | Where-Object { $_.status -eq 'Provisioned' -and $_.assignmentType -eq 'Assigned'} `
-            | Select-Object -Property roleDefinitionId,directoryScopeId,memberType, `
-            @{ Name = "assignmentType"; Expression = {
-                "Active"
-            }}, `
-            @{ Name = 'endDateTime'; Expression = {
-                $_.scheduleInfo.expiration.endDateTime
-            }}, `
-            @{ Name = 'principalId'; Expression = {
-                $_.principal.id
-            }}, `
-            @{ Name = 'principalType'; Expression = {
-                $_.principal.'@odata.type' -replace '#microsoft.graph.',''
-            }} `
-            | Add-AadReferencesToCache -Type aadRoleAssignment -ReferencedIdCache $ReferencedIdCache -PassThru `
-            | Export-Csv (Join-Path $OutputDirectoryAAD "roleAssignmentsData.csv") -NoTypeInformation
+        # Getting role assignments via unified role API
+        Get-MsGraphResults 'roleManagement/directory/roleAssignmentSchedules' -Select 'id,directoryScopeId,memberType,scheduleInfo,status,assignmentType' -Filter "status eq 'Provisioned' and assignmentType eq 'Assigned'" -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -ApiVersion 'beta' `
+        | Add-AadReferencesToCache -Type roleAssignmentSchedules -ReferencedIdCache $ReferencedIdCache -PassThru `
+        | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "roleAssignmentSchedulesData.xml")
+        #| Export-JsonArray (Join-Path $OutputDirectoryAAD "roleAssignmentSchedules.json") -Depth 5 -Compress
 
-            # Getting role elligibility via unified role API
-            $ReferencedIdCache.roleDEfinition | Get-MsGraphResults "roleManagement/directory/roleEligibilitySchedules?`$filter=roleDefinitionId+eq+'{0}'&`$select=id,roleDefinitionId,directoryScopeId,memberType,scheduleInfo,status" -QueryParameters @{ '$expand' = 'principal($select=id)' } -ApiVersion 'beta' `
-            | Where-Object { $_.status -eq 'Provisioned'} `
-            | Select-Object -Property roleDefinitionId,directoryScopeId,memberType, `
-            @{ Name = "assignmentType"; Expression = {
-                "Eligible"
-            }}, `
-            @{ Name = 'EndDateTime'; Expression = {
-                $_.scheduleInfo.expiration.endDateTime
-            }}, `
-            @{ Name = 'principalId'; Expression = {
-                $_.principal.id
-            }}, `
-            @{ Name = 'principalType'; Expression = {
-                $_.principal.'@odata.type' -replace '#microsoft.graph.',''
-            }} `
-            | Add-AadReferencesToCache -Type aadRoleAssignment -ReferencedIdCache $ReferencedIdCache -PassThru `
-            | Export-Csv (Join-Path $OutputDirectoryAAD "roleAssignmentsData.csv") -NoTypeInformation -Append
+        # Getting role eligibility via unified role API
+        Get-MsGraphResults 'roleManagement/directory/roleEligibilitySchedules' -Select 'id,directoryScopeId,memberType,scheduleInfo,status' -Filter "status eq 'Provisioned'" -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -ApiVersion 'beta' `
+        | Add-AadReferencesToCache -Type roleAssignmentSchedules -ReferencedIdCache $ReferencedIdCache -PassThru `
+        | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "roleEligibilitySchedulesData.xml")
+        #| Export-JsonArray (Join-Path $OutputDirectoryAAD "roleEligibilitySchedules.json") -Depth 5 -Compress
+
+        # Lookup ObjectIds with Unknown Types
+        $ReferencedIdCache.unknownType | Get-MsGraphResults 'directoryObjects' -Select 'id' `
+        | ForEach-Object {
+            $ObjectType = $_.'@odata.type' -replace '#microsoft.graph.', ''
+            [void] $ReferencedIdCache.$ObjectType.Add($_.id)
         }
+        $ReferencedIdCache.unknownType.Clear()
 
         ### Application Data - 8
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Applications' -PercentComplete 40
         Get-MsGraphResults 'applications?$select=id,appId,displayName,appRoles,keyCredentials,passwordCredentials' -Top 999 -ApiVersion 'beta' `
-        | Where-Object { $_.keyCredentials.Count -or $_.passwordCredentials.Count -or $ReferencedIdCache.appId.Contains($_.appId) -or $ReferencedIdCache.directoryScopeId.Contains($_.id)} `
+        | Where-Object { $_.keyCredentials.Count -or $_.passwordCredentials.Count -or $ReferencedIdCache.application.Contains($_.id) -or $ReferencedIdCache.appId.Contains($_.appId) } `
         | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "applicationData.xml")
 
         ### Service Principal Data - 9
@@ -234,16 +193,15 @@ function Invoke-AADAssessmentDataCollection {
         Remove-Item (Join-Path $OutputDirectoryAAD "servicePrincipalData-Unfiltered.xml") -ErrorAction Ignore
         Rename-Item (Join-Path $OutputDirectoryAAD "servicePrincipalData.xml") -NewName "servicePrincipalData-Unfiltered.xml"
         Import-Clixml -Path (Join-Path $OutputDirectoryAAD "servicePrincipalData-Unfiltered.xml") `
-        | Where-Object { $_.keyCredentials.Count -or $_.passwordCredentials.Count -or $ReferencedIdCache.servicePrincipal.Contains($_.id) -or $ReferencedIdCache.appId.Contains($_.appId) -or $ReferencedIdCache.directoryScopeId.Contains($_.id)} `
+        | Where-Object { $_.keyCredentials.Count -or $_.passwordCredentials.Count -or $ReferencedIdCache.servicePrincipal.Contains($_.id) -or $ReferencedIdCache.appId.Contains($_.appId) } `
         | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "servicePrincipalData.xml")
         Remove-Item (Join-Path $OutputDirectoryAAD "servicePrincipalData-Unfiltered.xml") -Force
         $ReferencedIdCache.servicePrincipal.Clear()
 
         ### Administrative units data - 13
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Administrative Units' -PercentComplete 65
-        $ReferencedIdCache.administrativeUnit | Get-MsGraphResults 'directory/administrativeUnits/{0}' -Select 'id,displayName,Visibility' -QueryParameters @{ '$expand' = 'members($select=id)' } -TotalRequests $ReferencedIdCache.administrativeUnit.Count `
-        | Export-Clixml (Join-Path $OutputDirectoryAAD "administrativeUnitsData.xml")
-        $ReferencedIdCache.administrativeUnit.Clear()
+        Get-MsGraphResults 'directory/administrativeUnits' -Select 'id,displayName,visibility' `
+        | Export-Csv (Join-Path $OutputDirectoryAAD "administrativeUnits.csv")
 
         ### Group Data - 14
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Groups' -PercentComplete 70
@@ -318,7 +276,7 @@ function Invoke-AADAssessmentDataCollection {
 
         ### Write Custom Event
         Write-AppInsightsEvent 'AAD Assessment Data Collection Complete' -OverrideProperties -Properties @{
-            AssessmentId       = if ($script:AppInsightsRuntimeState.OperationStack.Count -gt 0) { $script:AppInsightsRuntimeState.OperationStack.Peek().Id } else { New-Guid }
+            AssessmentId       = $AssessmentData.AssessmentId
             AssessmentVersion  = $MyInvocation.MyCommand.Module.Version.ToString()
             AssessmentTenantId = $OrganizationData.id
         }

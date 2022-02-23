@@ -9,5 +9,7 @@ function New-LookupCache {
         group                 = New-Object 'System.Collections.Generic.Dictionary[guid,pscustomobject]'
         servicePrincipal      = New-Object 'System.Collections.Generic.Dictionary[guid,pscustomobject]'
         servicePrincipalAppId = New-Object 'System.Collections.Generic.Dictionary[guid,pscustomobject]'
+        application = New-Object 'System.Collections.Generic.Dictionary[guid,pscustomobject]'
+        administrativeUnit    = New-Object 'System.Collections.Generic.Dictionary[guid,pscustomobject]'
     }
 }

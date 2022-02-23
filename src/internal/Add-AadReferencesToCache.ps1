@@ -7,7 +7,7 @@ function Add-AadReferencesToCache {
         #
         [Parameter(Mandatory = $true)]
         [Alias('Type')]
-        [ValidateSet('appRoleAssignment', 'oauth2PermissionGrant', 'servicePrincipal', 'directoryRole', 'conditionalAccessPolicy', 'aadRoleAssignment','roleDefinition')]
+        [ValidateSet('appRoleAssignment', 'oauth2PermissionGrant', 'servicePrincipal', 'directoryRole', 'conditionalAccessPolicy', 'roleAssignmentSchedules')]
         [string] $ObjectType,
         #
         [Parameter(Mandatory = $true)]
@@ -68,27 +68,40 @@ function Add-AadReferencesToCache {
                 $InputObject.conditions.applications.excludeApplications | Where-Object { $_ -notin 'Office365' } | ForEach-Object { [void]$ReferencedIdCache.appId.Add($_) }
                 break
             }
-            aadRoleAssignment {
-                if ($InputObject.directoryScopeId -like "/administrativeUnits/*") {
-                    $id = $InputObject.directoryScopeId -replace "^/administrativeUnits/",""
-                    [void] $ReferencedIdCache.administrativeUnit.Add($id)
-                } elseif ($InputObject.directoryScopeId -match "^/[0-9a-f-]+$") {
-                    $id = $InputObject.directoryScopeId -replace "^/",""
-                    [void] $ReferencedIdCache.directoryScopeId.Add($id)
+            # roleDefinition {
+            #     [void] $ReferencedIdCache.roleDefinition.Add($InputObject.id)
+            # }
+            roleAssignmentSchedules {
+                if ($InputObject.directoryScopeId -match '/(?:(.+)s/)([0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12})') {
+                    [void] $ReferencedIdCache.$Matches[1].Add($Matches[2])
                 }
-                if ($InputObject.principalType -ieq "group") {  
-                    # add groups to role groups on role assignements to have a specific pointer to look at transitive memberships
-                    [void] $ReferencedIdCache.roleGroup.Add($InputObject.principalId)
-                    # add group to cache directly to get those groups information
-                    [void] $ReferencedIdCache.group.Add($InputObject.principalId)
-                } else {
-                    [void] $ReferencedIdCache.$($InputObject.principalType).Add($InputObject.principalId)
+                elseif ($InputObject.directoryScopeId -match '/([0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12})') {
+                    [void] $ReferencedIdCache.UnknownType.Add($Matches[1])
                 }
-                break
+                $principalType = $InputObject.principal.'@odata.type' -replace '#microsoft.graph.', ''
+                [void] $ReferencedIdCache.$principalType.Add($InputObject.principal.id)
+                if ($principalType -eq 'group') {
+                    [void] $ReferencedIdCache.roleGroup.Add($InputObject.principal.id)
+                }
             }
-            roleDefinition {
-                [void] $ReferencedIdCache.roleDefinition.Add($InputObject.id)
-            }
+            # aadRoleAssignment {
+            #     if ($InputObject.directoryScopeId -like "/administrativeUnits/*") {
+            #         $id = $InputObject.directoryScopeId -replace "^/administrativeUnits/",""
+            #         [void] $ReferencedIdCache.administrativeUnit.Add($id)
+            #     } elseif ($InputObject.directoryScopeId -match "^/[0-9a-f-]+$") {
+            #         $id = $InputObject.directoryScopeId -replace "^/",""
+            #         [void] $ReferencedIdCache.directoryScopeId.Add($id)
+            #     }
+            #     if ($InputObject.principalType -ieq "group") {
+            #         # add groups to role groups on role assignements to have a specific pointer to look at transitive memberships
+            #         [void] $ReferencedIdCache.roleGroup.Add($InputObject.principalId)
+            #         # add group to cache directly to get those groups information
+            #         [void] $ReferencedIdCache.group.Add($InputObject.principalId)
+            #     } else {
+            #         [void] $ReferencedIdCache.$($InputObject.principalType).Add($InputObject.principalId)
+            #     }
+            #     break
+            # }
         }
         if ($PassThru) { return $InputObject }
     }

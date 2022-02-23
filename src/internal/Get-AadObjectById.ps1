@@ -8,7 +8,7 @@ function Get-AadObjectById {
         #
         [Parameter(Mandatory = $true)]
         [Alias('Type')]
-        [ValidateSet('servicePrincipal', 'user', 'group')]
+        [ValidateSet('servicePrincipal', 'application', 'user', 'group', 'administrativeUnits')]
         [string] $ObjectType,
         #
         [Parameter(Mandatory = $false)]
@@ -28,7 +28,7 @@ function Get-AadObjectById {
         }
         elseif (!$UseLookupCacheOnly) {
             $Object = Get-MsGraphResults 'directoryObjects' -UniqueId $ObjectId -DisableUniqueIdDeduplication -DisableGetByIdsBatching -Select $Properties
-            if ($LookupCache) { Add-AadObjectToLookupCache $Object -Type $ObjectType -LookupCache $LookupCache -PassThru }
+            if ($LookupCache) { Add-AadObjectToLookupCache $Object -Type $ObjectType -LookupCache $LookupCache }
             return $Object
         }
     }
