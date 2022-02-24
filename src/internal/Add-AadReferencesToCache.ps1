@@ -73,7 +73,8 @@ function Add-AadReferencesToCache {
             # }
             roleAssignmentSchedules {
                 if ($InputObject.directoryScopeId -match '/(?:(.+)s/)([0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12})') {
-                    [void] $ReferencedIdCache.$Matches[1].Add($Matches[2])
+                    $directoryScopeType = $Matches[1]
+                    [void] $ReferencedIdCache.$directoryScopeType.Add($Matches[2])
                 }
                 elseif ($InputObject.directoryScopeId -match '/([0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12})') {
                     [void] $ReferencedIdCache.UnknownType.Add($Matches[1])

@@ -181,9 +181,11 @@ function Export-AADAssessmentReportData {
 
     Get-AADAssessRoleAssignmentReport -Offline -RoleAssignmentSchedulesData $roleAssignmentSchedulesData -RoleEligibilitySchedulesData $roleEligibilitySchedulesData -GroupTransitiveMembershipData $groupTransitiveMembership -OrganizationData $OrganizationData -AdministrativeUnitsData $LookupCache.administrativeUnit -UsersData $LookupCache.user -GroupsData $LookupCache.group -ApplicationsData $LookupCache.application -ServicePrincipalsData $LookupCache.servicePrincipal `
     | Use-Progress -Activity 'Exporting RoleAssignmentReport' -Property id -PassThru -WriteSummary `
+    | Format-Csv `
     | Export-Csv -Path (Join-Path $OutputDirectory "RoleAssignmentReport.csv") -NoTypeInformation
     $LookupCache.group.Clear()
     $LookupCache.administrativeUnit.Clear()
+    Remove-Variable groupTransitiveMembership
     Remove-Variable roleAssignmentSchedulesData
     Remove-Variable roleEligibilitySchedulesData
 

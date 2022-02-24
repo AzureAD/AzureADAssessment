@@ -66,17 +66,17 @@ function Get-AADAssessRoleAssignmentReport {
                 $RoleSchedules = $InputObject
                 foreach ($RoleSchedule in $RoleSchedules) {
 
-                    if ($RoleSchedule.directoryScopeId -match '/(?:(.+)/)?([0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12})') {
+                    if ($RoleSchedule.directoryScopeId -match '/(?:(.+)s/)?([0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12})') {
                         $ObjectId = $Matches[2]
                         $directoryScopeType = $Matches[1]
                         if ($directoryScopeType) {
-                            $directoryScope = Get-AadObjectById $ObjectId -Type $directoryScopeType -LookupCache $LookupCache -UseLookupCacheOnly
+                            $directoryScope = Get-AadObjectById $ObjectId -Type $directoryScopeType -LookupCache $LookupCache -UseLookupCacheOnly:$UseLookupCacheOnly
                         }
                         else {
-                            $directoryScope = Get-AadObjectById $ObjectId -Type servicePrincipal -LookupCache $LookupCache -UseLookupCacheOnly
+                            $directoryScope = Get-AadObjectById $ObjectId -Type servicePrincipal -LookupCache $LookupCache -UseLookupCacheOnly:$UseLookupCacheOnly
                             if ($directoryScope) { $directoryScopeType = 'servicePrincipal' }
                             else {
-                                $directoryScope = $ApplicationData | Where-Object id -EQ $ObjectId
+                                $directoryScope = Get-AadObjectById $ObjectId -Type application -LookupCache $LookupCache -UseLookupCacheOnly:$UseLookupCacheOnly
                                 if ($directoryScope) { $directoryScopeType = 'application' }
                             }
                         }
@@ -95,8 +95,8 @@ function Get-AADAssessRoleAssignmentReport {
                     $OutputObject = [PSCustomObject]@{
                         id                        = $RoleSchedule.id
                         directoryScopeId          = $RoleSchedule.directoryScopeId
-                        directoryScopeObjectId    = $directoryScope.id
-                        directoryScopeDisplayName = $directoryScope.displayName
+                        directoryScopeObjectId    = if ($directoryScope) { $directoryScope.id } else { $null }
+                        directoryScopeDisplayName = if ($directoryScope) { $directoryScope.displayName } else { $null }
                         directoryScopeType        = $directoryScopeType
                         roleDefinitionId          = $RoleSchedule.roleDefinition.id
                         roleDefinitionTemplateId  = $RoleSchedule.roleDefinition.templateId

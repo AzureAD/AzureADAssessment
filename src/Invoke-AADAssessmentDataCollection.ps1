@@ -77,6 +77,7 @@ function Invoke-AADAssessmentDataCollection {
 
         ### Generate Assessment Data
         $AssessmentData = [PSCustomObject]@{
+            AssessmentDateTime     = Get-Date
             AssessmentId           = if ($script:AppInsightsRuntimeState.OperationStack.Count -gt 0) { $script:AppInsightsRuntimeState.OperationStack.Peek().Id.ToString() } else { (New-Guid).ToString() }
             AssessmentVersion      = $MyInvocation.MyCommand.Module.Version.ToString()
             AssessmentTenantId     = $OrganizationData.id
@@ -127,7 +128,7 @@ function Invoke-AADAssessmentDataCollection {
         | Export-Csv (Join-Path $OutputDirectoryAAD "roleDefinitions.csv") -NoTypeInformation
 
         ### Privileged Access AAD role Assignments - 7
-        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'PIM AAD Roles' -PercentComplete 35
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Directory Role Assignments' -PercentComplete 35
         # Getting role assignments via unified role API
         Get-MsGraphResults 'roleManagement/directory/roleAssignmentSchedules' -Select 'id,directoryScopeId,memberType,scheduleInfo,status,assignmentType' -Filter "status eq 'Provisioned' and assignmentType eq 'Assigned'" -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -ApiVersion 'beta' `
         | Add-AadReferencesToCache -Type roleAssignmentSchedules -ReferencedIdCache $ReferencedIdCache -PassThru `

@@ -8,7 +8,7 @@ function Get-AadObjectById {
         #
         [Parameter(Mandatory = $true)]
         [Alias('Type')]
-        [ValidateSet('servicePrincipal', 'application', 'user', 'group', 'administrativeUnits')]
+        [ValidateSet('servicePrincipal', 'application', 'user', 'group', 'administrativeUnit')]
         [string] $ObjectType,
         #
         [Parameter(Mandatory = $false)]
