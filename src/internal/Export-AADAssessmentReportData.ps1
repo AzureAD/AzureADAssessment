@@ -28,51 +28,6 @@ function Export-AADAssessmentReportData {
     | select-object *,@{Name="createdDateTime"; Expression={$_.creationTimestamp}} -ExcludeProperty creationTimestamp -ErrorAction SilentlyContinue `
     | Export-Csv (Join-Path $OutputDirectory "appRoleAssignments.csv") -NoTypeInformation
 
-    # ## roleAssignments
-    # Set-Content -Path (Join-Path $OutputDirectory "roleAssignments.csv") -Value 'id,directoryScopeId,roleDefinitionId,roleDefinitionTemplateId,principalId,principalType,memberType,scheduleInfo,status,assignmentType'
-    # Import-Clixml -Path (Join-Path $SourceDirectory "roleAssignmentSchedulesData.xml") `
-    # | Use-Progress -Activity 'Exporting roleAssignmentSchedules' -Property id -PassThru -WriteSummary `
-    # | Select-Object -Property id, directoryScopeId,
-    #     @{ Name = 'roleDefinitionId'; Expression = { $_.roleDefinition.id } },
-    #     @{ Name = 'roleDefinitionTemplateId'; Expression = { $_.roleDefinition.templateid } },
-    #     @{ Name = 'principalId'; Expression = { $_.principal.id } },
-    #     @{ Name = 'principalType'; Expression = { $_.principal.'@odata.type' -replace '#microsoft.graph.', '' } },
-    #     memberType, status, assignmentType,
-    #     @{ Name = 'endDateTime'; Expression = { $_.scheduleInfo.expiration.endDateTime } } `
-    # | Export-Csv (Join-Path $OutputDirectory "roleAssignments.csv") -NoTypeInformation
-
-    # Import-Clixml -Path (Join-Path $SourceDirectory "roleEligibilitySchedulesData.xml") `
-    # | Use-Progress -Activity 'Exporting roleEligibilitySchedules' -Property id -PassThru -WriteSummary `
-    # | Select-Object -Property id, directoryScopeId,
-    #     @{ Name = 'roleDefinitionId'; Expression = { $_.roleDefinition.id } },
-    #     @{ Name = 'roleDefinitionTemplateId'; Expression = { $_.roleDefinition.templateid } },
-    #     @{ Name = 'principalId'; Expression = { $_.principal.id } },
-    #     @{ Name = 'principalType'; Expression = { $_.principal.'@odata.type' -replace '#microsoft.graph.', '' } },
-    #     memberType, status, @{ Name = 'assignmentType'; Expression = { 'Eligible' } },
-    #     @{ Name = 'endDateTime'; Expression = { $_.scheduleInfo.expiration.endDateTime } } `
-    # | Export-Csv (Join-Path $OutputDirectory "roleAssignments.csv") -NoTypeInformation -Append
-
-    # ## $Expand group roleAssignments
-    # [array] $groupTransitiveMembership = Import-Csv -Path (Join-Path $OutputDirectory "groupTransitiveMembers.csv")
-    # Import-Csv (Join-Path $OutputDirectory "roleAssignments.csv") `
-    # | Use-Progress -Activity 'Exporting expanded roleAssignments' -Property id -PassThru -WriteSummary `
-    # | Where-Object principalType -eq 'group' `
-    # | Foreach-Object {
-    #     $groupId = $_.principalId
-    #     # prefill resulting assignment
-    #     $transitiveAssignment = $_
-    #     $transitiveAssignment.memberType = "Group"
-    #     $transitiveAssignment.principalType = ""
-    #     $transitiveAssignment.principalId = ""
-    #     # look for memberships
-    #     $groupTransitiveMembership | Where-Object { $_.id -eq $groupId } | ForEach-Object {
-    #         $transitiveAssignment.principalType = $_.memberType
-    #         $transitiveAssignment.principalId = $_.memberId
-    #         $transitiveAssignment
-    #     }
-    # } `
-    # | Export-Csv (Join-Path $OutputDirectory "roleAssignments.csv") -NoTypeInformation -Append
-
     Set-Content -Path (Join-Path $OutputDirectory "oauth2PermissionGrants.csv") -Value 'id,consentType,clientId,principalId,resourceId,scope'
     Import-Clixml -Path (Join-Path $SourceDirectory "oauth2PermissionGrantData.xml") `
     | Use-Progress -Activity 'Exporting oauth2PermissionGrants' -Property id -PassThru -WriteSummary `
