@@ -75,7 +75,7 @@ function Complete-AADAssessmentReports {
 
         ## Generate Reports
         [array] $DataFiles = Get-Item -Path (Join-Path $OutputDirectoryAAD "*") -Include "*Data.xml"
-        if ($DataFiles -and $DataFiles.Count -eq 7) {
+        if ($DataFiles -and $DataFiles.Count -eq 9) {
             Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Complete Reports - {0}' -f $AssessmentDetail.AssessmentTenantDomain) -Status 'Output Report Data' -PercentComplete 20
             Export-AADAssessmentReportData -SourceDirectory $OutputDirectoryAAD -OutputDirectory $OutputDirectoryAAD
 

@@ -7,7 +7,7 @@ function Add-AadObjectToLookupCache {
         #
         [Parameter(Mandatory = $true)]
         [Alias('Type')]
-        [ValidateSet('servicePrincipal', 'user', 'group')]
+        [ValidateSet('servicePrincipal', 'application', 'user', 'group', 'administrativeUnit')]
         [string] $ObjectType,
         #
         [Parameter(Mandatory = $true)]
