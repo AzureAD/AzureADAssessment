@@ -15,9 +15,6 @@ function Get-AADAssessRoleAssignmentReport {
         # Role Eligible Data
         [Parameter(Mandatory = $false)]
         [psobject] $RoleEligibilitySchedulesData,
-        # Group Transitive Membership Data
-        [Parameter(Mandatory = $false)]
-        [psobject] $GroupTransitiveMembershipData,
         # Organization Data
         [Parameter(Mandatory = $false)]
         [psobject] $OrganizationData,
@@ -115,13 +112,14 @@ function Get-AADAssessRoleAssignmentReport {
                     if ($principalType -eq 'group') {
                         $OutputObject.memberType = 'Group'
 
-                        if ($Offline) {
-                            $GroupTransitiveMembershipData | Where-Object id -EQ $OutputObject.principalId `
+                        if ($UseLookupCacheOnly) {
+                            Expand-GroupTransitiveMembership $RoleSchedule.principal.id -LookupCache $LookupCache `
                             | ForEach-Object {
-                                $principal = Get-AadObjectById $_.memberId -Type $_.memberType -LookupCache $LookupCache -UseLookupCacheOnly
-                                $OutputObject.principalId = $_.memberId
+                                $principalType = $_.'@odata.type' -replace '#microsoft.graph.', ''
+                                $principal = Get-AadObjectById $_.id -Type $principalType -LookupCache $LookupCache -UseLookupCacheOnly:$UseLookupCacheOnly
+                                $OutputObject.principalId = $_.id
                                 $OutputObject.principalDisplayName = if ($principal) { $principal.displayName } else { $null }
-                                $OutputObject.principalType = $_.memberType
+                                $OutputObject.principalType = $principalType
                                 $OutputObject
                             }
                         }

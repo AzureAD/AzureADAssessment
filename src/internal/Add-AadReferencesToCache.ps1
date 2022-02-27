@@ -7,11 +7,14 @@ function Add-AadReferencesToCache {
         #
         [Parameter(Mandatory = $true)]
         [Alias('Type')]
-        [ValidateSet('appRoleAssignment', 'oauth2PermissionGrant', 'servicePrincipal', 'directoryRole', 'conditionalAccessPolicy', 'roleAssignmentSchedules')]
+        [ValidateSet('appRoleAssignment', 'oauth2PermissionGrant', 'servicePrincipal', 'group', 'directoryRole', 'conditionalAccessPolicy', 'roleAssignmentSchedules')]
         [string] $ObjectType,
         #
         [Parameter(Mandatory = $true)]
         [psobject] $ReferencedIdCache,
+        #
+        [Parameter(Mandatory = $false)]
+        [string[]] $ReferencedTypes = @('#microsoft.graph.user', '#microsoft.graph.group', '#microsoft.graph.servicePrincipal'),
         #
         [Parameter(Mandatory = $false)]
         [switch] $PassThru
@@ -21,7 +24,7 @@ function Add-AadReferencesToCache {
         function Expand-PropertyToCache ($InputObject, $PropertyName) {
             if ($InputObject.psobject.Properties.Name.Contains($PropertyName)) {
                 foreach ($Object in $InputObject.$PropertyName) {
-                    if ($Object.'@odata.type' -in ('#microsoft.graph.user', '#microsoft.graph.group', '#microsoft.graph.servicePrincipal')) {
+                    if ($Object.'@odata.type' -in $ReferencedTypes) {
                         $ObjectType = $Object.'@odata.type' -replace '#microsoft.graph.', ''
                         [void] $ReferencedIdCache.$ObjectType.Add($Object.id)
                     }

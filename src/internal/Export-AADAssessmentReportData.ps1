@@ -17,15 +17,14 @@ function Export-AADAssessmentReportData {
     | Use-Progress -Activity 'Exporting applications' -Property displayName -PassThru -WriteSummary `
     | Export-JsonArray (Join-Path $OutputDirectory "applications.json") -Depth 5 -Compress
 
-    Import-Clixml -Path (Join-Path $SourceDirectory "directoryRoleData.xml") `
-    | Use-Progress -Activity 'Exporting directoryRoles' -Property displayName -PassThru -WriteSummary `
-    | Export-JsonArray (Join-Path $OutputDirectory "directoryRoles.json") -Depth 5 -Compress
+    # Import-Clixml -Path (Join-Path $SourceDirectory "directoryRoleData.xml") `
+    # | Use-Progress -Activity 'Exporting directoryRoles' -Property displayName -PassThru -WriteSummary `
+    # | Export-JsonArray (Join-Path $OutputDirectory "directoryRoles.json") -Depth 5 -Compress
 
     Set-Content -Path (Join-Path $OutputDirectory "appRoleAssignments.csv") -Value 'id,appRoleId,createdDateTime,principalDisplayName,principalId,principalType,resourceDisplayName,resourceId'
     Import-Clixml -Path (Join-Path $SourceDirectory "appRoleAssignmentData.xml") `
     | Use-Progress -Activity 'Exporting appRoleAssignments' -Property id -PassThru -WriteSummary `
     | Format-Csv `
-    | select-object *,@{Name="createdDateTime"; Expression={$_.creationTimestamp}} -ExcludeProperty creationTimestamp -ErrorAction SilentlyContinue `
     | Export-Csv (Join-Path $OutputDirectory "appRoleAssignments.csv") -NoTypeInformation
 
     Set-Content -Path (Join-Path $OutputDirectory "oauth2PermissionGrants.csv") -Value 'id,consentType,clientId,principalId,resourceId,scope'
@@ -50,41 +49,34 @@ function Export-AADAssessmentReportData {
     Set-Content -Path (Join-Path $OutputDirectory "users.csv") -Value 'id,userPrincipalName,userType,displayName,accountEnabled,onPremisesSyncEnabled,onPremisesImmutableId,mail,otherMails,AADLicense'
     Import-Clixml -Path (Join-Path $SourceDirectory "userData.xml") `
     | Use-Progress -Activity 'Exporting users' -Property displayName -PassThru -WriteSummary `
-    | Select-Object -Property id,userPrincipalName,userType,displayName,accountEnabled, `
-        @{ Name = "onPremisesSyncEnabled"; Expression = {[bool]$_.onPremisesSyncEnabled}}, `
-        @{ Name = "onPremisesImmutableId"; Expression = {![string]::IsNullOrWhiteSpace($_.onPremisesImmutableId)}},mail, `
-        @{ Name = "otherMails"; Expression = { $_.otherMails -join ';' } }, `
+    | Select-Object -Property id, userPrincipalName, userType, displayName, accountEnabled,
+        @{ Name = "onPremisesSyncEnabled"; Expression = { [bool]$_.onPremisesSyncEnabled } },
+        @{ Name = "onPremisesImmutableId"; Expression = {![string]::IsNullOrWhiteSpace($_.onPremisesImmutableId)}},
+        mail,
+        @{ Name = "otherMails"; Expression = { $_.otherMails -join ';' } },
         @{ Name = "AADLicense"; Expression = {$plans = $_.assignedPlans | foreach-object { $_.servicePlanId }; if ($plans -contains "eec0eb4f-6444-4f95-aba0-50c24d67f998") { "AADP2" } elseif ($plans -contains "41781fb2-bc02-4b7c-bd55-b576c07bb09d") { "AADP1" } else { "None" }}} `
     | Export-Csv (Join-Path $OutputDirectory "users.csv") -NoTypeInformation
-    #
 
     # Import-Clixml -Path (Join-Path $SourceDirectory "groupData.xml") `
     # | Use-Progress -Activity 'Exporting groups' -Property displayName -PassThru -WriteSummary `
     # | Export-JsonArray (Join-Path $OutputDirectory "groups.json") -Depth 5 -Compress
 
-    Set-Content -Path (Join-Path $OutputDirectory "groups.csv") -Value 'id,groupTypes,displayName,mail,groupType'
+    Set-Content -Path (Join-Path $OutputDirectory "groups.csv") -Value 'id,groupTypes,mailEnabled,securityEnabled,groupType,displayName,onPremisesSyncEnabled,mail'
     Import-Clixml -Path (Join-Path $SourceDirectory "groupData.xml") `
     | Use-Progress -Activity 'Exporting groups' -Property displayName -PassThru -WriteSummary `
-    | Select-Object -Property id, groupTypes, displayName, mail, `
-    @{ Name = "groupType"; Expression = {
-        if ($_.groupTypes -contains "Unified") {
-            "Microsoft 365"
-        } else {
-            if ($_.securityEnabled) {
-                if ($_.mailEnabled) {
-                    "Mail-enabled Security"
-                } else {
-                    "Security"
-                }
-            } else {
-                if ($_.mailEnabled) {
-                    "Distribution"
-                } else {
-                    "Unknown" # not mail enabled neither security enabled
-                }
+    | Select-Object -Property id, groupTypes, mailEnabled, securityEnabled,
+        @{ Name = "groupType"; Expression = {
+            if ($_.groupTypes -contains "Unified") { "Microsoft 365" }
+            elseif ($_.securityEnabled) {
+                if ($_.mailEnabled) { "Mail-enabled Security" }
+                else { "Security" }
             }
-        }
-    }} `
+            elseif ($_.mailEnabled) { "Distribution" }
+            else { "Unknown" } # not mail enabled neither security enabled
+        }},
+        displayName,
+        @{ Name = "onPremisesSyncEnabled"; Expression = { [bool]$_.onPremisesSyncEnabled } },
+        mail `
     | Export-Csv (Join-Path $OutputDirectory "groups.csv") -NoTypeInformation
 
     ## Option 1 from Data Collection: Expand Group Membership to get transitiveMembers.
@@ -127,22 +119,19 @@ function Export-AADAssessmentReportData {
     Remove-Variable DirectoryRoleData
 
     #[array] $ApplicationData = Import-Clixml -Path (Join-Path $SourceDirectory "applicationData.xml")
-    [array] $groupTransitiveMembership = Import-Csv -Path (Join-Path $SourceDirectory "groupTransitiveMembers.csv")
     Import-Csv -Path (Join-Path $SourceDirectory "administrativeUnits.csv") | Add-AadObjectToLookupCache -Type administrativeUnit -LookupCache $LookupCache
     Import-Clixml -Path (Join-Path $SourceDirectory "applicationData.xml") | Add-AadObjectToLookupCache -Type application -LookupCache $LookupCache
     Import-Clixml -Path (Join-Path $SourceDirectory "servicePrincipalData.xml") | Add-AadObjectToLookupCache -Type servicePrincipal -LookupCache $LookupCache
     [array] $roleAssignmentSchedulesData = Import-Clixml -Path (Join-Path $SourceDirectory "roleAssignmentSchedulesData.xml")
     [array] $roleEligibilitySchedulesData = Import-Clixml -Path (Join-Path $SourceDirectory "roleEligibilitySchedulesData.xml")
 
-    Get-AADAssessRoleAssignmentReport -Offline -RoleAssignmentSchedulesData $roleAssignmentSchedulesData -RoleEligibilitySchedulesData $roleEligibilitySchedulesData -GroupTransitiveMembershipData $groupTransitiveMembership -OrganizationData $OrganizationData -AdministrativeUnitsData $LookupCache.administrativeUnit -UsersData $LookupCache.user -GroupsData $LookupCache.group -ApplicationsData $LookupCache.application -ServicePrincipalsData $LookupCache.servicePrincipal `
+    Get-AADAssessRoleAssignmentReport -Offline -RoleAssignmentSchedulesData $roleAssignmentSchedulesData -RoleEligibilitySchedulesData $roleEligibilitySchedulesData -OrganizationData $OrganizationData -AdministrativeUnitsData $LookupCache.administrativeUnit -UsersData $LookupCache.user -GroupsData $LookupCache.group -ApplicationsData $LookupCache.application -ServicePrincipalsData $LookupCache.servicePrincipal `
     | Use-Progress -Activity 'Exporting RoleAssignmentReport' -Property id -PassThru -WriteSummary `
     | Format-Csv `
     | Export-Csv -Path (Join-Path $OutputDirectory "RoleAssignmentReport.csv") -NoTypeInformation
     $LookupCache.group.Clear()
     $LookupCache.administrativeUnit.Clear()
-    Remove-Variable groupTransitiveMembership
-    Remove-Variable roleAssignmentSchedulesData
-    Remove-Variable roleEligibilitySchedulesData
+    Remove-Variable roleAssignmentSchedulesData, roleEligibilitySchedulesData
 
     Get-AADAssessAppCredentialExpirationReport -Offline -ApplicationData $LookupCache.application -ServicePrincipalData $LookupCache.servicePrincipal `
     | Use-Progress -Activity 'Exporting AppCredentialsReport' -Property displayName -PassThru -WriteSummary `
