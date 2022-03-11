@@ -117,6 +117,7 @@ NestedModules = @(
     '.\Get-AADAssessConsentGrantReport.ps1'
     '.\Get-AADAssessNotificationEmailsReport.ps1'
     '.\Get-AADAssessRoleAssignmentReport.ps1'
+    '.\Get-AADAssessUserReport.ps1'
     '.\Invoke-AADAssessmentDataCollection.ps1'
     '.\New-AADAssessmentRecommendations.ps1'
     '.\Export-AADASsessmentRecommendations.ps1'
@@ -137,6 +138,7 @@ FunctionsToExport = @(
     'Get-AADAssessConsentGrantReport'
     'Get-AADAssessNotificationEmailsReport'
     'Get-AADAssessRoleAssignmentReport'
+    'Get-AADAssessUserReport'
     'Invoke-AADAssessmentDataCollection'
     'Invoke-AADAssessmentHybridDataCollection'
     'Get-AADAssessADFSEndpoints'
@@ -174,7 +176,7 @@ PrivateData = @{
     PSData = @{
 
         # Tags applied to this module. These help with module discovery in online galleries.
-        Tags = 'Microsoft', 'Identity', 'Azure', 'AzureActiveDirectory', 'AzureAD', 'AAD', 'PSEdition_Desktop', 'PSEdition_Core', 'Windows'
+            Tags   = 'Microsoft', 'Identity', 'Azure', 'AzureActiveDirectory', 'AzureAD', 'AAD', 'PSEdition_Desktop', 'PSEdition_Core', 'Windows', 'Linux', 'MacOS'
 
         # A URL to the license for this module.
         LicenseUri = 'https://raw.githubusercontent.com/AzureAD/AzureADAssessment/master/LICENSE'
