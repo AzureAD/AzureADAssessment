@@ -105,12 +105,8 @@ function Invoke-AADAssessmentDataCollection {
 
         ### EOTP Policy - 4
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Email Auth Method Policy' -PercentComplete 20
-        Get-MsGraphResults "policies/authenticationMethodsPolicy/authenticationMethodConfigurations/email" -ErrorAction SilentlyContinue `
+        Get-MsGraphResults "policies/authenticationMethodsPolicy/authenticationMethodConfigurations/email" `
         | ConvertTo-Json -Depth 5 -Compress | Set-Content -Path (Join-Path $OutputDirectoryAAD "emailOTPMethodPolicy.json")
-        if (-not (Test-Path -PathType Leaf -Path (Join-Path $OutputDirectoryAAD "emailOTPMethodPolicy.json"))) {
-            Write-Warning "Getting Email Authentication Method Configuration requires the Global Administrator role. The policy information will be omitted"
-        }
-
         ### Directory Role Data - 5
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Directory Roles' -PercentComplete 21
         ## $expand on directoryRole members caps results at 20 members with no NextLink so call members endpoint for each.
