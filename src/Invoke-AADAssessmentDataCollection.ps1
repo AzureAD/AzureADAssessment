@@ -23,7 +23,8 @@ function Invoke-AADAssessmentDataCollection {
         [Parameter(Mandatory = $false)]
         [switch] $SkipPackaging,
         [Parameter(Mandatory = $false)]
-        [switch] $UnifiedRole
+        # Skip getting user assigned plans
+        [switch] $NoAssignedPlans
     )
 
     Start-AppInsightsRequest $MyInvocation.MyCommand.Name
@@ -270,7 +271,11 @@ function Invoke-AADAssessmentDataCollection {
         }
         # get user information
         #$ReferencedIdCache.user | Get-MsGraphResults 'users/{0}?$select=id,userPrincipalName,userType,displayName,accountEnabled,onPremisesSyncEnabled,onPremisesImmutableId,mail,otherMails,proxyAddresses,assignedPlans,signInActivity' -TotalRequests $ReferencedIdCache.user.Count -DisableUniqueIdDeduplication -ApiVersion 'beta' `
-        $ReferencedIdCache.user | Get-MsGraphResults 'users/{0}?$select=id,userPrincipalName,userType,displayName,accountEnabled,onPremisesSyncEnabled,onPremisesImmutableId,mail,otherMails,proxyAddresses,assignedPlans' -TotalRequests $ReferencedIdCache.user.Count -DisableUniqueIdDeduplication -ApiVersion 'beta' `
+        $userQuery = 'users/{0}?$select=id,userPrincipalName,userType,displayName,accountEnabled,onPremisesSyncEnabled,onPremisesImmutableId,mail,otherMails,proxyAddresses'
+        if (!$NoAssignedPlans) {
+            $userQuery += ",assignedPlans"
+        }
+        $ReferencedIdCache.user | Get-MsGraphResults $userQuery -TotalRequests $ReferencedIdCache.user.Count -DisableUniqueIdDeduplication -ApiVersion 'beta' `
         | Select-Object -Property "*" -ExcludeProperty '@odata.type' `
         | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "userData.xml")
         $ReferencedIdCache.user.Clear()
