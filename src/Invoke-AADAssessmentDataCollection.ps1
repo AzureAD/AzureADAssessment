@@ -133,7 +133,10 @@ function Invoke-AADAssessmentDataCollection {
         # | Add-AadReferencesToCache -Type roleAssignmentSchedules -ReferencedIdCache $ReferencedIdCache -PassThru `
         # | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "roleAssignmentSchedulesData.xml")
 
-        # List roleAssignmentSchedules above is not returning non-root scoped assignments so working around with one query of all root assignments including custom roles and another query of all non-root assignments for build-in roles. Also, because roleDefinitions are not returning the correct id, it is not possible to get custom roles assigned to non-root scopes.
+        # List roleAssignmentSchedules above is not returning non-root scoped assignments.
+        # Working around with one query of all root assignments including custom roles and 
+        # another query of all non-root assignments for build-in roles.
+        # Because roleDefinitions are not returning the correct id, it is not possible to get custom roles assigned to non-root scopes.
         $roleAssignmentSchedules = Get-MsGraphResults 'roleManagement/directory/roleAssignmentSchedules' -Select 'id,directoryScopeId,memberType,scheduleInfo,status,assignmentType' -Filter "status eq 'Provisioned' and assignmentType eq 'Assigned' and directoryScopeId eq '/'" -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -ApiVersion 'beta'
         $roleAssignmentSchedulesAdditional = $roleDefinitions | Where-Object isBuiltIn -EQ $true | Get-MsGraphResults 'roleManagement/directory/roleAssignmentSchedules' -Select 'id,directoryScopeId,memberType,scheduleInfo,status,assignmentType' -Filter "status eq 'Provisioned' and assignmentType eq 'Assigned' and roleDefinitionId eq '{0}' and directoryScopeId ne '/'" -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -ApiVersion 'beta'
         $roleAssignmentSchedules + $roleAssignmentSchedulesAdditional `

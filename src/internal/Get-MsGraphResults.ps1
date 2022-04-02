@@ -104,6 +104,11 @@ function Get-MsGraphResults {
                 [System.Management.Automation.ErrorRecord] $ErrorRecord
             )
 
+            # throw error record directly if no response is found on the exception
+            if (!$_.Exception.psobject.Properties.Name.Contains('Response')) {
+                throw $ErrorRecord
+            }
+
             ## Get Response Body
             if ($_.ErrorDetails) {
                 $Response = '{0} {1} HTTP/{2}' -f $_.Exception.Response.StatusCode.value__, $_.Exception.Response.ReasonPhrase, $_.Exception.Response.Version
@@ -245,23 +250,22 @@ function Get-MsGraphResults {
 
                     [array] $resultsBatch = $resultsBatch.responses | Sort-Object -Property { [int]$_.id }
 
+                    $throttledRequests = @()
+                    [double]$maxRetryAfter = 1.0
                     foreach ($results in ($resultsBatch)) {
                         # check if batch result failed and call the endpoint or throw
                         if ($results.status -eq "429") {
-                            # batch request was throttled redo individually
-                            $Retries = 1
-                            $MaxRetries = 5
-                            [double]$RetryAfter = 1.0
+                            # request was throttled
+                            $throttledRequests += $listRequests[$results.id]
                             # check if a retry after was recieved
-                            if ($results.psobject.Properties.Name -contains 'headers') {
-                                if ($results.headers.psobject.Properties.Name -contains 'Retry-After') {
+                            if ($results.psobject.Properties.Name.Contains('headers')) {
+                                if ($results.headers.psobject.Properties.Name.Contains('Retry-After')) {
                                     $RetryAfter = [double]$results.headers.'Retry-After'
+                                    if ($RetryAfter -gt $maxRetryAfter) {
+                                        $maxRetryAfter = $RetryAfter
+                                    }
                                 }
                             }
-                            # Request has been thottled
-                            Write-Verbose "$($listRequests[$results.id].method) $($listRequests[$results.id].url); Request throttled, attempt $Retries out of $MaxRetries. Retrying after $($RetryAfter)s"
-                            Start-Sleep -Seconds $RetryAfter
-                            Invoke-MsGraphRequest $listRequests[$results.id] -NoAppInsights -GraphBaseUri $GraphBaseUri -Retries 2 -RetryAfter $RetryAfter
                             continue
                         }
                         if (!(Test-MsGraphBatchError $results)) {
@@ -275,6 +279,13 @@ function Get-MsGraphResults {
                             else {
                                 Complete-MsGraphResult $results.body -DisablePaging:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType -GroupOutputByRequest:$GroupOutputByRequest -Request $listRequests[$results.id] -GraphBaseUri $GraphBaseUri
                             }
+                        }
+                    }
+                    if ($throttledRequests.Count -gt 0) {
+                        Write-Warning "$($throttledRequests.Count) requests have been throttled; Retrying after $($maxRetryAfter)s"
+                        Start-Sleep -Seconds $maxRetryAfter
+                        foreach($request in $throttledRequests) {
+                            Invoke-MsGraphRequest $request -NoAppInsights -GraphBaseUri $GraphBaseUri -RetryAfter $RetryAfter
                         }
                     }
                 }
@@ -299,8 +310,6 @@ function Get-MsGraphResults {
                 [Parameter(Mandatory = $false)]
                 [uri] $GraphBaseUri = 'https://graph.microsoft.com/',
                 # Number of retries in case of throttling
-                [Parameter(Mandatory = $false)]
-                [int] $Retries = 1,
                 [Parameter(Mandatory = $false)]
                 [int] $MaxRetries = 5,
                 [Parameter(Mandatory = $false)]
@@ -329,36 +338,44 @@ function Get-MsGraphResults {
                 $MsGraphSession = Confirm-ModuleAuthentication -MsGraphSession -ErrorAction Stop
                 if (!$NoAppInsights) { $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew() }
                 try {
-                    # [hashtable] $results = Invoke-MgGraphRequest -Method $Request.method -Uri $uriEndpoint.AbsoluteUri -Headers $Request.headers
-                    $results = Invoke-RestMethod -WebSession $MsGraphSession -UseBasicParsing @paramInvokeRestMethod -ErrorAction Stop
-                    if ($IncapsulateReferenceListInParentObject -and $Request.url -match '.*/(.+)/(.+)/((?:transitive)?members|owners)') {
-                        [PSCustomObject]@{
-                            id            = $Matches[2]
-                            '@odata.type' = '#{0}' -f (Get-MsGraphEntityType $GraphBaseUri.AbsoluteUri -EntityName $Matches[1])
-                            $Matches[3]   = Complete-MsGraphResult $results -DisablePaging:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType -GroupOutputByRequest -Request $Request -GraphBaseUri $GraphBaseUri
-                        }
-                    }
-                    else {
-                        Complete-MsGraphResult $results -DisablePaging:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType -GroupOutputByRequest:$GroupOutputByRequest -Request $Request -GraphBaseUri $GraphBaseUri
-                    }
-                }
-                catch {
-                    Write-Warning $_
-                    # catch throttling
-                    if ($_.Exception.Response.StatusCode.value__ -eq 429 -and $Retries -le $MaxRetries) {
-                        # Get the retry after header
+                    for($Retries = 0; $Retries -lt $MaxRetries; $Retries++) {
                         try {
-                            $RetryAfter = [double]($_.Exception.Response.Headers.GetValues('Retry-After')[0])
-                        } catch {
-                            Write-Verbose "Request throttled but Retry-After not provided ($(Request.url)) using exponential backoff ($(RetryAfter)s)"
+                            $results = Invoke-RestMethod -WebSession $MsGraphSession -UseBasicParsing @paramInvokeRestMethod -ErrorAction Stop
+                            # break the loop if no error was raised
+                            break
                         }
-                        # request has been throttled and max retries not reached: redo the call
-                        Write-Verbose "$($paramInvokeRestMethod['Method']) $($paramInvokeRestMethod['Uri']); Request throttled, attempt $Retries out of $MaxRetries. Retrying after $($RetryAfter)s"
-                        Start-Sleep -Seconds $RetryAfter
-                        Invoke-MsGraphRequest -Request $Request -NoAppInsights:$NoAppInsights -GraphBaseUri $GraphBaseUri -Retries ($Retries+1) -MaxRetries $MaxRetries -RetryAfter ($RetryAfter*2)
-                    } else {
-                        # catch graph errors
-                        Catch-MsGraphError $_ 
+                        catch {
+                            ## error while invoking graph
+                            if ($Retries -eq $MaxRetries-1) {
+                                # catch error if it was the last try
+                                Catch-MsGraphError $_ 
+                            }
+                            ## check if throttling happened
+                            if ($_.Exception.PSobject.Properties.Name.Contains("Response") -and $_.Exception.Response.StatusCode.value__ -eq 429) {
+                                # Get the retry after header
+                                try {
+                                    $RetryAfter = [double]($_.Exception.Response.Headers.GetValues('Retry-After')[0])
+                                } catch {
+                                    Write-Verbose "Request throttled but Retry-After not provided ($(Request.url)) using exponential backoff ($(RetryAfter)s)"
+                                }
+                            }
+                            # request had an error and has not reached maximum retries
+                            Write-Warning "$($paramInvokeRestMethod['Method']) $($paramInvokeRestMethod['Uri']); error $($_.Exception.Message); attempt $($Retries+1) out of $MaxRetries. Retrying after $($RetryAfter)s"
+                            Start-Sleep -Seconds $RetryAfter
+                            $RetryAfter = $RetryAfter * 2
+                        }                 
+                    }
+                    if ($results) {
+                        if ($IncapsulateReferenceListInParentObject -and $Request.url -match '.*/(.+)/(.+)/((?:transitive)?members|owners)') {
+                            [PSCustomObject]@{
+                                id            = $Matches[2]
+                                '@odata.type' = '#{0}' -f (Get-MsGraphEntityType $GraphBaseUri.AbsoluteUri -EntityName $Matches[1])
+                                $Matches[3]   = Complete-MsGraphResult $results -DisablePaging:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType -GroupOutputByRequest -Request $Request -GraphBaseUri $GraphBaseUri
+                            }
+                        }
+                        else {
+                            Complete-MsGraphResult $results -DisablePaging:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType -GroupOutputByRequest:$GroupOutputByRequest -Request $Request -GraphBaseUri $GraphBaseUri
+                        }       
                     }
                 }
                 finally {
@@ -412,43 +429,46 @@ function Get-MsGraphResults {
                             $Activity = ('Microsoft Graph Request - {0} {1}' -f $Request.method.ToUpper(), $uriEndpoint.AbsolutePath)
                             $ProgressState = Start-Progress -Activity $Activity -Total $Total
                             $ProgressState.CurrentIteration = $Result.value.Count
-                            $Retries = 1
                             $MaxRetries = 5
-                            [double]$RetryAfter = 1.0
                             try {
                                 while (Get-ObjectPropertyValue $Result '@odata.nextLink') {
                                     Update-Progress $ProgressState -IncrementBy $Result.value.Count
                                     $nextLink = $Result.'@odata.nextLink'
                                     $MsGraphSession = Confirm-ModuleAuthentication -MsGraphSession -ErrorAction Stop
                                     $Result = $null
-                                    try {
-                                        $Result = Invoke-RestMethod -WebSession $MsGraphSession -UseBasicParsing -Method Get -Uri $nextLink -Headers $Request.headers -ErrorAction Stop
-                                    }
-                                    catch {
-                                        # catch throttling
-                                        if ($_.Exception.Response.StatusCode.value__ -eq 429 -and $Retries -le $MaxRetries) {
-                                            # Get the retry after header
-                                            try {
-                                                $RetryAfter = [double]($_.Exception.Response.Headers.GetValues('Retry-After')[0])
-                                            } catch {
-                                                Write-Verbose "Request throttled but Retry-After not provided ($nextLink) using exponential backoff ($(RetryAfter)s)"
+                                    [double]$RetryAfter = 1.0
+                                    for($Retries = 0; $Retries -lt $MaxRetries; $Retries++) {
+                                        try {
+                                            $Result = Invoke-RestMethod -WebSession $MsGraphSession -UseBasicParsing -Method Get -Uri $nextLink -Headers $Request.headers -ErrorAction Stop
+                                            # break the loop if no error was raised
+                                            break
+                                        }
+                                        catch {
+                                            ## error while invoking graph
+                                            if ($Retries -eq $MaxRetries-1) {
+                                                # catch error if it was the last try
+                                                Catch-MsGraphError $_ 
                                             }
-                                            # request has been throttled and max retries not reached: redo the call
-                                            Write-Verbose "GET $nextLink; Request throttled, attempt $Retries out of $MaxRetries. Retrying after $($RetryAfter)s"
+                                            # update retry after if throttling
+                                            if ($_.Exception.PSobject.Properties.Name.Contains("Response") -and $_.Exception.Response.StatusCode.value__ -eq 429) {
+                                                # Get the retry after header
+                                                try {
+                                                    $RetryAfter = [double]($_.Exception.Response.Headers.GetValues('Retry-After')[0])
+                                                } catch {
+                                                    Write-Verbose "Request throttled but Retry-After not provided ($nextLink) using exponential backoff ($(RetryAfter)s)"
+                                                }
+                                            }
+                                            # request has encountered and error and has not hit the maximum retires
+                                            Write-Warning "GET $nextLink; error '$($_.Exception.Message); attempt $($Retries+1) out of $MaxRetries. Retrying after $($RetryAfter)s"
                                             Start-Sleep -Seconds $RetryAfter
-                                            $Retries = $Retries + 1
                                             $RetryAfter = $RetryAfter * 2
-                                            continue
-                                        } else {
-                                            # catch graph errors
-                                            Catch-MsGraphError $_ 
                                         }
                                     }
-                                    #$Request.url = $Result.'@odata.nextLink'
-                                    #$Result = Invoke-MsGraphRequest $Request -NoAppInsights -GraphBaseUri $GraphBaseUri
-                                    $Output = Expand-MsGraphResult $Result -RawOutput:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType
-                                    if ($GroupOutputByRequest -and $Output) { $listOutput.AddRange([array]$Output) }
-                                    else { $Output }
+                                    if ($Result) {
+                                        $Output = Expand-MsGraphResult $Result -RawOutput:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType
+                                        if ($GroupOutputByRequest -and $Output) { $listOutput.AddRange([array]$Output) }
+                                        else { $Output }
+                                    }
                                 }
                             }
                             finally {
