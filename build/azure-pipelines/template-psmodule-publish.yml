@@ -38,5 +38,9 @@ steps:
     displayName: 'Publish PowerShell Module'
     inputs:
       filePath: '$(System.DefaultWorkingDirectory)/build/Publish-PSModule.ps1'
-      arguments: '-ModuleManifestPath "$(Pipeline.Workspace)/${{ parameters.pipelineId }}/${{ parameters.artifactInput }}/${{ parameters.moduleName }}" -RepositorySourceLocation ${{ parameters.RepositorySourceLocation }} -NuGetApiKey (ConvertTo-SecureString "$(${{ parameters.NuGetApiKeySecretName }})" -AsPlainText) -Unlist:$${{ parameters.Unlist }}'
+      arguments: >
+        -ModuleManifestPath "$(Pipeline.Workspace)/${{ parameters.pipelineId }}/${{ parameters.artifactInput }}/${{ parameters.moduleName }}"
+        -RepositorySourceLocation ${{ parameters.RepositorySourceLocation }}
+        -NuGetApiKey (ConvertTo-SecureString "$(${{ parameters.NuGetApiKeySecretName }})" -AsPlainText)
+        -Unlist:$${{ parameters.Unlist }}
       pwsh: true

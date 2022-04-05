@@ -23,7 +23,8 @@ function Invoke-AADAssessmentDataCollection {
         [Parameter(Mandatory = $false)]
         [switch] $SkipPackaging,
         [Parameter(Mandatory = $false)]
-        [switch] $UnifiedRole
+        # Skip getting user assigned plans
+        [switch] $NoAssignedPlans
     )
 
     Start-AppInsightsRequest $MyInvocation.MyCommand.Name
@@ -105,12 +106,8 @@ function Invoke-AADAssessmentDataCollection {
 
         ### EOTP Policy - 4
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Email Auth Method Policy' -PercentComplete 20
-        Get-MsGraphResults "policies/authenticationMethodsPolicy/authenticationMethodConfigurations/email" -ErrorAction SilentlyContinue `
+        Get-MsGraphResults "policies/authenticationMethodsPolicy/authenticationMethodConfigurations/email" `
         | ConvertTo-Json -Depth 5 -Compress | Set-Content -Path (Join-Path $OutputDirectoryAAD "emailOTPMethodPolicy.json")
-        if (-not (Test-Path -PathType Leaf -Path (Join-Path $OutputDirectoryAAD "emailOTPMethodPolicy.json"))) {
-            Write-Warning "Getting Email Authentication Method Configuration requires the Global Administrator role. The policy information will be omitted"
-        }
-
         ### Directory Role Data - 5
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Directory Roles' -PercentComplete 21
         ## $expand on directoryRole members caps results at 20 members with no NextLink so call members endpoint for each.
@@ -282,8 +279,11 @@ function Invoke-AADAssessmentDataCollection {
         }
         # get user information
         #$ReferencedIdCache.user | Get-MsGraphResults 'users/{0}?$select=id,userPrincipalName,userType,displayName,accountEnabled,onPremisesSyncEnabled,onPremisesImmutableId,mail,otherMails,proxyAddresses,assignedPlans,signInActivity' -TotalRequests $ReferencedIdCache.user.Count -DisableUniqueIdDeduplication -ApiVersion 'beta' `
-        #$ReferencedIdCache.user | Get-MsGraphResults 'users/{0}?$select=id,userPrincipalName,userType,displayName,accountEnabled,onPremisesSyncEnabled,onPremisesImmutableId,mail,otherMails,proxyAddresses,assignedPlans,signInActivity' -TotalRequests $ReferencedIdCache.user.Count -DisableUniqueIdDeduplication -ApiVersion 'beta' `
-        $ReferencedIdCache.user | Get-MsGraphResults 'users' -Select 'id,userPrincipalName,userType,displayName,accountEnabled,onPremisesSyncEnabled,onPremisesImmutableId,mail,otherMails,proxyAddresses,assignedPlans,signInActivity' -TotalRequests $ReferencedIdCache.user.Count -DisableUniqueIdDeduplication -EnableInFilter -ApiVersion 'beta' `
+        $userQuery = 'users/{0}?$select=id,userPrincipalName,userType,displayName,accountEnabled,onPremisesSyncEnabled,onPremisesImmutableId,mail,otherMails,proxyAddresses'
+        if (!$NoAssignedPlans) {
+            $userQuery += ",assignedPlans"
+        }
+        $ReferencedIdCache.user | Get-MsGraphResults $userQuery -TotalRequests $ReferencedIdCache.user.Count -DisableUniqueIdDeduplication -ApiVersion 'beta' `
         | Select-Object -Property "*" -ExcludeProperty '@odata.type' `
         | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "userData.xml")
         $ReferencedIdCache.user.Clear()

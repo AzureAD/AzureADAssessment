@@ -23,6 +23,9 @@ parameters:
 - name: artifactOutput
   type: string
   default: 'PSModule'
+- name: GenerateManifest
+  type: boolean
+  default: false
 
 steps:
 - task: CopyFiles@2
@@ -80,6 +83,12 @@ steps:
     filePath: '$(System.DefaultWorkingDirectory)/build/Update-PSModuleManifest.ps1'
     arguments: '-ModuleManifestPath "$(Pipeline.Workspace)/${{ parameters.artifactOutput }}/${{ coalesce(parameters.moduleRename,parameters.moduleName) }}/${{ coalesce(parameters.moduleRename,parameters.moduleName) }}.psd1" -Guid "${{ parameters.moduleGuid }}" -ModuleVersion "${{ parameters.moduleVersion }}" -Prerelease "${{ parameters.prereleaseTag }}" -SkipRequiredAssemblies'
     pwsh: true
+
+- ${{ if parameters.GenerateManifest }}:
+  - task: ManifestGeneratorTask@0
+    displayName: 'Generate Software Bill of Materials (SBOM)'
+    inputs:
+      BuildDropPath: '$(Pipeline.Workspace)/${{ parameters.artifactOutput }}'
 
 - task: PublishPipelineArtifact@1
   displayName: 'Publish PowerShell Module Artifact'
