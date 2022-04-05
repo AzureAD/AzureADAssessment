@@ -72,6 +72,12 @@ function Get-MsGraphResults {
         # Specify GetByIds Batch size.
         [Parameter(Mandatory = $false)]
         [int] $GetByIdsBatchSize = 1000,
+        # Enables in filter by in on ids for requried uniqueIds; $filter={previous filter} and id in ({csv with ids})
+        # Should be more flexible than GetByIds, scalability to be tested to eventually replace getbyids
+        [Parameter(Mandatory = $false)]
+        [switch] $EnableInFilter,
+        [Parameter(Mandatory = $false)]
+        [int] $InFilterBatchSize = 15,
         # Force individual requests to MS Graph.
         [Parameter(Mandatory = $false)]
         [switch] $DisableBatching,
@@ -97,6 +103,11 @@ function Get-MsGraphResults {
                 [Parameter(Mandatory = $true)]
                 [System.Management.Automation.ErrorRecord] $ErrorRecord
             )
+
+            # throw error record directly if no response is found on the exception
+            if (!$_.Exception.psobject.Properties.Name.Contains('Response')) {
+                throw $ErrorRecord
+            }
 
             ## Get Response Body
             if ($_.ErrorDetails) {
@@ -238,7 +249,25 @@ function Get-MsGraphResults {
                     $resultsBatch = Invoke-MsGraphRequest $BatchRequests[$iRequest] -NoAppInsights -GraphBaseUri $GraphBaseUri
 
                     [array] $resultsBatch = $resultsBatch.responses | Sort-Object -Property { [int]$_.id }
+
+                    $throttledRequests = @()
+                    [double]$maxRetryAfter = 1.0
                     foreach ($results in ($resultsBatch)) {
+                        # check if batch result failed and call the endpoint or throw
+                        if ($results.status -eq "429") {
+                            # request was throttled
+                            $throttledRequests += $listRequests[$results.id]
+                            # check if a retry after was recieved
+                            if ($results.psobject.Properties.Name.Contains('headers')) {
+                                if ($results.headers.psobject.Properties.Name.Contains('Retry-After')) {
+                                    $RetryAfter = [double]$results.headers.'Retry-After'
+                                    if ($RetryAfter -gt $maxRetryAfter) {
+                                        $maxRetryAfter = $RetryAfter
+                                    }
+                                }
+                            }
+                            continue
+                        }
                         if (!(Test-MsGraphBatchError $results)) {
                             if ($IncapsulateReferenceListInParentObject -and $listRequests[$results.id].url -match '.*/(.+)/(.+)/((?:transitive)?members|owners)') {
                                 [PSCustomObject]@{
@@ -250,6 +279,13 @@ function Get-MsGraphResults {
                             else {
                                 Complete-MsGraphResult $results.body -DisablePaging:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType -GroupOutputByRequest:$GroupOutputByRequest -Request $listRequests[$results.id] -GraphBaseUri $GraphBaseUri
                             }
+                        }
+                    }
+                    if ($throttledRequests.Count -gt 0) {
+                        Write-Warning "$($throttledRequests.Count) requests have been throttled; Retrying after $($maxRetryAfter)s"
+                        Start-Sleep -Seconds $maxRetryAfter
+                        foreach($request in $throttledRequests) {
+                            Invoke-MsGraphRequest $request -NoAppInsights -GraphBaseUri $GraphBaseUri -RetryAfter $RetryAfter
                         }
                     }
                 }
@@ -272,7 +308,12 @@ function Get-MsGraphResults {
                 [switch] $NoAppInsights,
                 # Base URL for Microsoft Graph API.
                 [Parameter(Mandatory = $false)]
-                [uri] $GraphBaseUri = 'https://graph.microsoft.com/'
+                [uri] $GraphBaseUri = 'https://graph.microsoft.com/',
+                # Number of retries in case of throttling
+                [Parameter(Mandatory = $false)]
+                [int] $MaxRetries = 5,
+                [Parameter(Mandatory = $false)]
+                [double] $RetryAfter = 1
             )
 
             process {
@@ -297,20 +338,46 @@ function Get-MsGraphResults {
                 $MsGraphSession = Confirm-ModuleAuthentication -MsGraphSession -ErrorAction Stop
                 if (!$NoAppInsights) { $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew() }
                 try {
-                    # [hashtable] $results = Invoke-MgGraphRequest -Method $Request.method -Uri $uriEndpoint.AbsoluteUri -Headers $Request.headers
-                    $results = Invoke-RestMethod -WebSession $MsGraphSession -UseBasicParsing @paramInvokeRestMethod -ErrorAction Stop
-                    if ($IncapsulateReferenceListInParentObject -and $Request.url -match '.*/(.+)/(.+)/((?:transitive)?members|owners)') {
-                        [PSCustomObject]@{
-                            id            = $Matches[2]
-                            '@odata.type' = '#{0}' -f (Get-MsGraphEntityType $GraphBaseUri.AbsoluteUri -EntityName $Matches[1])
-                            $Matches[3]   = Complete-MsGraphResult $results -DisablePaging:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType -GroupOutputByRequest -Request $Request -GraphBaseUri $GraphBaseUri
+                    for($Retries = 0; $Retries -lt $MaxRetries; $Retries++) {
+                        try {
+                            $results = Invoke-RestMethod -WebSession $MsGraphSession -UseBasicParsing @paramInvokeRestMethod -ErrorAction Stop
+                            # break the loop if no error was raised
+                            break
                         }
+                        catch {
+                            ## error while invoking graph
+                            if ($Retries -eq $MaxRetries-1) {
+                                # catch error if it was the last try
+                                Catch-MsGraphError $_ 
+                            }
+                            ## check if throttling happened
+                            if ($_.Exception.PSobject.Properties.Name.Contains("Response") -and $_.Exception.Response.StatusCode.value__ -eq 429) {
+                                # Get the retry after header
+                                try {
+                                    $RetryAfter = [double]($_.Exception.Response.Headers.GetValues('Retry-After')[0])
+                                } catch {
+                                    Write-Verbose "Request throttled but Retry-After not provided ($(Request.url)) using exponential backoff ($(RetryAfter)s)"
+                                }
+                            }
+                            # request had an error and has not reached maximum retries
+                            Write-Warning "$($paramInvokeRestMethod['Method']) $($paramInvokeRestMethod['Uri']); error $($_.Exception.Message); attempt $($Retries+1) out of $MaxRetries. Retrying after $($RetryAfter)s"
+                            Start-Sleep -Seconds $RetryAfter
+                            $RetryAfter = $RetryAfter * 2
+                        }                 
                     }
-                    else {
-                        Complete-MsGraphResult $results -DisablePaging:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType -GroupOutputByRequest:$GroupOutputByRequest -Request $Request -GraphBaseUri $GraphBaseUri
+                    if ($results) {
+                        if ($IncapsulateReferenceListInParentObject -and $Request.url -match '.*/(.+)/(.+)/((?:transitive)?members|owners)') {
+                            [PSCustomObject]@{
+                                id            = $Matches[2]
+                                '@odata.type' = '#{0}' -f (Get-MsGraphEntityType $GraphBaseUri.AbsoluteUri -EntityName $Matches[1])
+                                $Matches[3]   = Complete-MsGraphResult $results -DisablePaging:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType -GroupOutputByRequest -Request $Request -GraphBaseUri $GraphBaseUri
+                            }
+                        }
+                        else {
+                            Complete-MsGraphResult $results -DisablePaging:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType -GroupOutputByRequest:$GroupOutputByRequest -Request $Request -GraphBaseUri $GraphBaseUri
+                        }       
                     }
                 }
-                catch { Catch-MsGraphError $_ }
                 finally {
                     if (!$NoAppInsights) {
                         $Stopwatch.Stop()
@@ -362,21 +429,46 @@ function Get-MsGraphResults {
                             $Activity = ('Microsoft Graph Request - {0} {1}' -f $Request.method.ToUpper(), $uriEndpoint.AbsolutePath)
                             $ProgressState = Start-Progress -Activity $Activity -Total $Total
                             $ProgressState.CurrentIteration = $Result.value.Count
+                            $MaxRetries = 5
                             try {
                                 while (Get-ObjectPropertyValue $Result '@odata.nextLink') {
                                     Update-Progress $ProgressState -IncrementBy $Result.value.Count
                                     $nextLink = $Result.'@odata.nextLink'
                                     $MsGraphSession = Confirm-ModuleAuthentication -MsGraphSession -ErrorAction Stop
                                     $Result = $null
-                                    try {
-                                        $Result = Invoke-RestMethod -WebSession $MsGraphSession -UseBasicParsing -Method Get -Uri $nextLink -Headers $Request.headers -ErrorAction Stop
+                                    [double]$RetryAfter = 1.0
+                                    for($Retries = 0; $Retries -lt $MaxRetries; $Retries++) {
+                                        try {
+                                            $Result = Invoke-RestMethod -WebSession $MsGraphSession -UseBasicParsing -Method Get -Uri $nextLink -Headers $Request.headers -ErrorAction Stop
+                                            # break the loop if no error was raised
+                                            break
+                                        }
+                                        catch {
+                                            ## error while invoking graph
+                                            if ($Retries -eq $MaxRetries-1) {
+                                                # catch error if it was the last try
+                                                Catch-MsGraphError $_ 
+                                            }
+                                            # update retry after if throttling
+                                            if ($_.Exception.PSobject.Properties.Name.Contains("Response") -and $_.Exception.Response.StatusCode.value__ -eq 429) {
+                                                # Get the retry after header
+                                                try {
+                                                    $RetryAfter = [double]($_.Exception.Response.Headers.GetValues('Retry-After')[0])
+                                                } catch {
+                                                    Write-Verbose "Request throttled but Retry-After not provided ($nextLink) using exponential backoff ($(RetryAfter)s)"
+                                                }
+                                            }
+                                            # request has encountered and error and has not hit the maximum retires
+                                            Write-Warning "GET $nextLink; error '$($_.Exception.Message); attempt $($Retries+1) out of $MaxRetries. Retrying after $($RetryAfter)s"
+                                            Start-Sleep -Seconds $RetryAfter
+                                            $RetryAfter = $RetryAfter * 2
+                                        }
                                     }
-                                    catch { Catch-MsGraphError $_ }
-                                    #$Request.url = $Result.'@odata.nextLink'
-                                    #$Result = Invoke-MsGraphRequest $Request -NoAppInsights -GraphBaseUri $GraphBaseUri
-                                    $Output = Expand-MsGraphResult $Result -RawOutput:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType
-                                    if ($GroupOutputByRequest -and $Output) { $listOutput.AddRange([array]$Output) }
-                                    else { $Output }
+                                    if ($Result) {
+                                        $Output = Expand-MsGraphResult $Result -RawOutput:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType
+                                        if ($GroupOutputByRequest -and $Output) { $listOutput.AddRange([array]$Output) }
+                                        else { $Output }
+                                    }
                                 }
                             }
                             finally {
@@ -438,7 +530,32 @@ function Get-MsGraphResults {
                             $uriQueryEndpointUniqueId.Path = ([IO.Path]::Combine($uriQueryEndpointUniqueId.Path, $id))
                         }
                         if ($DisableUniqueIdDeduplication -or $hashUri.Add($uriQueryEndpointUniqueId.Uri)) {
-                            if (!$DisableGetByIdsBatching -and $id -match '^[{]?[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}[}]?$' -and $uriQueryEndpoint.Uri.Segments.Count -eq 3 -and $uriQueryEndpoint.Uri.Segments[2] -in ('directoryObjects', 'users', 'groups', 'devices', 'servicePrincipals', 'applications') -and ($QueryParametersFinal.Count -eq 0 -or ($QueryParametersFinal.Count -eq 1 -and $QueryParametersFinal.ContainsKey('$select')))) {
+                            if ($EnableInFilter -and $id -match '^[{]?[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}[}]?$') {
+                                $listIds.Add($id)
+                                while($listIds.Count -ge $InFilterBatchSize) {
+                                    # go back to initial uri (without appending id)
+                                    $uriQueryEndpointUniqueId = New-Object System.UriBuilder -ArgumentList $uriQueryEndpoint.Uri
+                                    # get the query parameters
+                                    $QueryParametersInIds = ConvertFrom-QueryString $uriQueryEndpoint.Query -AsHashtable
+                                    # get the ids to query
+                                    $filterids = $listIds[0..($InFilterBatchSize - 1)]
+                                    # append them to "$filter"
+                                    if ($QueryParametersInIds.ContainsKey('$filter')) {
+                                        $QueryParametersInIds['$filter'] = "($($QueryParametersInIds['$filter'])) and id in ('$($filterids -join "','")')"
+                                    } else  {
+                                        $QueryParametersInIds['$filter'] = "id in ('$($filterids -join "','")')"
+                                    }
+                                    # update query 
+                                    $uriQueryEndpointUniqueId.Query = ConvertTo-QueryString $QueryParametersInIds
+                                    # add new batch request
+                                    New-MsGraphRequest $uriQueryEndpointUniqueId.Uri -Headers @{ ConsistencyLevel = $ConsistencyLevel } | Add-MsGraphRequest -GraphBaseUri $BaseUri
+                                    # remove ids from ids to request
+                                    $listIds.RemoveRange(0, $InFilterBatchSize)
+                                    # update progress
+                                    if ($ProgressState) { $ProgressState.CurrentIteration += $InFilterBatchSize - 1 }
+                                }
+                            }
+                            elseif (!$DisableGetByIdsBatching -and $id -match '^[{]?[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}[}]?$' -and $uriQueryEndpoint.Uri.Segments.Count -eq 3 -and $uriQueryEndpoint.Uri.Segments[2] -in ('directoryObjects', 'users', 'groups', 'devices', 'servicePrincipals', 'applications') -and ($QueryParametersFinal.Count -eq 0 -or ($QueryParametersFinal.Count -eq 1 -and $QueryParametersFinal.ContainsKey('$select')))) {
                                 $listIds.Add($id)
                                 while ($listIds.Count -ge $GetByIdsBatchSize) {
                                     New-MsGraphGetByIdsRequest $listIds[0..($GetByIdsBatchSize - 1)] -Types $uriQueryEndpoint.Uri.Segments[2].TrimEnd('s') -Select $QueryParametersFinal['$select'] -BatchSize $GetByIdsBatchSize | Add-MsGraphRequest -GraphBaseUri $BaseUri

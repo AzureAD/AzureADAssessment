@@ -32,7 +32,8 @@ function Confirm-ModuleAuthentication {
             'Directory.Read.All'
             'SecurityEvents.Read.All'
             'UserAuthenticationMethod.Read.All'
-            #'AuditLog.Read.All'
+            'AuditLog.Read.All'
+            'Reports.Read.All'
         )
     )
 

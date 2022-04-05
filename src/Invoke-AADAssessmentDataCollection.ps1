@@ -130,7 +130,10 @@ function Invoke-AADAssessmentDataCollection {
         # | Add-AadReferencesToCache -Type roleAssignmentSchedules -ReferencedIdCache $ReferencedIdCache -PassThru `
         # | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "roleAssignmentSchedulesData.xml")
 
-        # List roleAssignmentSchedules above is not returning non-root scoped assignments so working around with one query of all root assignments including custom roles and another query of all non-root assignments for build-in roles. Also, because roleDefinitions are not returning the correct id, it is not possible to get custom roles assigned to non-root scopes.
+        # List roleAssignmentSchedules above is not returning non-root scoped assignments.
+        # Working around with one query of all root assignments including custom roles and 
+        # another query of all non-root assignments for build-in roles.
+        # Because roleDefinitions are not returning the correct id, it is not possible to get custom roles assigned to non-root scopes.
         $roleAssignmentSchedules = Get-MsGraphResults 'roleManagement/directory/roleAssignmentSchedules' -Select 'id,directoryScopeId,memberType,scheduleInfo,status,assignmentType' -Filter "status eq 'Provisioned' and assignmentType eq 'Assigned' and directoryScopeId eq '/'" -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -ApiVersion 'beta'
         $roleAssignmentSchedulesAdditional = $roleDefinitions | Where-Object isBuiltIn -EQ $true | Get-MsGraphResults 'roleManagement/directory/roleAssignmentSchedules' -Select 'id,directoryScopeId,memberType,scheduleInfo,status,assignmentType' -Filter "status eq 'Provisioned' and assignmentType eq 'Assigned' and roleDefinitionId eq '{0}' and directoryScopeId ne '/'" -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -ApiVersion 'beta'
         $roleAssignmentSchedules + $roleAssignmentSchedulesAdditional `
@@ -209,8 +212,13 @@ function Invoke-AADAssessmentDataCollection {
         Get-MsGraphResults 'directory/administrativeUnits' -Select 'id,displayName,visibility' `
         | Export-Csv (Join-Path $OutputDirectoryAAD "administrativeUnits.csv")
 
-        ### Group Data - 15
-        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Groups' -PercentComplete 70
+        ### Registration details data - 15
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Registration Details' -PercentComplete 70
+        Get-MsGraphResults 'reports/authenticationMethods/userRegistrationDetails' -ApiVersion 'beta' `
+        | Export-JsonArray (Join-Path $OutputDirectoryAAD "userRegistrationDetails.json") -Depth 5 -Compress
+
+        ### Group Data - 16
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Groups' -PercentComplete 75
         # add technical notifications groups
         if ($OrganizationData) {
             $OrganizationData.technicalNotificationMails | Get-MsGraphResults 'groups?$select=id' -Filter "proxyAddresses/any(c:c eq 'smtp:{0}')" `

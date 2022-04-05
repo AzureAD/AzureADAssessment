@@ -46,16 +46,17 @@ function Export-AADAssessmentReportData {
     # | Use-Progress -Activity 'Exporting users' -Property displayName -PassThru -WriteSummary `
     # | Export-JsonArray (Join-Path $OutputDirectory "users.json") -Depth 5 -Compress
 
-    Set-Content -Path (Join-Path $OutputDirectory "users.csv") -Value 'id,userPrincipalName,userType,displayName,accountEnabled,onPremisesSyncEnabled,onPremisesImmutableId,mail,otherMails,AADLicense'
-    Import-Clixml -Path (Join-Path $SourceDirectory "userData.xml") `
-    | Use-Progress -Activity 'Exporting users' -Property displayName -PassThru -WriteSummary `
-    | Select-Object -Property id, userPrincipalName, userType, displayName, accountEnabled,
-        @{ Name = "onPremisesSyncEnabled"; Expression = { [bool]$_.onPremisesSyncEnabled } },
-        @{ Name = "onPremisesImmutableId"; Expression = {![string]::IsNullOrWhiteSpace($_.onPremisesImmutableId)}},
-        mail,
-        @{ Name = "otherMails"; Expression = { $_.otherMails -join ';' } },
-        @{ Name = "AADLicense"; Expression = {$plans = $_.assignedPlans | foreach-object { $_.servicePlanId }; if ($plans -contains "eec0eb4f-6444-4f95-aba0-50c24d67f998") { "AADP2" } elseif ($plans -contains "41781fb2-bc02-4b7c-bd55-b576c07bb09d") { "AADP1" } else { "None" }}} `
-    | Export-Csv (Join-Path $OutputDirectory "users.csv") -NoTypeInformation
+    ## Comment out to generate user data via report
+    #Set-Content -Path (Join-Path $OutputDirectory "users.csv") -Value 'id,userPrincipalName,userType,displayName,accountEnabled,onPremisesSyncEnabled,onPremisesImmutableId,mail,otherMails,AADLicense,lastSigninDateTime'
+    #Import-Clixml -Path (Join-Path $SourceDirectory "userData.xml") `
+    #| Use-Progress -Activity 'Exporting users' -Property displayName -PassThru -WriteSummary `
+    #| Select-Object -Property id, userPrincipalName, userType, displayName, accountEnabled,
+    #    @{ Name = "onPremisesSyncEnabled"; Expression = { [bool]$_.onPremisesSyncEnabled } },
+    #    @{ Name = "onPremisesImmutableId"; Expression = {![string]::IsNullOrWhiteSpace($_.onPremisesImmutableId)}},
+    #    mail,
+    #    @{ Name = "otherMails"; Expression = { $_.otherMails -join ';' } },
+    #    @{ Name = "AADLicense"; Expression = {$plans = $_.assignedPlans | foreach-object { $_.servicePlanId }; if ($plans -contains "eec0eb4f-6444-4f95-aba0-50c24d67f998") { "AADP2" } elseif ($plans -contains "41781fb2-bc02-4b7c-bd55-b576c07bb09d") { "AADP1" } else { "None" }}} `
+    #| Export-Csv (Join-Path $OutputDirectory "users.csv") -NoTypeInformation
 
     # Import-Clixml -Path (Join-Path $SourceDirectory "groupData.xml") `
     # | Use-Progress -Activity 'Exporting groups' -Property displayName -PassThru -WriteSummary `
@@ -108,9 +109,21 @@ function Export-AADAssessmentReportData {
 
 
     ### Execute Report Commands
+
+    # user report
+    Import-Clixml -Path (Join-Path $SourceDirectory "userData.xml") | Add-AadObjectToLookupCache -Type user -LookupCache $LookupCache
+    Get-Content -Path (Join-Path $SourceDirectory "userRegistrationDetails.json") -Raw | ConvertFrom-Json | Add-AadObjectToLookupCache -Type userRegistrationDetails -LookupCache $LookupCache
+    Get-AADAssessUserReport -Offline -UserData $LookupCache.user -RegistrationDetailsData  $LookupCache.userRegistrationDetails`
+    | Use-Progress -Activity 'Exporting UserReport' -Property id -PassThru -WriteSummary `
+    | Format-Csv `
+    | Export-Csv -Path (Join-Path $OutputDirectory "users.csv") -NoTypeInformation
+    $LookupCache.userRegistrationDetails.Clear()
+
+    # notificaiton emails report
     $OrganizationData = Get-Content -Path (Join-Path $SourceDirectory "organization.json") -Raw | ConvertFrom-Json
     [array] $DirectoryRoleData = Import-Clixml -Path (Join-Path $SourceDirectory "directoryRoleData.xml")
-    Import-Clixml -Path (Join-Path $SourceDirectory "userData.xml") | Add-AadObjectToLookupCache -Type user -LookupCache $LookupCache
+    # done earlier
+    #Import-Clixml -Path (Join-Path $SourceDirectory "userData.xml") | Add-AadObjectToLookupCache -Type user -LookupCache $LookupCache
     Import-Clixml -Path (Join-Path $SourceDirectory "groupData.xml") | Add-AadObjectToLookupCache -Type group -LookupCache $LookupCache
 
     Get-AADAssessNotificationEmailsReport -Offline -OrganizationData $OrganizationData -UserData $LookupCache.user -GroupData $LookupCache.group -DirectoryRoleData $DirectoryRoleData `
@@ -118,6 +131,7 @@ function Export-AADAssessmentReportData {
     | Export-Csv -Path (Join-Path $OutputDirectory "NotificationsEmailsReport.csv") -NoTypeInformation
     Remove-Variable DirectoryRoleData
 
+    # role assignment report
     #[array] $ApplicationData = Import-Clixml -Path (Join-Path $SourceDirectory "applicationData.xml")
     Import-Csv -Path (Join-Path $SourceDirectory "administrativeUnits.csv") | Add-AadObjectToLookupCache -Type administrativeUnit -LookupCache $LookupCache
     Import-Clixml -Path (Join-Path $SourceDirectory "applicationData.xml") | Add-AadObjectToLookupCache -Type application -LookupCache $LookupCache
@@ -133,6 +147,7 @@ function Export-AADAssessmentReportData {
     $LookupCache.administrativeUnit.Clear()
     Remove-Variable roleAssignmentSchedulesData, roleEligibilitySchedulesData
 
+    # app credential report
     Get-AADAssessAppCredentialExpirationReport -Offline -ApplicationData $LookupCache.application -ServicePrincipalData $LookupCache.servicePrincipal `
     | Use-Progress -Activity 'Exporting AppCredentialsReport' -Property displayName -PassThru -WriteSummary `
     | Format-Csv `
