@@ -39,9 +39,11 @@ function Get-AADAssessUserReport {
             process {
                 # check user license
                 $aadLicense = "None"
-                $plans = $_.assignedPlans | foreach-object { $_.servicePlanId }
-                if ($plans -contains $aadp2plan) { $aadLicense = "AADP2" }
-                elseif ($plans -contains $aadp1plan) { $aadLicense = "AADP1" }
+                if ($InputObject.psobject.Properties.Name.Contains('assignedPlans')) {
+                    $plans = $InputObject.assignedPlans | foreach-object { $_.servicePlanId }
+                    if ($plans -contains $aadp2plan) { $aadLicense = "AADP2" }
+                    elseif ($plans -contains $aadp1plan) { $aadLicense = "AADP1" }
+                }
                 # get last signindate times
                 $lastInteractiveSignInDateTime = ""
                 $lastNonInteractiveSignInDateTime = ""
