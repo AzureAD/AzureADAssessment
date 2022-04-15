@@ -16,7 +16,7 @@ Update-Module AzureADAssessment -Force -Scope CurrentUser
 ```
 
 ## Run the Data Collection
-Data collection from Azure AD can be run from any client with access to Azure AD. However, data collection from hybrid components such as AD FS, AAD Connect, etc. are best run locally on those servers.
+Data collection from Azure AD can be run from any client with access to Azure AD. However, data collection from hybrid components such as AD FS, AAD Connect, etc. are best run locally on those servers. The AAD Connect data collection needs to be run on both Primary and Staging servers.
 
 Verify that you have authorized credentials to access these workloads:
 * Azure Active Directory as Global Administrator or Global Reader (email OTP policy won't be reported by Global Reader)
@@ -34,8 +34,21 @@ Connect-AADAssessment
 Invoke-AADAssessmentDataCollection
 ```
 
+On each server running hybrid components, install the same module and run the Invoke-AADAssessmentHybridDataCollection command.
+```PowerShell
+## Export Data to "C:\AzureADAssessment" into a single output package.
+Invoke-AADAssessmentHybridDataCollection
+```
+
 The output package will be named according to the following pattern: `AzureADAssessmentData-<TenantDomain>.zip`
 
+Once data collection is complete, provide the output packages to whoever is completing the assessment. Please avoid making any changes to the generated zip files including the name of the file.
+
+## Complete Assessment Reports
+If you are generating and reviewing the output yourself, please see the Wiki for the [Assessment Guide](https://github.com/AzureAD/AzureADAssessment/wiki).
+
+## <h2 id="faq">Frequently Asked Questions</h2>
+### I don't have internet access to install the module on AAD Connect, ADFS, App Proxy servers
 To collect data from hybrid components (such as AAD Connect, AD FS, AAD App Proxy), you can export a portable version of this module that can be easily copied to servers with no internet connectivity.
 ```PowerShell
 ## Export Portable Module to "C:\AzureADAssessment".
@@ -51,14 +64,9 @@ Import-Module "C:\AzureADAssessment\AzureADAssessmentPortable.psm1"
 Invoke-AADAssessmentHybridDataCollection
 ```
 
-Once data collection is complete, provide the output packages to whoever is completing the assessment.
-
-## Complete Assessment Reports
-If you are generating and reviewing the output yourself, please see the Wiki for the [Assessment Guide](https://github.com/AzureAD/AzureADAssessment/wiki).
-
-## Alternate Ways to Run The Assessment
+### I want to use a service principle identity to run the assessment instead of a user identity
 ```PowerShell
-## If you prefer to use your own app registration for automation purposes, you may connect using your own ClientId and Certificate like the example below. Your app registration should include Directory.Read.All and Policy.Read.All permissions to MS Graph for a complete assessment. Once added, ensure you have completed admin consent on the service principal for those application permissions.
+## If you prefer to use your own app registration (service principle) for automation purposes, you may connect using your own ClientId and Certificate like the example below. Your app registration should include Directory.Read.All and Policy.Read.All permissions to MS Graph for a complete assessment. Once added, ensure you have completed admin consent on the service principal for those application permissions.
 Connect-AADAssessment -ClientId <ClientId> -ClientCertificate (Get-Item 'Cert:\CurrentUser\My\<Thumbprint>') -TenantId <TenantId>
 
 ## If you would like to specify a different directory, use the OutputDirectory parameter.
@@ -66,7 +74,6 @@ Invoke-AADAssessmentDataCollection "C:\Temp"
 Invoke-AADAssessmentHybridDataCollection "C:\Temp"
 ```
 
-## <h2 id="faq">Frequently Asked Questions</h2>
 ### When trying to install the module I'm receiving the error 'A parameter cannot be found that matches parameter name 'AcceptLicense' 
 Run the following command to update PowerShellGet to the latest version before attempting to install the AzureADAssessment module again.
 
