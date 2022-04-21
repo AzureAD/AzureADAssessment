@@ -39,6 +39,7 @@ function Get-AADAssessAppCredentialExpirationReport {
             )
 
             process {
+                Write-Verbose "Processing $($ObjectType): $($InputObject.displayName) ($($InputObject.id)) "
                 foreach ($credential in $InputObject.keyCredentials) {
                     # check for hasExtensionAttribute
                     $hasExtendedValue = $null
@@ -48,6 +49,16 @@ function Get-AADAssessAppCredentialExpirationReport {
                     if ($credential.type -eq "AsymmetricX509Cert" -and ![string]::IsNullOrEmpty($credential.key)) {
                         # credential is a cert and has a key
                         $cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new([System.Convert]::FromBase64String($credential.key))
+                        $publicKey = $cert.PublicKey.GetRSAPublicKey()
+                        if (!$publickey) {
+                            $publicKey = $cert.PublicKey.GetECDsaPublicKey()
+                        }
+                        $certSignatureAlgorithm = $null
+                        $certKeySize = $null
+                        if($publicKey) {
+                            $certSignatureAlgorithm = $publicKey.SignatureAlgorithm
+                            $certKeySize = $publicKey.KeySize
+                        }
                         [PSCustomObject]@{
                             displayName                 = $InputObject.displayName
                             objectType                  = $ObjectType
@@ -58,7 +69,8 @@ function Get-AADAssessAppCredentialExpirationReport {
                             certSubject                 = $cert.Subject
                             certIssuer                  = $cert.Issuer
                             certIsSelfSigned            = ($cert.Subject -eq $cert.Issuer)
-                            certKeySize                 = $cert.PublicKey.Key.KeySize
+                            certSignatureAlgorithm      = $certSignatureAlgorithm
+                            certKeySize                 = $certKeySize
                             credentialHasExtendedValue  = $hasExtendedValue
                         }
                     }
@@ -73,6 +85,7 @@ function Get-AADAssessAppCredentialExpirationReport {
                             certSubject                 = $null
                             certIssuer                  = $null
                             certIsSelfSigned            = $null
+                            certSignatureAlgorithm      = $null
                             certKeySize                 = $null
                             credentialHasExtendedValue  = $hasExtendedValue
                         }
@@ -90,6 +103,7 @@ function Get-AADAssessAppCredentialExpirationReport {
                         certSubject                 = $null
                         certIssuer                  = $null
                         certIsSelfSigned            = $null
+                        certSignatureAlgorithm      = $null
                         certKeySize                 = $null
                         credentialHasExtendedValue  = $null
                     }

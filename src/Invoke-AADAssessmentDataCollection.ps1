@@ -291,7 +291,7 @@ function Invoke-AADAssessmentDataCollection {
         ### Generate Reports
         if (!$SkipReportOutput) {
             Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Output Report Data' -PercentComplete 85
-            Export-AADAssessmentReportData -SourceDirectory $OutputDirectoryAAD -OutputDirectory $OutputDirectoryAAD
+            Export-AADAssessmentReportData -SourceDirectory $OutputDirectoryAAD -Force
 
             ## Remove Raw Data Output
             Remove-Item -Path (Join-Path $OutputDirectoryAAD "*") -Include "*Data.xml" -ErrorAction Ignore

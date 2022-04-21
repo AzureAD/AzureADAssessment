@@ -84,7 +84,6 @@ NestedModules = @(
     '.\internal\Export-Config.ps1'
     '.\internal\Export-EventLog.ps1'
     '.\internal\Export-JsonArray.ps1'
-    '.\internal\Export-AADAssessmentReportData.ps1'
     '.\internal\Get-MsGraphResults.ps1'
     '.\internal\Format-Csv.ps1'
     '.\internal\Get-AadObjectById.ps1'
@@ -122,6 +121,7 @@ NestedModules = @(
     '.\New-AADAssessmentRecommendations.ps1'
     '.\Export-AADASsessmentRecommendations.ps1'
     '.\Import-AADAssessmentEvidence.ps1'
+    '.\Export-AADAssessmentReportData.ps1'
     '.\analysis\AccessManagement\AuthenticationExperience\Test-AADAssessmentEmailOtp.ps1'
 )
 
@@ -150,6 +150,7 @@ FunctionsToExport = @(
     'New-AADAssessmentRecommendations'
     'Export-AADAssessmentRecommendations'
     'Test-AADAssessmentEmailOtp'
+    'Export-AADAssessmentReportData'
 )
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
