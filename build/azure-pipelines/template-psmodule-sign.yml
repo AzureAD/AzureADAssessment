@@ -132,6 +132,11 @@ steps:
           }
         ]
 
+
+- task: ManifestGeneratorTask@0
+  inputs:
+    BuildDropPath: '$(Pipeline.Workspace)/${{ parameters.artifactOutput }}'
+
 - task: PublishPipelineArtifact@1
   displayName: 'Publish PowerShell Module Artifact'
   inputs:
