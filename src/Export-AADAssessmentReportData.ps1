@@ -30,7 +30,7 @@ function Export-AADAssessmentReportData {
     # | Use-Progress -Activity 'Exporting directoryRoles' -Property displayName -PassThru -WriteSummary `
     # | Export-JsonArray (Join-Path $OutputDirectory "directoryRoles.json") -Depth 5 -Compress
 
-    if (!(Test-Path -Path (Join-Path $OutputDirectory "appRoleAssignements.csv")) -or $Force) {
+    if (!(Test-Path -Path (Join-Path $OutputDirectory "appRoleAssignments.csv")) -or $Force) {
         Set-Content -Path (Join-Path $OutputDirectory "appRoleAssignments.csv") -Value 'id,appRoleId,createdDateTime,principalDisplayName,principalId,principalType,resourceDisplayName,resourceId'
         Import-Clixml -Path (Join-Path $SourceDirectory "appRoleAssignmentData.xml") `
         | Use-Progress -Activity 'Exporting appRoleAssignments' -Property id -PassThru -WriteSummary `
@@ -138,7 +138,9 @@ function Export-AADAssessmentReportData {
         }
         if ($LookupCache.userRegistrationDetails.Count -eq 0) {
             Write-Output "Loading users registration details in lookup cache"
-            Get-Content -Path (Join-Path $SourceDirectory "userRegistrationDetails.json") -Raw | ConvertFrom-Json | Add-AadObjectToLookupCache -Type userRegistrationDetails -LookupCache $LookupCache
+            # In PS5 loading directly from ConvertFrom-Json fails
+            $userRegistrationDetails = Get-Content -Path (Join-Path $SourceDirectory "userRegistrationDetails.json") -Raw | ConvertFrom-Json
+            $userRegistrationDetails | Add-AadObjectToLookupCache -Type userRegistrationDetails -LookupCache $LookupCache
         }
 
         # generate the report

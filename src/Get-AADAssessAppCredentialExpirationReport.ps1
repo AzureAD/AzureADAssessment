@@ -49,15 +49,20 @@ function Get-AADAssessAppCredentialExpirationReport {
                     if ($credential.type -eq "AsymmetricX509Cert" -and ![string]::IsNullOrEmpty($credential.key)) {
                         # credential is a cert and has a key
                         $cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new([System.Convert]::FromBase64String($credential.key))
-                        $publicKey = $cert.PublicKey.GetRSAPublicKey()
-                        if (!$publickey) {
-                            $publicKey = $cert.PublicKey.GetECDsaPublicKey()
-                        }
-                        $certSignatureAlgorithm = $null
+                        $certSignatureAlgorithm = $cert.SignatureAlgorithm.FriendlyName
                         $certKeySize = $null
-                        if($publicKey) {
-                            $certSignatureAlgorithm = $publicKey.SignatureAlgorithm
-                            $certKeySize = $publicKey.KeySize
+                        if ($cert.PublicKey.Key) {
+                            $certKeySize = $cert.PublicKey.Key.KeySize
+                        }
+                        elseif (!$certKeySize -and $certSignatureAlgorithm -match "RSA") {
+                            try  {
+                                $certKeySize = $cert.PublicKey.GetRSAPublicKey().KeySize
+                            } catch {}
+                        }
+                        elseif (!$certKeySize -and $certSignatureAlgorithm -match "ECDSA") {
+                            try {
+                                $certKeySize = $cert.PublicKey.GetECDsaPublicKey().KeySize
+                            } catch {}
                         }
                         [PSCustomObject]@{
                             displayName                 = $InputObject.displayName
