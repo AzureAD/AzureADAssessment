@@ -1,6 +1,10 @@
 <#
 .SYNOPSIS
     Query Microsoft Graph API
+.PARAMETER EnableInFilter
+    Enables in filter by in on ids for requried uniqueIds; $filter={previous filter} and id in ({csv with ids})
+    Should be more flexible than GetByIds, scalability to be tested to eventually replace getbyids
+    This filter is currently experimental and will be subject to future change (move to DisableInFilterBatching).
 .EXAMPLE
     PS C:\>Get-MsGraphResults 'users'
     Return query results for first page of users.
@@ -90,6 +94,11 @@ function Get-MsGraphResults {
     )
 
     begin {
+
+        if ($EnableInFilter) {
+            Write-Verbose "EnableInFilter switch used: this filter is currently experimental and will be subject to future change (move to DisableInFilterBatching)"
+        }
+
         [uri] $uriGraphVersionBase = [IO.Path]::Combine($GraphBaseUri.AbsoluteUri, $ApiVersion)
         $listRequests = New-Object 'System.Collections.Generic.Dictionary[string,System.Collections.Generic.List[pscustomobject]]'
         $listRequests.Add($uriGraphVersionBase.AbsoluteUri, (New-Object 'System.Collections.Generic.List[pscustomobject]'))
