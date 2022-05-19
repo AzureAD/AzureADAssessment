@@ -39,24 +39,78 @@ function Get-AADAssessAppCredentialExpirationReport {
             )
 
             process {
+                Write-Verbose "Processing $($ObjectType): $($InputObject.displayName) ($($InputObject.id)) "
                 foreach ($credential in $InputObject.keyCredentials) {
-                    [PSCustomObject]@{
-                        displayName             = $InputObject.displayName
-                        objectType              = $ObjectType
-                        credentialType          = $credential.type
-                        credentialStartDateTime = $credential.startDateTime
-                        credentialEndDateTime   = $credential.endDateTime
-                        credentialUsage         = $credential.usage
+                    # check for hasExtensionAttribute
+                    $hasExtendedValue = $null
+                    if ( [bool]($credential.PSobject.Properties.name -match "hasExtendedValue") ) {
+                        $hasExtendedValue = $credential.hasExtendedValue
+                    }
+                    if ($credential.type -eq "AsymmetricX509Cert" -and ![string]::IsNullOrEmpty($credential.key)) {
+                        # credential is a cert and has a key
+                        $cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new([System.Convert]::FromBase64String($credential.key))
+                        $certSignatureAlgorithm = $cert.SignatureAlgorithm.FriendlyName
+                        $certKeySize = $null
+                        if ($cert.PublicKey.Key) {
+                            $certKeySize = $cert.PublicKey.Key.KeySize
+                        }
+                        elseif (!$certKeySize -and $certSignatureAlgorithm -match "RSA") {
+                            try  {
+                                $certKeySize = $cert.PublicKey.GetRSAPublicKey().KeySize
+                            } catch {}
+                        }
+                        elseif (!$certKeySize -and $certSignatureAlgorithm -match "ECDSA") {
+                            try {
+                                $certKeySize = $cert.PublicKey.GetECDsaPublicKey().KeySize
+                            } catch {}
+                        }
+                        [PSCustomObject]@{
+                            displayName                 = $InputObject.displayName
+                            objectType                  = $ObjectType
+                            credentialType              = $credential.type
+                            credentialStartDateTime     = $credential.startDateTime
+                            credentialEndDateTime       = $credential.endDateTime
+                            credentialUsage             = $credential.usage
+                            certSubject                 = $cert.Subject
+                            certIssuer                  = $cert.Issuer
+                            certIsSelfSigned            = ($cert.Subject -eq $cert.Issuer)
+                            certSignatureAlgorithm      = $certSignatureAlgorithm
+                            certKeySize                 = $certKeySize
+                            credentialHasExtendedValue  = $hasExtendedValue
+                        }
+                    }
+                    else {
+                        [PSCustomObject]@{
+                            displayName                 = $InputObject.displayName
+                            objectType                  = $ObjectType
+                            credentialType              = $credential.type
+                            credentialStartDateTime     = $credential.startDateTime
+                            credentialEndDateTime       = $credential.endDateTime
+                            credentialUsage             = $credential.usage
+                            certSubject                 = $null
+                            certIssuer                  = $null
+                            certIsSelfSigned            = $null
+                            certSignatureAlgorithm      = $null
+                            certKeySize                 = $null
+                            credentialHasExtendedValue  = $hasExtendedValue
+                        }
                     }
                 }
 
                 foreach ($credential in $InputObject.passwordCredentials) {
                     [PSCustomObject]@{
-                        displayName             = $InputObject.displayName
-                        objectType              = $ObjectType
-                        credentialType          = "Password"
-                        credentialStartDateTime = $credential.startDateTime
-                        credentialEndDateTime   = $credential.endDateTime
+                        displayName                 = $InputObject.displayName
+                        objectType                  = $ObjectType
+                        credentialType              = "Password"
+                        credentialStartDateTime     = $credential.startDateTime
+                        credentialEndDateTime       = $credential.endDateTime
+                        credentialUsage             = $null
+                        certSubject                 = $null
+                        certIssuer                  = $null
+                        certIsSelfSigned            = $null
+                        certSignatureAlgorithm      = $null
+                        certKeySize                 = $null
+                        credentialHasExtendedValue  = $null
                     }
                 }
             }

@@ -59,7 +59,16 @@ stages:
         Path: '$(Pipeline.Workspace)/CI/$(artifactModule)'
         Settings: 'required'
         Recurse: true
-
+    - task: ManifestGeneratorTask@0
+      inputs:
+        BuildDropPath: '$(Pipeline.Workspace)/CI/$(artifactModule)'
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish PowerShell Module Artifact'
+      inputs:
+        targetPath: '$(Pipeline.Workspace)/CI/$(artifactModule)'
+        artifact: '$(artifactModule)'
+        publishLocation: 'pipeline'
+        
   - job: Sign
     dependsOn:
     - Prepare
@@ -75,6 +84,7 @@ stages:
       parameters:
         moduleName: '$(moduleName)'
         pipelineId: 'CI'
+        EsrpCodeSigningServiceName: 'ESRP - MSFT Identity - Community Projects'
 
 - stage: Package
   displayName: 'Standalone Package'
