@@ -41,7 +41,9 @@ function Get-AADAssessRoleAssignmentReport {
     Start-AppInsightsRequest $MyInvocation.MyCommand.Name
     try {
 
-        if ($Offline -and (!$PSBoundParameters['roleAssignmentSchedulesData'] -or !$PSBoundParameters['roleEligibilitySchedulesData'])) {
+        # there may be no elegibile roles so it isn't counted to check for offline but collection will be prevented
+        # role assignement should have some members if at least for one global administrator
+        if ($Offline -and !$PSBoundParameters['roleAssignmentSchedulesData']) {
             Write-Error -Exception (New-Object System.Management.Automation.ItemNotFoundException -ArgumentList 'Use of the offline parameter requires that all data be provided using the data parameters.') -ErrorId 'DataParametersRequired' -Category ObjectNotFound
             return
         }
@@ -200,7 +202,7 @@ function Get-AADAssessRoleAssignmentReport {
         if ($RoleEligibilitySchedulesData) {
             $RoleEligibilitySchedulesData | Process-RoleAssignment -LookupCache $LookupCache -UseLookupCacheOnly:$Offline
         }
-        else {
+        elseif (!$Offline) {
             Write-Verbose "Getting roleEligibleSchedules..."
             Get-MsGraphResults 'roleManagement/directory/roleEligibilitySchedules' -Select 'id,directoryScopeId,memberType,scheduleInfo,status' -Filter "status eq 'Provisioned'" -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -ApiVersion 'beta' `
             | Process-RoleAssignment -LookupCache $LookupCache
