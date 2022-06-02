@@ -225,8 +225,10 @@ function Invoke-AADAssessmentDataCollection {
             | ForEach-Object { [void]$ReferencedIdCache.group.Add($_.id) }
         }
         # Add nested groups
-        $ReferencedIdCache.roleGroup.guid | Get-MsGraphResults 'groups/{0}/transitiveMembers/microsoft.graph.group?$count=true&$select=id' -Top 999 -TotalRequests $ReferencedIdCache.roleGroup.Count -DisableUniqueIdDeduplication `
-        | ForEach-Object { [void]$ReferencedIdCache.group.Add($_.id) }
+        if ($ReferencedIdCache.roleGroup.Count -gt 0) {
+            $ReferencedIdCache.roleGroup.guid | Get-MsGraphResults 'groups/{0}/transitiveMembers/microsoft.graph.group?$count=true&$select=id' -Top 999 -TotalRequests $ReferencedIdCache.roleGroup.Count -DisableUniqueIdDeduplication `
+            | ForEach-Object { [void]$ReferencedIdCache.group.Add($_.id) }
+        }
 
         ## Option 1: Populate direct members on groups (including nested groups) and calculate transitiveMembers later.
         ## $expand on group members caps results at 20 members with no NextLink so call members endpoint for each.

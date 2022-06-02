@@ -69,6 +69,7 @@ function Get-AADAssessUserReport {
                     "id" = $InputObject.id
                     "userPrincipalName" = $InputObject.userPrincipalName
                     "displayName" = $InputObject.displayName
+                    "userType" = $InputObject.UserType
                     "accountEnabled" = $InputObject.accountEnabled
                     "onPremisesSyncEnabled" = [bool]$_.onPremisesSyncEnabled
                     "onPremisesImmutableId" = ![string]::IsNullOrWhiteSpace($InputObject.onPremisesImmutableId)
