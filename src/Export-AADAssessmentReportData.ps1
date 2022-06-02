@@ -31,18 +31,18 @@ function Export-AADAssessmentReportData {
     # | Export-JsonArray (Join-Path $OutputDirectory "directoryRoles.json") -Depth 5 -Compress
 
     if (!(Test-Path -Path (Join-Path $OutputDirectory "appRoleAssignments.csv")) -or $Force) {
-        Set-Content -Path (Join-Path $OutputDirectory "appRoleAssignments.csv") -Value 'id,appRoleId,createdDateTime,principalDisplayName,principalId,principalType,resourceDisplayName,resourceId'
+        Set-Content -Path (Join-Path $OutputDirectory "appRoleAssignments.csv") -Value 'id,creationTimestamp,appRoleId,principalDisplayName,principalId,principalType,resourceDisplayName,resourceId'
         Import-Clixml -Path (Join-Path $SourceDirectory "appRoleAssignmentData.xml") `
         | Use-Progress -Activity 'Exporting appRoleAssignments' -Property id -PassThru -WriteSummary `
         | Format-Csv `
-        | Export-Csv (Join-Path $OutputDirectory "appRoleAssignments.csv") -NoTypeInformation
+        | Export-Csv (Join-Path $OutputDirectory "appRoleAssignments.csv") -NoTypeInformation -Append
     }
 
     if (!(Test-Path -Path (Join-Path $OutputDirectory "oauth2PermissionGrants.csv")) -or $Force) {
         Set-Content -Path (Join-Path $OutputDirectory "oauth2PermissionGrants.csv") -Value 'id,consentType,clientId,principalId,resourceId,scope'
         Import-Clixml -Path (Join-Path $SourceDirectory "oauth2PermissionGrantData.xml") `
         | Use-Progress -Activity 'Exporting oauth2PermissionGrants' -Property id -PassThru -WriteSummary `
-        | Export-Csv (Join-Path $OutputDirectory "oauth2PermissionGrants.csv") -NoTypeInformation
+        | Export-Csv (Join-Path $OutputDirectory "oauth2PermissionGrants.csv") -NoTypeInformation -Append
     }
 
     if (!(Test-Path -Path (Join-Path $OutputDirectory "servicePrincipals.json")) -or $Force) {
@@ -52,11 +52,11 @@ function Export-AADAssessmentReportData {
     }
 
     if (!(Test-Path -Path (Join-Path $OutputDirectory "servicePrincipals.csv")) -or $Force) {
-        Set-Content -Path (Join-Path $OutputDirectory "servicePrincipals.csv") -Value 'id,appId,servicePrincipalType,displayName,accountEnabled,appOwnerOrganizationId,appRoles,oauth2PermissionScopes,keyCredentials,passwordCredentials'
+        Set-Content -Path (Join-Path $OutputDirectory "servicePrincipals.csv") -Value 'id,appId,servicePrincipalType,displayName,accountEnabled,appOwnerOrganizationId'
         Import-Clixml -Path (Join-Path $SourceDirectory "servicePrincipalData.xml") `
         | Use-Progress -Activity 'Exporting servicePrincipals (CSV)' -Property displayName -PassThru -WriteSummary `
         | Select-Object -Property id, appId, servicePrincipalType, displayName, accountEnabled, appOwnerOrganizationId `
-        | Export-Csv (Join-Path $OutputDirectory "servicePrincipals.csv") -NoTypeInformation
+        | Export-Csv (Join-Path $OutputDirectory "servicePrincipals.csv") -NoTypeInformation -Append
     }
 
     # Import-Clixml -Path (Join-Path $SourceDirectory "userData.xml") `
@@ -96,7 +96,7 @@ function Export-AADAssessmentReportData {
             displayName,
             @{ Name = "onPremisesSyncEnabled"; Expression = { [bool]$_.onPremisesSyncEnabled } },
             mail `
-        | Export-Csv (Join-Path $OutputDirectory "groups.csv") -NoTypeInformation
+        | Export-Csv (Join-Path $OutputDirectory "groups.csv") -NoTypeInformation -Append
     }
 
     ## Option 1 from Data Collection: Expand Group Membership to get transitiveMembers.
@@ -144,10 +144,11 @@ function Export-AADAssessmentReportData {
         }
 
         # generate the report
+        Set-Content -Path (Join-Path $OutputDirectory "users.csv") -Value 'id,userPrincipalName,displayName,userType,accountEnabled,onPremisesSyncEnabled,onPremisesImmutableId,mail,otherMails,AADLicense,lastInteractiveSignInDateTime,lastNonInteractiveSignInDateTime,isMfaRegistered,isMfaCapable,methodsRegistered'
         Get-AADAssessUserReport -Offline -UserData $LookupCache.user -RegistrationDetailsData  $LookupCache.userRegistrationDetails`
         | Use-Progress -Activity 'Exporting UserReport' -Property id -PassThru -WriteSummary `
         | Format-Csv `
-        | Export-Csv -Path (Join-Path $OutputDirectory "users.csv") -NoTypeInformation
+        | Export-Csv -Path (Join-Path $OutputDirectory "users.csv") -NoTypeInformation -Append
 
         # clean what is not used by other reports
         $LookupCache.userRegistrationDetails.Clear()
@@ -169,9 +170,10 @@ function Export-AADAssessmentReportData {
         }
 
         # generate the report
+        Set-Content -Path (Join-Path $OutputDirectory "NotificationsEmailsReport.csv") -Value 'notificationType,notificationScope,recipientType,recipientEmail,recipientEmailAlternate,recipientId,recipientUserPrincipalName,recipientDisplayName'
         Get-AADAssessNotificationEmailsReport -Offline -OrganizationData $OrganizationData -UserData $LookupCache.user -GroupData $LookupCache.group -DirectoryRoleData $DirectoryRoleData `
         | Use-Progress -Activity 'Exporting NotificationsEmailsReport' -Property recipientEmail -PassThru -WriteSummary `
-        | Export-Csv -Path (Join-Path $OutputDirectory "NotificationsEmailsReport.csv") -NoTypeInformation
+        | Export-Csv -Path (Join-Path $OutputDirectory "NotificationsEmailsReport.csv") -NoTypeInformation -Append
 
         # clean unique data
         Remove-Variable DirectoryRoleData
@@ -230,10 +232,11 @@ function Export-AADAssessmentReportData {
         }
 
         # generate the report
+        Set-Content -Path (Join-Path $OutputDirectory "AppCredentialsReport.csv") -Value 'displayName,objectType,credentialType,credentialStartDateTime,credentialEndDateTime,credentialUsage,certSubject,certIssuer,certIsSelfSigned,certSignatureAlgorithm,certKeySize,credentialHasExtendedValue'
         Get-AADAssessAppCredentialExpirationReport -Offline -ApplicationData $LookupCache.application -ServicePrincipalData $LookupCache.servicePrincipal `
         | Use-Progress -Activity 'Exporting AppCredentialsReport' -Property displayName -PassThru -WriteSummary `
         | Format-Csv `
-        | Export-Csv -Path (Join-Path $OutputDirectory "AppCredentialsReport.csv") -NoTypeInformation
+        | Export-Csv -Path (Join-Path $OutputDirectory "AppCredentialsReport.csv") -NoTypeInformation -Append
 
         # clear cache as data in bot further used by other reports
         $LookupCache.application.Clear()
@@ -255,9 +258,10 @@ function Export-AADAssessmentReportData {
         }
 
         # generate the report
+        Set-Content -Path (Join-Path $OutputDirectory "ConsentGrantReport.csv") -Value 'permission,permissionType,clientId,clientDisplayName,clientOwnerTenantId,resourceObjectId,resourceDisplayName,consentType,principalObjectId,principalDisplayName'
         Get-AADAssessConsentGrantReport -Offline -AppRoleAssignmentData $AppRoleAssignmentData -OAuth2PermissionGrantData $OAuth2PermissionGrantData -UserData $LookupCache.user -ServicePrincipalData $LookupCache.servicePrincipal `
         | Use-Progress -Activity 'Exporting ConsentGrantReport' -Property clientDisplayName -PassThru -WriteSummary `
-        | Export-Csv -Path (Join-Path $OutputDirectory "ConsentGrantReport.csv") -NoTypeInformation
+        | Export-Csv -Path (Join-Path $OutputDirectory "ConsentGrantReport.csv") -NoTypeInformation -Append
     }
 
 }
