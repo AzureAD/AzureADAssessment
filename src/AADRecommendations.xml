@@ -2989,7 +2989,7 @@
 
             #### Learn More
 
-            - [Trusted Locations | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/location-condition#trusted-locations)
+            - [Trusted Locations | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/location-condition)
         </Recommendation>
     </recommendation>    
 
@@ -3015,7 +3015,7 @@
 
             #### Learn More
 
-            - [Trusted Locations | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/location-condition#trusted-locations)
+            - [Trusted Locations | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/location-condition)
         </Recommendation>
     </recommendation>    
 
@@ -3042,7 +3042,7 @@
 
             #### Learn More
 
-            - [Trusted Locations | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/location-condition#trusted-locations)
+            - [Trusted Locations | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/location-condition)
         </Recommendation>
     </recommendation>    
 
@@ -3074,6 +3074,61 @@
         </Recommendation>
     </recommendation>    
 
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Access Policies</Area>
+        <ID>AR0095</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Did_you_find_customer_is_licensed_for_Intune_and_there_is_desire_to_allow_personal_devices_use_but_MAM_is_not_deployed</Name>
+            <Answers> 
+                <Answer Value="Yes" Priority = "P1"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>MAM Client App Access Policy for Personal Devices</Name>
+        <Summary>
+            Microsoft Intune Application Management (MAM) provides the ability to push data protection controls such as storage encryption, PIN, remote storage cleanup, etc. to compatible client mobile applications such as Outlook.
+            
+            Then, Conditional Access can enforce policies that will restrict access to cloud services (such as Exchange Online) from approved/compatible apps.
+        </Summary>
+        <Recommendation>
+            - Deploy application MAM policies to manage the application configuration in personal owned devices without MDM enrollment.
+            - Update Conditional Access policies to only allow access from MAM capable clients.
+
+            #### Learn More
+
+            - [Conditional Access: Require approved client apps or app protection policy | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/howto-policy-approved-app-or-app-protection)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Access Policies</Area>
+        <ID>AR0096</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Did_you_find_customer_is_licensed_for_Intune_and_there_is_desire_to_allow_corporate_devices_use_but_MAM_is_not_deployed</Name>
+            <Answers> 
+                <Answer Value="Yes" Priority = "P3"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>MAM Client App Access Policy for Corporate Devices</Name>
+        <Summary>
+            Microsoft Intune Application Management (MAM) provides the ability to push data protection controls such as storage encryption, PIN, remote storage cleanup, etc. to compatible client mobile applications such as Outlook.
+            
+            Then, Conditional Access can enforce policies that will restrict access to cloud services (such as Exchange Online) from approved/compatible apps.
+        </Summary>
+        <Recommendation>
+            - Deploy application MAM policies to manage the application configuration and be future proof for personal devices.
+            - Update Conditional Access policies to only allow access from MAM capable clients.
+
+            #### Learn More
+
+            - [Conditional Access: Require approved client apps or app protection policy | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/howto-policy-approved-app-or-app-protection)
+        </Recommendation>
+    </recommendation>
 
     <!--
     <recommendation>
