@@ -9,6 +9,10 @@ function Export-AADAssessmentReportData {
         # Full path of the directory where the output files will be generated.
         [Parameter(Mandatory = $false)]
         [string] $OutputDirectory,
+        # LicenseType of the tenant
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Free','P1','P2')]
+        [string] $licenseType = "P2",
         # Force report generation even if target is already present
         [Parameter(Mandatory = $false)]
         [switch] $Force
@@ -136,7 +140,7 @@ function Export-AADAssessmentReportData {
             Write-Output "Loading users in lookup cache"
             Import-Clixml -Path (Join-Path $SourceDirectory "userData.xml") | Add-AadObjectToLookupCache -Type user -LookupCache $LookupCache
         }
-        if ($LookupCache.userRegistrationDetails.Count -eq 0) {
+        if ($LookupCache.userRegistrationDetails.Count -eq 0 -and $licenseType -ne "Free") {
             Write-Output "Loading users registration details in lookup cache"
             # In PS5 loading directly from ConvertFrom-Json fails
             $userRegistrationDetails = Get-Content -Path (Join-Path $SourceDirectory "userRegistrationDetails.json") -Raw | ConvertFrom-Json
@@ -182,8 +186,15 @@ function Export-AADAssessmentReportData {
     # role assignment report
     if (!(Test-Path -Path (Join-Path $OutputDirectory "RoleAssignmentReport.csv")) -or $Force) {
         # load unique data
-        [array] $roleAssignmentSchedulesData = Import-Clixml -Path (Join-Path $SourceDirectory "roleAssignmentSchedulesData.xml")
-        [array] $roleEligibilitySchedulesData = Import-Clixml -Path (Join-Path $SourceDirectory "roleEligibilitySchedulesData.xml")
+        [array] $roleAssignmentSchedulesData =  @()
+        [array] $roleEligibilitySchedulesData = @()
+        [array] $roleAssignmentsData = @()
+        if ($licenseType -eq "P2") {
+            $roleAssignmentSchedulesData = Import-Clixml -Path (Join-Path $SourceDirectory "roleAssignmentSchedulesData.xml")
+            $roleEligibilitySchedulesData = Import-Clixml -Path (Join-Path $SourceDirectory "roleEligibilitySchedulesData.xml")
+        } else {
+            $roleAssignmentsData = Import-Clixml -Path (Join-Path $SourceDirectory "roleAssignmentsData.xml")
+        }
         # load data if cache empty
         if ($LookupCache.user.Count -eq 0) {
             Write-Output "Loading users in lookup cache"
@@ -207,7 +218,7 @@ function Export-AADAssessmentReportData {
         }
 
         # generate the report
-        Get-AADAssessRoleAssignmentReport -Offline -RoleAssignmentSchedulesData $roleAssignmentSchedulesData -RoleEligibilitySchedulesData $roleEligibilitySchedulesData -OrganizationData $OrganizationData -AdministrativeUnitsData $LookupCache.administrativeUnit -UsersData $LookupCache.user -GroupsData $LookupCache.group -ApplicationsData $LookupCache.application -ServicePrincipalsData $LookupCache.servicePrincipal `
+        Get-AADAssessRoleAssignmentReport -Offline -TenantHasP2 ($licenseType -eq "P2") -RoleAssignmentsData $roleAssignmentsData -RoleAssignmentSchedulesData $roleAssignmentSchedulesData -RoleEligibilitySchedulesData $roleEligibilitySchedulesData -OrganizationData $OrganizationData -AdministrativeUnitsData $LookupCache.administrativeUnit -UsersData $LookupCache.user -GroupsData $LookupCache.group -ApplicationsData $LookupCache.application -ServicePrincipalsData $LookupCache.servicePrincipal `
         | Use-Progress -Activity 'Exporting RoleAssignmentReport' -Property id -PassThru -WriteSummary `
         | Format-Csv `
         | Export-Csv -Path (Join-Path $OutputDirectory "RoleAssignmentReport.csv") -NoTypeInformation

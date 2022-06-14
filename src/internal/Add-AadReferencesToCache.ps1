@@ -7,7 +7,7 @@ function Add-AadReferencesToCache {
         #
         [Parameter(Mandatory = $true)]
         [Alias('Type')]
-        [ValidateSet('appRoleAssignment', 'oauth2PermissionGrant', 'servicePrincipal', 'group', 'directoryRole', 'conditionalAccessPolicy', 'roleAssignmentSchedules')]
+        [ValidateSet('appRoleAssignment', 'oauth2PermissionGrant', 'servicePrincipal', 'group', 'directoryRole', 'conditionalAccessPolicy', 'roleAssignmentSchedules','roleAssignments')]
         [string] $ObjectType,
         #
         [Parameter(Mandatory = $true)]
@@ -106,6 +106,9 @@ function Add-AadReferencesToCache {
             #     }
             #     break
             # }
+            roleAssignments {
+                [void] $ReferencedIdCache.unknownType.Add($InputObject.principalId)
+            }
         }
         if ($PassThru) { return $InputObject }
     }

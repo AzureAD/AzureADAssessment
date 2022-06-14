@@ -9,10 +9,16 @@
 function Get-AADAssessRoleAssignmentReport {
     [CmdletBinding()]
     param (
-        # Role Assignment Data
+        # Tenant has P2
+        [Parameter(Mandatory = $false)]
+        [bool] $TenantHasP2 = $true,
+        # Role Assignments
+        [Parameter(Mandatory = $false)]
+        [psobject] $RoleAssignmentsData,
+        # Role Assignment Schedule Data
         [Parameter(Mandatory = $false)]
         [psobject] $RoleAssignmentSchedulesData,
-        # Role Eligible Data
+        # Role Eligible Schedule Data
         [Parameter(Mandatory = $false)]
         [psobject] $RoleEligibilitySchedulesData,
         # Organization Data
@@ -43,7 +49,7 @@ function Get-AADAssessRoleAssignmentReport {
 
         # there may be no elegibile roles so it isn't counted to check for offline but collection will be prevented
         # role assignement should have some members if at least for one global administrator
-        if ($Offline -and !$PSBoundParameters['roleAssignmentSchedulesData']) {
+        if ($Offline -and (($TenantHasP2 -and !$PSBoundParameters['roleAssignmentSchedulesData']) -or (!$TenantHasP2 -and !$PSBoundParameters['roleAssignmentsData']))) {
             Write-Error -Exception (New-Object System.Management.Automation.ItemNotFoundException -ArgumentList 'Use of the offline parameter requires that all data be provided using the data parameters.') -ErrorId 'DataParametersRequired' -Category ObjectNotFound
             return
         }
@@ -65,6 +71,7 @@ function Get-AADAssessRoleAssignmentReport {
                 $RoleSchedules = $InputObject
                 foreach ($RoleSchedule in $RoleSchedules) {
 
+                    # get details of directory scope
                     if ($RoleSchedule.directoryScopeId -match '/(?:(.+)s/)?([0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12})') {
                         $ObjectId = $Matches[2]
                         $directoryScopeType = $Matches[1]
@@ -88,8 +95,28 @@ function Get-AADAssessRoleAssignmentReport {
                         }
                     }
 
-                    $principalType = $RoleSchedule.principal.'@odata.type' -replace '#microsoft.graph.', ''
-                    $principal = Get-AadObjectById $RoleSchedule.principal.id -Type $principalType -LookupCache $LookupCache -UseLookupCacheOnly:$UseLookupCacheOnly -Properties 'id,displayName'
+                    # get details of principal
+                    $principalType = 'user'
+                    $principal = Get-AadObjectById $RoleSchedule.principalId -Type $principalType -LookupCache $LookupCache -UseLookupCacheOnly:$UseLookupCacheOnly -Properties 'id,displayName'
+                    if (!$principal) {
+                        $principalType = 'group'
+                        $principal = Get-AadObjectById $RoleSchedule.principalId -Type $principalType -LookupCache $LookupCache -UseLookupCacheOnly:$UseLookupCacheOnly -Properties 'id,displayName'
+                    } 
+                    if (!$principal) {
+                        $principalType = 'servicePrincipal'
+                        $principal = Get-AadObjectById $RoleSchedule.principalId -Type $principalType -LookupCache $LookupCache -UseLookupCacheOnly:$UseLookupCacheOnly -Properties 'id,displayName'
+                    }
+                    if (!$principal) {
+                        $principalType = 'unknown'
+                    }
+
+                    # get start and end datetime
+                    $startDateTime = $null
+                    $endDateTime = $null
+                    if ($RoleSchedule.psobject.Properties.Name.Contains('scheduleInfo')) {
+                        $startDateTime = $RoleSchedule.scheduleInfo.startDateTime
+                        $endDateTime = $RoleSchedule.scheduleInfo.expiration.endDateTime
+                    }
 
                     $OutputObject = [PSCustomObject]@{
                         id                        = $RoleSchedule.id
@@ -100,14 +127,14 @@ function Get-AADAssessRoleAssignmentReport {
                         roleDefinitionId          = $RoleSchedule.roleDefinition.id
                         roleDefinitionTemplateId  = $RoleSchedule.roleDefinition.templateId
                         roleDefinitionDisplayName = $RoleSchedule.roleDefinition.displayName
-                        principalId               = $RoleSchedule.principal.id
+                        principalId               = $RoleSchedule.principalId
                         principalDisplayName      = if ($principal) { $principal.displayName } else { $null }
                         principalType             = $principalType
                         memberType                = $RoleSchedule.memberType
                         status                    = $RoleSchedule.status
-                        assignmentType            = if ($RoleSchedule.psobject.Properties.Name.Contains('assignmentType')) { $RoleSchedule.assignmentType } else { 'Eligible' }
-                        startDateTime             = $RoleSchedule.scheduleInfo.startDateTime
-                        endDateTime               = $RoleSchedule.scheduleInfo.expiration.endDateTime
+                        assignmentType            = $RoleSchedule.assignmentType
+                        startDateTime             = $startDateTime
+                        endDateTime               = $endDateTime
                     }
                     $OutputObject
 
@@ -190,22 +217,39 @@ function Get-AADAssessRoleAssignmentReport {
         }
 
         ## Get Role Assignments
-        if ($RoleAssignmentSchedulesData) {
-            $RoleAssignmentSchedulesData | Process-RoleAssignment -LookupCache $LookupCache -UseLookupCacheOnly:$Offline
-        }
-        else {
-            Write-Verbose "Getting roleAssignmentSchedules..."
-            Get-MsGraphResults 'roleManagement/directory/roleAssignmentSchedules' -Select 'id,directoryScopeId,memberType,scheduleInfo,status,assignmentType' -Filter "status eq 'Provisioned' and assignmentType eq 'Assigned'" -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -ApiVersion 'beta' `
-            | Process-RoleAssignment -LookupCache $LookupCache
-        }
+        if ($TenantHasP2) {
+            if ($RoleAssignmentSchedulesData) {
+                $RoleAssignmentSchedulesData | Process-RoleAssignment -LookupCache $LookupCache -UseLookupCacheOnly:$Offline
+            }
+            else {
+                Write-Verbose "Getting roleAssignmentSchedules..."
+                Get-MsGraphResults 'roleManagement/directory/roleAssignmentSchedules' -Select 'id,directoryScopeId,memberType,scheduleInfo,status,assignmentType' -Filter "status eq 'Provisioned' and assignmentType eq 'Assigned'" -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -ApiVersion 'beta' `
+                | Process-RoleAssignment -LookupCache $LookupCache
+            }
 
-        if ($RoleEligibilitySchedulesData) {
-            $RoleEligibilitySchedulesData | Process-RoleAssignment -LookupCache $LookupCache -UseLookupCacheOnly:$Offline
-        }
-        elseif (!$Offline) {
-            Write-Verbose "Getting roleEligibleSchedules..."
-            Get-MsGraphResults 'roleManagement/directory/roleEligibilitySchedules' -Select 'id,directoryScopeId,memberType,scheduleInfo,status' -Filter "status eq 'Provisioned'" -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -ApiVersion 'beta' `
-            | Process-RoleAssignment -LookupCache $LookupCache
+            if ($RoleEligibilitySchedulesData) {
+                $RoleEligibilitySchedulesData | Select-Object -Property *,@{Name="assignmentType"; Expression={"Assigned"}} `
+                | Process-RoleAssignment -LookupCache $LookupCache -UseLookupCacheOnly:$Offline
+            }
+            elseif (!$Offline) {
+                Get-MsGraphResults 'roleManagement/directory/roleEligibilitySchedules' -Select 'id,directoryScopeId,memberType,scheduleInfo,status' -Filter "status eq 'Provisioned'" -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -ApiVersion 'beta' `
+                | Select-Object -Property *,@{Name="assignmentType"; Expression={"Assigned"}} `
+                | Process-RoleAssignment -LookupCache $LookupCache
+            }
+        } else {
+            if ($RoleAssignmentsData) {
+                $RoleAssignmentsData | Select-Object -Property *,@{Name="status"; Expression={"Grandted"}},@{Name="memberType"; Expression={"Direct"}},@{Name="assignmentType"; Expression={"Assigned"}} `
+                | Process-RoleAssignment -LookupCache $LookupCache -UseLookupCacheOnly:$Offline
+            } else  {
+                Write-Verbose "Getting roleDefinitions..."
+                $roleDefinitions = Get-MsGraphResults 'roleManagement/directory/roleDefinitions' -Select 'id,templateId,displayName,isBuiltIn,isEnabled' -ApiVersion 'v1.0' -OutVariable roleDefinitions `
+                | Where-Object { $_.isEnabled } `
+                | Select-Object id, templateId, displayName, isBuiltIn, isEnabled 
+                Write-Verbose "Getting roleAssignments..."
+                $roleDefinitions | Get-MsGraphResults 'roleManagement/directory/roleAssignments' -Select 'id,directoryScopeId' -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -Filter "roleDefinitionId eq '{0}'" `
+                | Select-Object -Property *,@{Name="status"; Expression={"Grandted"}},@{Name="memberType"; Expression={"Direct"}},@{Name="assignmentType"; Expression={"Assigned"}} `
+                | Process-RoleAssignment -LookupCache $LookupCache
+            }
         }
 
     }

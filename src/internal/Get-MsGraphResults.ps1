@@ -360,7 +360,7 @@ function Get-MsGraphResults {
                                 Catch-MsGraphError $_ 
                             }
                             ## check if throttling happened
-                            if ($_.Exception.PSobject.Properties.Name.Contains("Response") -and $_.Exception.Response.StatusCode.value__ -eq 429) {
+                            if ($_.Exception.PSobject.Properties.Name.Contains("Response") -and $_.Exception.Response.PSobject.Properties.Name.Contains("StatusCode") -and $_.Exception.Response.StatusCode.value__ -eq 429) {
                                 # Get the retry after header
                                 try {
                                     $RetryAfter = [double]($_.Exception.Response.Headers.GetValues('Retry-After')[0])
