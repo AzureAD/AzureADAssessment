@@ -68,7 +68,7 @@ function Get-AADAssessUserReport {
                 [PSCustomObject]@{
                     "id" = $InputObject.id
                     "userPrincipalName" = $InputObject.userPrincipalName
-                    "displayName" = $InputObject.displayName
+                    "displayName" = $InputObject.displayName -replace "`n",""
                     "userType" = $InputObject.UserType
                     "accountEnabled" = $InputObject.accountEnabled
                     "onPremisesSyncEnabled" = [bool]$_.onPremisesSyncEnabled

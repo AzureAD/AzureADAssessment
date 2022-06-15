@@ -185,6 +185,8 @@ function Export-AADAssessmentReportData {
 
     # role assignment report
     if (!(Test-Path -Path (Join-Path $OutputDirectory "RoleAssignmentReport.csv")) -or $Force) {
+        # Set file header
+        Set-Content -Path (Join-Path $OutputDirectory "RoleAssignmentReport.csv") -Value "id,directoryScopeId,directoryScopeObjectId,directoryScopeDisplayName,directoryScopeType,roleDefinitionId,roleDefinitionTemplateId,roleDefinitionDisplayName,principalId,principalDisplayName,principalType,memberType,status,assignmentType,startDateTime,endDateTime"
         # load unique data
         [array] $roleAssignmentSchedulesData =  @()
         [array] $roleEligibilitySchedulesData = @()
@@ -221,7 +223,7 @@ function Export-AADAssessmentReportData {
         Get-AADAssessRoleAssignmentReport -Offline -TenantHasP2 ($licenseType -eq "P2") -RoleAssignmentsData $roleAssignmentsData -RoleAssignmentSchedulesData $roleAssignmentSchedulesData -RoleEligibilitySchedulesData $roleEligibilitySchedulesData -OrganizationData $OrganizationData -AdministrativeUnitsData $LookupCache.administrativeUnit -UsersData $LookupCache.user -GroupsData $LookupCache.group -ApplicationsData $LookupCache.application -ServicePrincipalsData $LookupCache.servicePrincipal `
         | Use-Progress -Activity 'Exporting RoleAssignmentReport' -Property id -PassThru -WriteSummary `
         | Format-Csv `
-        | Export-Csv -Path (Join-Path $OutputDirectory "RoleAssignmentReport.csv") -NoTypeInformation
+        | Export-Csv -Path (Join-Path $OutputDirectory "RoleAssignmentReport.csv") -NoTypeInformation -Append
 
         # clear unique data
         Remove-Variable roleAssignmentSchedulesData, roleEligibilitySchedulesData
