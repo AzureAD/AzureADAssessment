@@ -89,8 +89,17 @@ function Invoke-AADAssessmentDataCollection {
 
         ### Licenses - 1
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Subscribed SKU' -PercentComplete 5
-        Get-MsGraphResults "subscribedSkus" -Select "prepaidunits", "consumedunits", "skuPartNumber", "servicePlans" `
+        Get-MsGraphResults "subscribedSkus" -Select "prepaidunits", "consumedunits", "skuPartNumber", "servicePlans" -OutVariable skus `
         | Export-JsonArray (Join-Path $OutputDirectoryAAD "subscribedSkus.json") -Depth 5 -Compress
+
+        # Check tenant license status
+        $licenseType = "Free"
+        if ($skus | Where-Object { $_.prepaidUnits.enabled -gt 0 -and ($_.servicePlans | Where-Object { $_.servicePlanId -eq "41781fb2-bc02-4b7c-bd55-b576c07bb09d" })}) {
+            $licenseType = "P2"
+        } elseif ($skus | Where-Object { $_.prepaidUnits.enabled -gt 0 -and ($_.servicePlans | Where-Object { $_.servicePlanId -eq "eec0eb4f-6444-4f95-aba0-50c24d67f998" })}) {
+            $licenseType = "P1"
+        }
+        Remove-Variable skus
 
         ### Conditional Access policies - 2
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Conditional Access Policies' -PercentComplete 10
@@ -123,37 +132,48 @@ function Invoke-AADAssessmentDataCollection {
         | Select-Object id, templateId, displayName, isBuiltIn, isEnabled `
         | Export-Csv (Join-Path $OutputDirectoryAAD "roleDefinitions.csv") -NoTypeInformation
 
-        ### Directory Role Assignments - 7
-        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Directory Role Assignments' -PercentComplete 30
-        ## Getting role assignments via unified role API
-        # Get-MsGraphResults 'roleManagement/directory/roleAssignmentSchedules' -Select 'id,directoryScopeId,memberType,scheduleInfo,status,assignmentType' -Filter "status eq 'Provisioned' and assignmentType eq 'Assigned'" -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -ApiVersion 'beta' `
-        # | Add-AadReferencesToCache -Type roleAssignmentSchedules -ReferencedIdCache $ReferencedIdCache -PassThru `
-        # | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "roleAssignmentSchedulesData.xml")
+        if ($licenseType -eq "P2") {
+            ### Directory Role Assignments - 7
+            Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Directory Role Assignments' -PercentComplete 30
+            ## Getting role assignments via unified role API
+            # Get-MsGraphResults 'roleManagement/directory/roleAssignmentSchedules' -Select 'id,directoryScopeId,memberType,scheduleInfo,status,assignmentType' -Filter "status eq 'Provisioned' and assignmentType eq 'Assigned'" -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -ApiVersion 'beta' `
+            # | Add-AadReferencesToCache -Type roleAssignmentSchedules -ReferencedIdCache $ReferencedIdCache -PassThru `
+            # | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "roleAssignmentSchedulesData.xml")
 
-        # List roleAssignmentSchedules above is not returning non-root scoped assignments.
-        # Working around with one query of all root assignments including custom roles and 
-        # another query of all non-root assignments for build-in roles.
-        # Because roleDefinitions are not returning the correct id, it is not possible to get custom roles assigned to non-root scopes.
-        $roleAssignmentSchedules = Get-MsGraphResults 'roleManagement/directory/roleAssignmentSchedules' -Select 'id,directoryScopeId,memberType,scheduleInfo,status,assignmentType' -Filter "status eq 'Provisioned' and assignmentType eq 'Assigned' and directoryScopeId eq '/'" -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -ApiVersion 'beta'
-        $roleAssignmentSchedulesAdditional = $roleDefinitions | Where-Object isBuiltIn -EQ $true | Get-MsGraphResults 'roleManagement/directory/roleAssignmentSchedules' -Select 'id,directoryScopeId,memberType,scheduleInfo,status,assignmentType' -Filter "status eq 'Provisioned' and assignmentType eq 'Assigned' and roleDefinitionId eq '{0}' and directoryScopeId ne '/'" -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -ApiVersion 'beta'
-        $roleAssignmentSchedules + $roleAssignmentSchedulesAdditional `
-        | Add-AadReferencesToCache -Type roleAssignmentSchedules -ReferencedIdCache $ReferencedIdCache -PassThru `
-        | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "roleAssignmentSchedulesData.xml")
-        Remove-Variable roleDefinitions, roleAssignmentSchedules, roleAssignmentSchedulesAdditional
+            # List roleAssignmentSchedules above is not returning non-root scoped assignments.
+            # Working around with one query of all root assignments including custom roles and 
+            # another query of all non-root assignments for build-in roles.
+            # Because roleDefinitions are not returning the correct id, it is not possible to get custom roles assigned to non-root scopes.
+            $roleAssignmentSchedules = Get-MsGraphResults 'roleManagement/directory/roleAssignmentSchedules' -Select 'id,directoryScopeId,memberType,scheduleInfo,status,assignmentType,principalId' -Filter "status eq 'Provisioned' and assignmentType eq 'Assigned' and directoryScopeId eq '/'" -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -ApiVersion 'beta'
+            $roleAssignmentSchedulesAdditional = $roleDefinitions | Where-Object isBuiltIn -EQ $true | Get-MsGraphResults 'roleManagement/directory/roleAssignmentSchedules' -Select 'id,directoryScopeId,memberType,scheduleInfo,status,assignmentType,principalId' -Filter "status eq 'Provisioned' and assignmentType eq 'Assigned' and roleDefinitionId eq '{0}' and directoryScopeId ne '/'" -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -ApiVersion 'beta'
+            $roleAssignmentSchedules + $roleAssignmentSchedulesAdditional `
+            | Add-AadReferencesToCache -Type roleAssignmentSchedules -ReferencedIdCache $ReferencedIdCache -PassThru `
+            | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "roleAssignmentSchedulesData.xml")
+            Remove-Variable roleDefinitions, roleAssignmentSchedules, roleAssignmentSchedulesAdditional
 
-        ### Directory Role Eligibility - 8
-        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Directory Role Eligibility' -PercentComplete 35
-        # Getting role eligibility via unified role API
-        Get-MsGraphResults 'roleManagement/directory/roleEligibilitySchedules' -Select 'id,directoryScopeId,memberType,scheduleInfo,status' -Filter "status eq 'Provisioned'" -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -ApiVersion 'beta' `
-        | Add-AadReferencesToCache -Type roleAssignmentSchedules -ReferencedIdCache $ReferencedIdCache -PassThru `
-        | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "roleEligibilitySchedulesData.xml")
-        #| Export-JsonArray (Join-Path $OutputDirectoryAAD "roleEligibilitySchedules.json") -Depth 5 -Compress
+            ### Directory Role Eligibility - 8
+            Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Directory Role Eligibility' -PercentComplete 35
+            # Getting role eligibility via unified role API
+            Get-MsGraphResults 'roleManagement/directory/roleEligibilitySchedules' -Select 'id,directoryScopeId,memberType,scheduleInfo,status,principalId' -Filter "status eq 'Provisioned'" -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -ApiVersion 'beta' `
+            | Add-AadReferencesToCache -Type roleAssignmentSchedules -ReferencedIdCache $ReferencedIdCache -PassThru `
+            | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "roleEligibilitySchedulesData.xml")
+            #| Export-JsonArray (Join-Path $OutputDirectoryAAD "roleEligibilitySchedules.json") -Depth 5 -Compress
+        } else {
+            ### Directory Role Assignments - 7
+            Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Directory Role Assignments' -PercentComplete 30
+            $roleDefinitions | Get-MsGraphResults 'roleManagement/directory/roleAssignments' -Select 'id,directoryScopeId,principalId' -QueryParameters @{ '$expand' = 'roleDefinition($select=id,templateId,displayName)' } -Filter "roleDefinitionId eq '{0}'" `
+            | Add-AadReferencesToCache -Type roleAssignments -ReferencedIdCache $ReferencedIdCache -PassThru `
+            | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "roleAssignmentsData.xml")
+        }
 
         # Lookup ObjectIds with Unknown Types
         $ReferencedIdCache.unknownType | Get-MsGraphResults 'directoryObjects' -Select 'id' `
         | ForEach-Object {
             $ObjectType = $_.'@odata.type' -replace '#microsoft.graph.', ''
             [void] $ReferencedIdCache.$ObjectType.Add($_.id)
+            if ($ObjectType -eq 'group') {
+                [void] $ReferencedIdCache.roleGroup.Add($InputObject.principalId)
+            }
         }
         $ReferencedIdCache.unknownType.Clear()
 
@@ -213,9 +233,11 @@ function Invoke-AADAssessmentDataCollection {
         | Export-Csv (Join-Path $OutputDirectoryAAD "administrativeUnits.csv")
 
         ### Registration details data - 15
-        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Registration Details' -PercentComplete 70
-        Get-MsGraphResults 'reports/authenticationMethods/userRegistrationDetails' -ApiVersion 'beta' `
-        | Export-JsonArray (Join-Path $OutputDirectoryAAD "userRegistrationDetails.json") -Depth 5 -Compress
+        if ($licenseType -ne "Free") {
+            Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Registration Details' -PercentComplete 70
+            Get-MsGraphResults 'reports/authenticationMethods/userRegistrationDetails' -ApiVersion 'beta' `
+            | Export-JsonArray (Join-Path $OutputDirectoryAAD "userRegistrationDetails.json") -Depth 5 -Compress
+        }
 
         ### Group Data - 16
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Groups' -PercentComplete 75
@@ -225,8 +247,10 @@ function Invoke-AADAssessmentDataCollection {
             | ForEach-Object { [void]$ReferencedIdCache.group.Add($_.id) }
         }
         # Add nested groups
-        $ReferencedIdCache.roleGroup.guid | Get-MsGraphResults 'groups/{0}/transitiveMembers/microsoft.graph.group?$count=true&$select=id' -Top 999 -TotalRequests $ReferencedIdCache.roleGroup.Count -DisableUniqueIdDeduplication `
-        | ForEach-Object { [void]$ReferencedIdCache.group.Add($_.id) }
+        if ($ReferencedIdCache.roleGroup.Count -gt 0) {
+            $ReferencedIdCache.roleGroup.guid | Get-MsGraphResults 'groups/{0}/transitiveMembers/microsoft.graph.group?$count=true&$select=id' -Top 999 -TotalRequests $ReferencedIdCache.roleGroup.Count -DisableUniqueIdDeduplication `
+            | ForEach-Object { [void]$ReferencedIdCache.group.Add($_.id) }
+        }
 
         ## Option 1: Populate direct members on groups (including nested groups) and calculate transitiveMembers later.
         ## $expand on group members caps results at 20 members with no NextLink so call members endpoint for each.
@@ -291,7 +315,7 @@ function Invoke-AADAssessmentDataCollection {
         ### Generate Reports
         if (!$SkipReportOutput) {
             Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Output Report Data' -PercentComplete 85
-            Export-AADAssessmentReportData -SourceDirectory $OutputDirectoryAAD -Force
+            Export-AADAssessmentReportData -SourceDirectory $OutputDirectoryAAD -LicenseType $licenseType -Force
 
             ## Remove Raw Data Output
             Remove-Item -Path (Join-Path $OutputDirectoryAAD "*") -Include "*Data.xml" -ErrorAction Ignore

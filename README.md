@@ -19,11 +19,13 @@ Update-Module AzureADAssessment -Force -Scope CurrentUser
 Data collection from Azure AD can be run from any client with access to Azure AD. However, data collection from hybrid components such as AD FS, AAD Connect, etc. are best run locally on those servers. The AAD Connect data collection needs to be run on both Primary and Staging servers.
 
 Verify that you have authorized credentials to access these workloads:
-* Azure Active Directory as Global Administrator or Global Reader (email OTP policy won't be reported by Global Reader)
+* Azure Active Directory as Global Administrator or Global Reader
 * Domain or local administrator access to ADFS Servers
 * Domain or local administrator access to Azure AD Proxy Connector Servers
 * Domain or local administrator access to Azure AD Connect Server (Primary)
 * Domain or local administrator access to Azure AD Connect Server (Staging Server)
+
+> When Connecting for the first time you will be asked to consent to the permissions needed by the assessment. An admin will be needed to provide consent.
 
 Run following commands to produce a package of all the Azure AD data necessary to complete the assessment.
 ```PowerShell
@@ -109,6 +111,17 @@ Install-Module MSAL.PS -SkipPublisherCheck -Force
 If you are using PowerShell Core (ie PowerShell 6 or 7) and your tenant has a conditional access policy that requires a Compliant or Hybrid Azure AD Joined device, you may not be able to sign in.
 
 To work around this issue use Windows PowerShell (instead of PowerShell 6 or 7). To launch Windows PowerShell go to **Start > Windows PowerShell**
+
+### Unable to load data in PowerBI templates ###
+When you open the powerbi templates, you will be asked to reference the folder where the extracted data resides (csv and json). Once selected PowerBI will load the data.
+While doing so PowerBI might complain with errors crossreferncing data sources: 
+```
+Query '*' (step '*') references other queries or steps, so it may not directly access a datasource. Please rebuild this data combination.  
+```
+To workarround this, configure PowerBI file settings to ignore privacy settings:
+* **File > Options and settings > Options**
+* In **Options** under **CURRENT FILE** find the **Privacy**
+* In **Privacy Levels** select **Ignore the Privacy Levels and potentially improve performance**
 
 ## Contents
 

@@ -461,7 +461,7 @@
         <Sources>
             <File>conditionalAccessPolicies.json</File>
             <File>roleDefinitions.csv</File>
-            <File>roleAssignments.csv</File>
+            <File>RoleAssignmentReport.csv</File>
             <File>Users.csv</File>
         </Sources>
         <PowerShell>
@@ -472,7 +472,7 @@
             # get ga role id
             $gaRoleId = $Data["roleDefinitions.csv"] | Where-Object { $_.displayName -eq "Global Administrator"} | Select-Object -First 1 -ExpandProperty id
             # get permanently assigned GA users ids
-            $GAids = $Data["roleAssignments.csv"] | Where-Object { $_.directoryScopeId -in ("/","unknown") -and $_.principalId -eq "user" -and $_.roleDefinitionId -eq $gaRoleId  -and $_.assignmentType -eq "Active" } | Select-Object -ExpandProperty principalId
+            $GAids = $Data["RoleAssignmentReport.csv"] | Where-Object { $_.directoryScopeId -in ("/","unknown") -and $_.principalType -eq "user" -and $_.roleDefinitionId -eq $gaRoleId  -and $_.assignmentType -eq "Assigned" } | Select-Object -ExpandProperty principalId
             # filter cloud users - only keep cloud GAs
             $BGAids = $Data["users.csv"] | Where-Object { $_.id -in $GAids -and $_.onPremisesSyncEnabled -eq $false } | Select-Object -ExpandProperty id
 
@@ -505,7 +505,7 @@
         <Sources>
             <File>conditionalAccessPolicies.json</File>
             <File>roleDefinitions.csv</File>
-            <File>roleAssignments.csv</File>
+            <File>RoleAssignmentReport.csv</File>
             <File>Users.csv</File>
         </Sources>
         <PowerShell>
@@ -516,7 +516,7 @@
             # get ga role id
             $gaRoleId = $Data["roleDefinitions.csv"] | Where-Object { $_.displayName -eq "Global Administrator"} | Select-Object -First 1 -ExpandProperty id
             # get permanently assigned GA users ids
-            $GAids = $Data["roleAssignments.csv"] | Where-Object { $_.directoryScopeId -in ("/","unknown") -and $_.principalId -eq "user" -and $_.roleDefinitionId -eq $gaRoleId  -and $_.assignmentType -eq "Active" } | Select-Object -ExpandProperty principalId
+            $GAids = $Data["RoleAssignmentReport.csv"] | Where-Object { $_.directoryScopeId -in ("/","unknown") -and $_.principalType -eq "user" -and $_.roleDefinitionId -eq $gaRoleId  -and $_.assignmentType -eq "Assigned" } | Select-Object -ExpandProperty principalId
             # filter cloud users - only keep cloud GAs
             $BGAids = $Data["users.csv"] | Where-Object { $_.id -in $GAids -and $_.onPremisesSyncEnabled -eq $false } | Select-Object -ExpandProperty id
 
@@ -2186,7 +2186,7 @@
         </Recommendation>        
         <Sources>
             <File>roleDefinitions.csv</File>
-            <File>roleAssignments.csv</File>
+            <File>RoleAssignmentReport.csv</File>
             <File>conditionalAccessPolicies.json</File>
         </Sources>
         <PowerShell>
@@ -2490,7 +2490,7 @@
         <Name>Use PIM to grant just-in-time access</Name>        
         <Sources>
             <File>roleDefinitions.csv</File>
-            <File>roleAssignments.csv</File>
+            <File>RoleAssignmentReport.csv</File>
         </Sources>
         <PowerShell>
             param($Data)
@@ -2510,7 +2510,7 @@
             $scopedRoleIds = $Data['roleDefinitions.csv'] | Where-Object { $_.DisplayName -in $securityDefaultRoles } | Select-Object -ExpandProperty id
 
             # look for active permanent role assignements for those roles
-            $scopedActivePermanentAssignments = @($Data['roleAssignments.csv'] | Where-Object { $_.roleDefinitionId -in $scopedRoleIds -and $_.assignmentType -eq "Active" -and [string]::IsNullOrWhiteSpace($_.endDateTime) })
+            $scopedActivePermanentAssignments = @($Data['RoleAssignmentReport.csv'] | Where-Object { $_.roleDefinitionId -in $scopedRoleIds -and $_.assignmentType -eq "Assigned" -and [string]::IsNullOrWhiteSpace($_.endDateTime) })
 
             $res.Priority = "Passed"
             if ($scopedActivePermanentAssignments.Count -gt 0) {
@@ -2536,7 +2536,7 @@
     <recommendation>
         <Sources>
             <File>roleDefinitions.csv</File>
-            <File>roleAssignments.csv</File>
+            <File>RoleAssignmentReport.csv</File>
             <File>conditionalAccessPolicies.json</File>
         </Sources>
         <PowerShell>
@@ -2544,8 +2544,8 @@
             
             $res =  "" | select Priority,Data
 
-            # get role ids of each roles with an assignment
-            $scopedAssignments = @($Data['roleAssignments.csv'] | Select-Object -ExpandProperty roleDefinitionId)
+            # get role ids of each roles with an assignment (assigned or eligible)
+            $scopedAssignments = @($Data['RoleAssignmentReport.csv'] | Select-Object -ExpandProperty roleDefinitionId)
 
             # get the role definitions of assigned roles
             $roleDefintions = @($Data['roleDefinitions.csv'] | Where-Object { $_.id -in $scopedAssignments})
@@ -2859,7 +2859,7 @@
         </Recommendation>
         <Sources>
             <File>roleDefinitions.csv</File>
-            <File>roleAssignments.csv</File>
+            <File>RoleAssignmentReport.csv</File>
             <File>users.csv</File>
         </Sources>
         <PowerShell>
@@ -2870,7 +2870,7 @@
             $GARoleId = $Data['roleDefinitions.csv'] | Where-Object { $_.DisplayName -eq "Global Administrator" } | Select-Object -ExpandProperty id
 
             # look for users with assigned roles
-            $userIdsWithGA = @($Data['roleAssignments.csv'] | Where-Object { $_.roleDefinitionId -eq $GARoleId -and $_.principalType -eq "user"} | Select-Object -ExpandProperty principalId)
+            $userIdsWithGA = @($Data['RoleAssignmentReport.csv'] | Where-Object { $_.roleDefinitionId -eq $GARoleId -and $_.principalType -eq "user"} | Select-Object -ExpandProperty principalId)
 
             # get GA users
             $usersWithGA = @($Data['users.csv'] | Where-Object { $_.id -in $userIdsWithGA})
@@ -2900,7 +2900,7 @@
         </Recommendation>
         <Sources>
             <File>roleDefinitions.csv</File>
-            <File>roleAssignments.csv</File>
+            <File>RoleAssignmentReport.csv</File>
             <File>users.csv</File>
         </Sources>
         <PowerShell>
@@ -2921,7 +2921,7 @@
             $scopedRoleIds = $Data['roleDefinitions.csv'] | Where-Object { $_.DisplayName -in $securityDefaultRoles } | Select-Object -ExpandProperty id
 
             # look for users with assigned roles
-            $usersWithRole = @($Data['roleAssignments.csv'] | Where-Object { $_.roleDefinitionId -in $scopedRoleIds -and $_.principalType -eq "user"} | Select-Object -ExpandProperty principalId)
+            $usersWithRole = @($Data['RoleAssignmentReport.csv'] | Where-Object { $_.roleDefinitionId -in $scopedRoleIds -and $_.principalType -eq "user"} | Select-Object -ExpandProperty principalId)
 
             # get the synced users
             $syncedUsersWithRole = @($Data['users.csv'] | Where-Object { $_.id -in $usersWithRole -and ($_.onPremisesSyncEnabled -eq "True" -or $_.onPremisesImmutableId -eq "True")})
@@ -2989,7 +2989,7 @@
 
             #### Learn More
 
-            - [Trusted Locations | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/location-condition#trusted-locations)
+            - [Trusted Locations | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/location-condition)
         </Recommendation>
     </recommendation>    
 
@@ -3015,7 +3015,7 @@
 
             #### Learn More
 
-            - [Trusted Locations | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/location-condition#trusted-locations)
+            - [Trusted Locations | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/location-condition)
         </Recommendation>
     </recommendation>    
 
@@ -3042,7 +3042,7 @@
 
             #### Learn More
 
-            - [Trusted Locations | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/location-condition#trusted-locations)
+            - [Trusted Locations | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/location-condition)
         </Recommendation>
     </recommendation>    
 
@@ -3074,6 +3074,61 @@
         </Recommendation>
     </recommendation>    
 
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Access Policies</Area>
+        <ID>AR0095</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Did_you_find_customer_is_licensed_for_Intune_and_there_is_desire_to_allow_personal_devices_use_but_MAM_is_not_deployed</Name>
+            <Answers> 
+                <Answer Value="Yes" Priority = "P1"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>MAM Client App Access Policy for Personal Devices</Name>
+        <Summary>
+            Microsoft Intune Application Management (MAM) provides the ability to push data protection controls such as storage encryption, PIN, remote storage cleanup, etc. to compatible client mobile applications such as Outlook.
+            
+            Then, Conditional Access can enforce policies that will restrict access to cloud services (such as Exchange Online) from approved/compatible apps.
+        </Summary>
+        <Recommendation>
+            - Deploy application MAM policies to manage the application configuration in personal owned devices without MDM enrollment.
+            - Update Conditional Access policies to only allow access from MAM capable clients.
+
+            #### Learn More
+
+            - [Conditional Access: Require approved client apps or app protection policy | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/howto-policy-approved-app-or-app-protection)
+        </Recommendation>
+    </recommendation>
+
+    <recommendation>
+        <Category>Access Management</Category>
+        <Area>Access Policies</Area>
+        <ID>AR0096</ID>
+        <Type>QnA</Type>
+        <QnA>
+            <Name>AccMgmt_Did_you_find_customer_is_licensed_for_Intune_and_there_is_desire_to_allow_corporate_devices_use_but_MAM_is_not_deployed</Name>
+            <Answers> 
+                <Answer Value="Yes" Priority = "P3"/>
+                <Answer Value="No" Priority = "Passed"/>
+            </Answers>
+        </QnA>
+        <Name>MAM Client App Access Policy for Corporate Devices</Name>
+        <Summary>
+            Microsoft Intune Application Management (MAM) provides the ability to push data protection controls such as storage encryption, PIN, remote storage cleanup, etc. to compatible client mobile applications such as Outlook.
+            
+            Then, Conditional Access can enforce policies that will restrict access to cloud services (such as Exchange Online) from approved/compatible apps.
+        </Summary>
+        <Recommendation>
+            - Deploy application MAM policies to manage the application configuration and be future proof for personal devices.
+            - Update Conditional Access policies to only allow access from MAM capable clients.
+
+            #### Learn More
+
+            - [Conditional Access: Require approved client apps or app protection policy | Microsoft Docs](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/howto-policy-approved-app-or-app-protection)
+        </Recommendation>
+    </recommendation>
 
     <!--
     <recommendation>

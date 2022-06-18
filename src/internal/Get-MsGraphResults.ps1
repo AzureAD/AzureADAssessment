@@ -160,13 +160,22 @@ function Get-MsGraphResults {
                     else {
                         Write-Error -Exception $_.Exception -Message $ResponseContent.error.message -ErrorId $ResponseContent.error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorVariable cmdError
                     }
-                    Write-AppInsightsException $cmdError.Exception
+                    # generate extra properties for the exception
+                    $Properties = @{}
+                    $Properties["request"] = '{0} {1}' -f $_.TargetObject.Method, $_.TargetObject.RequestUri.AbsoluteUri
+                    $Properties["response"] = $Response 
+                    if ($_.Exception.Response.psobject.Properties.Name.Contains("Headers")) {
+                        $Properties["date"] = $_.Exception.Response.Headers.GetValues('Date')[0]
+                        $Properties["requestId"] = $_.Exception.Response.Headers.GetValues('request-id')[0]
+                        $Properties["clientRequestId"] = $_.Exception.Response.Headers.GetValues('client-request-id')[0]
+                    }
+                    Write-AppInsightsException $cmdError.Exception -Properties $Properties
                 }
             }
             else { throw $ErrorRecord }
         }
 
-        function Test-MsGraphBatchError ($BatchResponse) {
+        function Test-MsGraphBatchError ($BatchResponse, $BatchRequest) {
             if ($BatchResponse.status -ne '200') {
                 Write-Debug -Message (ConvertTo-Json $BatchResponse -Depth 3)
 
@@ -181,7 +190,26 @@ function Get-MsGraphResults {
                     else {
                         Write-Error -Message $BatchResponse.body.error.message -ErrorId $BatchResponse.body.error.code -ErrorVariable cmdError
                     }
-                    Write-AppInsightsException $cmdError.Exception
+                    # generate extra properties for the exception
+                    $Properties = @{}
+                    if ($BatchRequest) {
+                        $Properties["request"] = "{0} {1}" -f $BatchRequest.method, $BatchRequest.url
+                    }
+                    if ($BatchResponse.body.error.psobject.Properties.Name.Contains('code') -and $BatchResponse.body.error.psobject.Properties.Name.Contains('message')) {
+                        $Properties["response"] = "{0} {1}" -f $BatchResponse.body.error.code, $BatchResponse.body.error.message
+                    }
+                    if ($BatchResponse.body.error.psobject.Properties.Name.Contains('innerError')) {
+                        if ($BatchResponse.body.error.innerError.psobject.Properties.Name.Contains('date')) {
+                            $Properties["date"] = $BatchResponse.body.error.innerError.date
+                        }
+                        if ($BatchResponse.body.error.innerError.psobject.Properties.Name.Contains('request-id')) {
+                            $Properties["requestId"] = $BatchResponse.body.error.innerError."request-id"
+                        }
+                        if ($BatchResponse.body.error.innerError.psobject.Properties.Name.Contains('client-request-id')) {
+                            $Properties["clientRequestId"] = $BatchResponse.body.error.innerError."client-request-id"
+                        }
+                    }
+                    Write-AppInsightsException $cmdError.Exception -Properties $Properties
                 }
                 return $true
             }
@@ -277,7 +305,8 @@ function Get-MsGraphResults {
                             }
                             continue
                         }
-                        if (!(Test-MsGraphBatchError $results)) {
+                        $currentRequest = $BatchRequests[$iRequest] | Where-Object {$_.id -eq $results.id}
+                        if (!(Test-MsGraphBatchError $results $currentRequest)) {
                             if ($IncapsulateReferenceListInParentObject -and $listRequests[$results.id].url -match '.*/(.+)/(.+)/((?:transitive)?members|owners)') {
                                 [PSCustomObject]@{
                                     id            = $Matches[2]
@@ -360,7 +389,7 @@ function Get-MsGraphResults {
                                 Catch-MsGraphError $_ 
                             }
                             ## check if throttling happened
-                            if ($_.Exception.PSobject.Properties.Name.Contains("Response") -and $_.Exception.Response.StatusCode.value__ -eq 429) {
+                            if ($_.Exception.PSobject.Properties.Name.Contains("Response") -and $_.Exception.Response.PSobject.Properties.Name.Contains("StatusCode") -and $_.Exception.Response.StatusCode.value__ -eq 429) {
                                 # Get the retry after header
                                 try {
                                     $RetryAfter = [double]($_.Exception.Response.Headers.GetValues('Retry-After')[0])
