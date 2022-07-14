@@ -64,13 +64,13 @@ function Invoke-AADAssessmentDataCollection {
         #$OutputDirectory = Join-Path $OutputDirectory "AzureADAssessment"
         $OutputDirectoryData = Join-Path $OutputDirectory "AzureADAssessmentData"
         $AssessmentDetailPath = Join-Path $OutputDirectoryData "AzureADAssessment.json"
-        $PackagePath = Join-Path $OutputDirectory "AzureADAssessmentData.zip"
+        $PackagePath = Join-Path $OutputDirectory "AzureADAssessmentData.aad"
 
         ### Organization Data - 0
         Write-Progress -Id 0 -Activity 'Microsoft Azure AD Assessment Data Collection' -Status 'Organization Details' -PercentComplete 0
         $OrganizationData = Get-MsGraphResults 'organization?$select=id,displayName,verifiedDomains,technicalNotificationMails' -ErrorAction Stop
         $InitialTenantDomain = $OrganizationData.verifiedDomains | Where-Object isInitial -EQ $true | Select-Object -ExpandProperty name -First 1
-        $PackagePath = $PackagePath.Replace("AzureADAssessmentData.zip", "AzureADAssessmentData-$InitialTenantDomain.zip")
+        $PackagePath = $PackagePath.Replace("AzureADAssessmentData.aad", "AzureADAssessmentData-$InitialTenantDomain.aad")
         $OutputDirectoryAAD = Join-Path $OutputDirectoryData "AAD-$InitialTenantDomain"
         Assert-DirectoryExists $OutputDirectoryAAD
 
@@ -322,6 +322,15 @@ function Invoke-AADAssessmentDataCollection {
             Remove-Item -Path (Join-Path $OutputDirectoryAAD "*") -Include "*Data.csv" -ErrorAction Ignore
         }
 
+        ### Check if folder is healthy
+        $dataFiles = @()
+        $dataFiles += Get-Item (Join-Path $OutputDirectoryAAD "*") -Include "*Data.xml" -ErrorAction Ignore
+        $dataFiles += Get-Item (Join-Path $OutputDirectoryAAD "*") -Include "*Data.csv" -ErrorAction Ignore
+        if ($dataFiles.Count -gt 0) {
+            Write-Warning "Either reporting has been turned off or there was an error during data collection or reporting"
+            Write-Warning "The generated package won't have the necessary information for the Assessment"
+        }
+
         ### Complete
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Completed
 
@@ -334,10 +343,18 @@ function Invoke-AADAssessmentDataCollection {
 
         if (!$SkipPackaging) {
             ### Package Output
-            Compress-Archive (Join-Path $OutputDirectoryData '\*') -DestinationPath $PackagePath -Force -ErrorAction Stop
+            #Compress-Archive (Join-Path $OutputDirectoryData '\*') -DestinationPath $PackagePath -Force -ErrorAction Stop
+            [System.IO.Compression.ZipFile]::CreateFromDirectory($OutputDirectoryData,$PackagePath)
 
-            ### Clean-Up Data Files
-            Remove-Item $OutputDirectoryData -Recurse -Force
+            if (Test-AADAssessmentPackage -Path $PackagePath) {
+                ### Clean-Up Data Files
+                Remove-Item $OutputDirectoryData -Recurse -Force
+            } else {
+                Write-Warning "The generated package is missing some data"
+                Write-Warning "If you are working with microsoft or a provider on the assessment please warn them"
+                Write-Warning "Don't hesitate to fill in a github issue mentionning the errors seen"
+                Write-warning "https://github.com/AzureAD/AzureADAssessment/issues/new"
+            }
         }
 
         ### Open Directory

@@ -53,9 +53,11 @@ function Expand-MsGraphRelationship {
                 [array] $Results = $InputObjects[0..($BatchSize - 1)] | Get-MsGraphResults $uri -DisableUniqueIdDeduplication -GroupOutputByRequest
             }
             for ($i = 0; $i -lt $InputObjects.Count; $i++) {
-                [array] $refValues = $Results[$i]
+                $refValues = @()
+                if ($i -lt $Results.Count) {
+                    [array] $refValues = $Results[$i]
+                }
                 if ($References) { $refValues = $refValues | Expand-ODataId | Select-Object -Property "*" -ExcludeProperty '@odata.id' }
-                if ($null -eq $refValues) { $refValues = @() }
                 $InputObjects[$i] | Add-Member -Name $PropertyName -MemberType NoteProperty -Value $refValues -PassThru -ErrorAction Ignore
             }
             $InputObjects.RemoveRange(0, $BatchSize)
@@ -72,9 +74,11 @@ function Expand-MsGraphRelationship {
                 [array] $Results = $InputObjects | Get-MsGraphResults $uri -DisableUniqueIdDeduplication -GroupOutputByRequest
             }
             for ($i = 0; $i -lt $InputObjects.Count; $i++) {
-                [array] $refValues = $Results[$i]
+                $refValues = @()
+                if ($Results.Count -gt $i) {
+                    [array] $refValues = $Results[$i]
+                }
                 if ($References) { $refValues = $refValues | Expand-ODataId | Select-Object -Property "*" -ExcludeProperty '@odata.id' }
-                if ($null -eq $refValues) { $refValues = @() }
                 $InputObjects[$i] | Add-Member -Name $PropertyName -MemberType NoteProperty -Value $refValues -PassThru -ErrorAction Ignore
             }
         }
