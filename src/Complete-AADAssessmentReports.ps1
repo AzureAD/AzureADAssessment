@@ -64,18 +64,27 @@ function Complete-AADAssessmentReports {
         $OutputDirectoryData = Join-Path $OutputDirectory ([IO.Path]::GetFileNameWithoutExtension($Path))
         $AssessmentDetailPath = Join-Path $OutputDirectoryData "AzureADAssessment.json"
 
+        ## Expand Data Package
+        Write-Progress -Id 0 -Activity 'Microsoft Azure AD Assessment Complete Reports' -Status 'Expand Data' -PercentComplete 0
+        #Expand-Archive $Path -DestinationPath $OutputDirectoryData -Force -ErrorAction Stop
+        # Remove destination before extract
+        if (Test-Path -Path $OutputDirectoryData) {
+            Remove-Item $OutputDirectoryData -Recurse -Force
+        }
+        # Extract content
+        [System.IO.Compression.ZipFile]::ExtractToDirectory($Path,$OutputDirectoryData)
+        $AssessmentDetail = Get-Content $AssessmentDetailPath -Raw | ConvertFrom-Json
+        #Check for DataFiles
+        $OutputDirectoryAAD = Join-Path $OutputDirectoryData 'AAD-*' -Resolve -ErrorAction Stop
+        [array] $DataFiles = Get-Item -Path (Join-Path $OutputDirectoryAAD "*") -Include "*Data.xml"
+        $SkippedReportOutput = $DataFiles -and $DataFiles.Count -eq 9
+
         ## Check the provided archive
-        $archiveState = Test-AADAssessmentPackage -Path $Path
+        $archiveState = Test-AADAssessmentPackage -Path $Path -SkippedReportOutput $SkippedReportOutput
         if (!$archiveState) {
             Write-Warning "The provided package is incomplete. Please review how data was collected and any related errors"
             Write-Warning "If reporting has been skipped this command will generate the reports"
         }
-
-        ## Expand Data Package
-        Write-Progress -Id 0 -Activity 'Microsoft Azure AD Assessment Complete Reports' -Status 'Expand Data' -PercentComplete 0
-        #Expand-Archive $Path -DestinationPath $OutputDirectoryData -Force -ErrorAction Stop
-        [System.IO.Compression.ZipFile]::ExtractToDirectory($Path,$OutputDirectoryData)
-        $AssessmentDetail = Get-Content $AssessmentDetailPath -Raw | ConvertFrom-Json
 
         # Check assessment version
         $moduleVersion = $MyInvocation.MyCommand.ScriptBlock.Module.Version
@@ -105,11 +114,9 @@ function Complete-AADAssessmentReports {
 
         ## Load Data
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Complete Reports - {0}' -f $AssessmentDetail.AssessmentTenantDomain) -Status 'Load Data' -PercentComplete 10
-        $OutputDirectoryAAD = Join-Path $OutputDirectoryData 'AAD-*' -Resolve -ErrorAction Stop
 
         ## Generate Reports
-        [array] $DataFiles = Get-Item -Path (Join-Path $OutputDirectoryAAD "*") -Include "*Data.xml"
-        if ($DataFiles -and $DataFiles.Count -eq 9) {
+        if ($SkippedReportOutput) {
             Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Complete Reports - {0}' -f $AssessmentDetail.AssessmentTenantDomain) -Status 'Output Report Data' -PercentComplete 20
             Export-AADAssessmentReportData -SourceDirectory $OutputDirectoryAAD -OutputDirectory $OutputDirectoryAAD
 

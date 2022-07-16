@@ -322,15 +322,6 @@ function Invoke-AADAssessmentDataCollection {
             Remove-Item -Path (Join-Path $OutputDirectoryAAD "*") -Include "*Data.csv" -ErrorAction Ignore
         }
 
-        ### Check if folder is healthy
-        $dataFiles = @()
-        $dataFiles += Get-Item (Join-Path $OutputDirectoryAAD "*") -Include "*Data.xml" -ErrorAction Ignore
-        $dataFiles += Get-Item (Join-Path $OutputDirectoryAAD "*") -Include "*Data.csv" -ErrorAction Ignore
-        if ($dataFiles.Count -gt 0) {
-            Write-Warning "Either reporting has been turned off or there was an error during data collection or reporting"
-            Write-Warning "The generated package won't have the necessary information for the Assessment"
-        }
-
         ### Complete
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Completed
 
@@ -342,19 +333,14 @@ function Invoke-AADAssessmentDataCollection {
         }
 
         if (!$SkipPackaging) {
+            ### Remove pre existing package
+            Remove-Item $PackagePath -Force
+
             ### Package Output
             #Compress-Archive (Join-Path $OutputDirectoryData '\*') -DestinationPath $PackagePath -Force -ErrorAction Stop
             [System.IO.Compression.ZipFile]::CreateFromDirectory($OutputDirectoryData,$PackagePath)
 
-            if (Test-AADAssessmentPackage -Path $PackagePath) {
-                ### Clean-Up Data Files
-                Remove-Item $OutputDirectoryData -Recurse -Force
-            } else {
-                Write-Warning "The generated package is missing some data"
-                Write-Warning "If you are working with microsoft or a provider on the assessment please warn them"
-                Write-Warning "Don't hesitate to fill in a github issue mentionning the errors seen"
-                Write-warning "https://github.com/AzureAD/AzureADAssessment/issues/new"
-            }
+            Remove-Item $OutputDirectoryData -Recurse -Force
         }
 
         ### Open Directory
@@ -362,5 +348,23 @@ function Invoke-AADAssessmentDataCollection {
 
     }
     catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException $_.Exception }; throw }
-    finally { Complete-AppInsightsRequest $MyInvocation.MyCommand.Name -Success $? }
+    finally {
+        # check generated package and issue warning
+        $issue = $false
+        if (!(Test-Path -PathType Leaf -Path $PackagePath) -and !$SkipPackaging) {
+            Write-Warning "The export package has not been generated"
+            $issue = $true
+        } elseif (!$SkipPackaging) {
+            if (!(Test-AADAssessmentPackage -Path $PackagePath -SkippedReportOutput $SkipReportOutput)) {
+                Write-Warning "The generated package is missing some data"
+                $issue = $true
+            }
+        }
+        if ($issue) {
+            Write-Warning "If you are working with microsoft or a provider on the assessment please warn them"
+            Write-Warning "Please check GitHub issues and fill a new one or reply on existing ones mentionning the errors seen"
+            Write-warning "https://github.com/AzureAD/AzureADAssessment/issues"
+        }
+        Complete-AppInsightsRequest $MyInvocation.MyCommand.Name -Success $? 
+    }
 }

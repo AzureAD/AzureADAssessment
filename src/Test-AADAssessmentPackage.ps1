@@ -4,8 +4,8 @@
 .DESCRIPTION
     Test that the provided Azure AD Assessment package has the necessary content
 .EXAMPLE
-    PS C:\>Test-AADAssessmentPackage 'C:\AzureADAssessmentData-contoso.onmicrosoft.com.aad'
-    Test that the package for contoso.onmicrosoft.com has the necesary content for the assessment.
+    PS C:\>Test-AADAssessmentPackage 'C:\AzureADAssessmentData-contoso.aad'
+    Test that the package for contoso has the necesary content for the assessment.
 .INPUTS
     System.String
 #>
@@ -15,7 +15,10 @@ function Test-AADAssessmentPackage {
     (
         # Path to the file where the exported events will be stored
         [Parameter(Mandatory = $true)]
-        [string] $Path
+        [string] $Path,
+        # Reports should have been generated
+        [Parameter(Mandatory = $false)]
+        [bool] $SkippedReportOutput
     )
 
     if (!(Test-Path -path $Path)) {
@@ -26,35 +29,54 @@ function Test-AADAssessmentPackage {
     $fullPath = Convert-Path $Path
 
     $requiredEntries = @(
-        "AAD-*.onmicrosoft.com/administrativeUnits.csv",
-        "AAD-*.onmicrosoft.com/AppCredentialsReport.csv",
-        "AAD-*.onmicrosoft.com/applications.json",
-        "AAD-*.onmicrosoft.com/appRoleAssignments.csv",
-        "AAD-*.onmicrosoft.com/conditionalAccessPolicies.json",
-        "AAD-*.onmicrosoft.com/ConsentGrantReport.csv",
-        "AAD-*.onmicrosoft.com/emailOTPMethodPolicy.json",
-        "AAD-*.onmicrosoft.com/groups.csv",
-        "AAD-*.onmicrosoft.com/namedLocations.json",
-        "AAD-*.onmicrosoft.com/NotificationsEmailsReport.csv",
-        "AAD-*.onmicrosoft.com/oauth2PermissionGrants.csv",
-        "AAD-*.onmicrosoft.com/organization.json",
-        "AAD-*.onmicrosoft.com/RoleAssignmentReport.csv",
-        "AAD-*.onmicrosoft.com/roleDefinitions.csv",
-        "AAD-*.onmicrosoft.com/servicePrincipals.csv",
-        "AAD-*.onmicrosoft.com/servicePrincipals.json",
-        "AAD-*.onmicrosoft.com/subscribedSkus.json",
-        "AAD-*.onmicrosoft.com/userRegistrationDetails.json",
-        "AAD-*.onmicrosoft.com/users.csv",
+        "AAD-*/administrativeUnits.csv",
+        "AAD-*/AppCredentialsReport.csv",
+        "AAD-*/applications.json",
+        "AAD-*/appRoleAssignments.csv",
+        "AAD-*/conditionalAccessPolicies.json",
+        "AAD-*/ConsentGrantReport.csv",
+        "AAD-*/emailOTPMethodPolicy.json",
+        "AAD-*/groups.csv",
+        "AAD-*/namedLocations.json",
+        "AAD-*/NotificationsEmailsReport.csv",
+        "AAD-*/oauth2PermissionGrants.csv",
+        "AAD-*/organization.json",
+        "AAD-*/RoleAssignmentReport.csv",
+        "AAD-*/roleDefinitions.csv",
+        "AAD-*/servicePrincipals.csv",
+        "AAD-*/servicePrincipals.json",
+        "AAD-*/subscribedSkus.json",
+        "AAD-*/userRegistrationDetails.json",
+        "AAD-*/users.csv",
         "AzureADAssessment.json"
     )
+
+    if ($SkippedReportOutput) {
+        $requiredEntries = @(
+            "AAD-*/administrativeUnits.csv",
+            "AAD-*/applicationData.xml",
+            "AAD-*/appRoleAssignmentData.xml",
+            "AAD-*/conditionalAccessPolicies.json",
+            "AAD-*/directoryRoleData.xml"
+            "AAD-*/emailOTPMethodPolicy.json",
+            "AAD-*/groupData.xml",
+            "AAD-*/namedLocations.json",
+            "AAD-*/oauth2PermissionGrantData.xml",
+            "AAD-*/organization.json",
+            "AAD-*/roleAssignmentSchedulesData.xml",
+            "AAD-*/roleDefinitions.csv",
+            "AAD-*/roleEligibilitySchedulesData.xml",
+            "AAD-*/servicePrincipalData.xml",
+            "AAD-*/subscribedSkus.json",
+            "AAD-*/userData.xml",
+            "AAD-*/userRegistrationDetails.json",
+            "AzureADAssessment.json"
+        )
+    }
 
     $entries = [IO.Compression.ZipFile]::OpenRead($fullPath).Entries
 
     $effectiveEntries = $entries | Where-Object { $_.Length -gt 0}
-
-    if ($effectiveEntries -match "Data\.(xml|csv)$") {
-        Write-Warning "Assessment package contains data files which should have been removed by reporting"
-    }
 
     $validPackage = $true
     foreach($requiredEntry in $requiredEntries) {
