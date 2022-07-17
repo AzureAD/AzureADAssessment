@@ -333,8 +333,11 @@ function Invoke-AADAssessmentDataCollection {
         }
 
         if (!$SkipPackaging) {
-            ### Remove pre existing package
-            Remove-Item $PackagePath -Force
+            ### Remove pre existing package (zip) if it exists
+            if (Test-Path -Path $PackagePath) {
+                Remove-Item $PackagePath -Force
+            }
+            
 
             ### Package Output
             #Compress-Archive (Join-Path $OutputDirectoryData '\*') -DestinationPath $PackagePath -Force -ErrorAction Stop
