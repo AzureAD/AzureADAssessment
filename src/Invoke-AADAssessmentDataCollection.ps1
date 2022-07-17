@@ -228,9 +228,10 @@ function Invoke-AADAssessmentDataCollection {
         $ReferencedIdCache.servicePrincipal.Clear()
 
         ### Administrative units data - 14
+        Set-Content -Path (Join-Path $OutputDirectoryAAD "administrativeUnits.csv") -Value 'id,displayName,visibility'
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Administrative Units' -PercentComplete 65
         Get-MsGraphResults 'directory/administrativeUnits' -Select 'id,displayName,visibility' `
-        | Export-Csv (Join-Path $OutputDirectoryAAD "administrativeUnits.csv")
+        | Export-Csv (Join-Path $OutputDirectoryAAD "administrativeUnits.csv")  -NoTypeInformation -Append
 
         ### Registration details data - 15
         if ($licenseType -ne "Free") {
