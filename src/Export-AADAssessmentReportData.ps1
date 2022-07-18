@@ -188,12 +188,12 @@ function Export-AADAssessmentReportData {
         # Set file header
         Set-Content -Path (Join-Path $OutputDirectory "RoleAssignmentReport.csv") -Value "id,directoryScopeId,directoryScopeObjectId,directoryScopeDisplayName,directoryScopeType,roleDefinitionId,roleDefinitionTemplateId,roleDefinitionDisplayName,principalId,principalDisplayName,principalType,memberType,status,assignmentType,startDateTime,endDateTime"
         # load unique data
-        [array] $roleAssignmentSchedulesData =  @()
-        [array] $roleEligibilitySchedulesData = @()
+        [array] $roleAssignmentScheduleInstancesData =  @()
+        [array] $roleEligibilityScheduleInstancesData = @()
         [array] $roleAssignmentsData = @()
         if ($licenseType -eq "P2") {
-            $roleAssignmentSchedulesData = Import-Clixml -Path (Join-Path $SourceDirectory "roleAssignmentSchedulesData.xml")
-            $roleEligibilitySchedulesData = Import-Clixml -Path (Join-Path $SourceDirectory "roleEligibilitySchedulesData.xml")
+            $roleAssignmentScheduleInstancesData = Import-Clixml -Path (Join-Path $SourceDirectory "roleAssignmentScheduleInstancesData.xml")
+            $roleEligibilityScheduleInstancesData = Import-Clixml -Path (Join-Path $SourceDirectory "roleEligibilityScheduleInstancesData.xml")
         } else {
             $roleAssignmentsData = Import-Clixml -Path (Join-Path $SourceDirectory "roleAssignmentsData.xml")
         }
@@ -220,13 +220,13 @@ function Export-AADAssessmentReportData {
         }
 
         # generate the report
-        Get-AADAssessRoleAssignmentReport -Offline -TenantHasP2 ($licenseType -eq "P2") -RoleAssignmentsData $roleAssignmentsData -RoleAssignmentSchedulesData $roleAssignmentSchedulesData -RoleEligibilitySchedulesData $roleEligibilitySchedulesData -OrganizationData $OrganizationData -AdministrativeUnitsData $LookupCache.administrativeUnit -UsersData $LookupCache.user -GroupsData $LookupCache.group -ApplicationsData $LookupCache.application -ServicePrincipalsData $LookupCache.servicePrincipal `
+        Get-AADAssessRoleAssignmentReport -Offline -RoleAssignmentsData $roleAssignmentsData -roleAssignmentScheduleInstancesData $roleAssignmentScheduleInstancesData -roleEligibilityScheduleInstancesData $roleEligibilityScheduleInstancesData -OrganizationData $OrganizationData -AdministrativeUnitsData $LookupCache.administrativeUnit -UsersData $LookupCache.user -GroupsData $LookupCache.group -ApplicationsData $LookupCache.application -ServicePrincipalsData $LookupCache.servicePrincipal `
         | Use-Progress -Activity 'Exporting RoleAssignmentReport' -Property id -PassThru -WriteSummary `
         | Format-Csv `
         | Export-Csv -Path (Join-Path $OutputDirectory "RoleAssignmentReport.csv") -NoTypeInformation -Append
 
         # clear unique data
-        Remove-Variable roleAssignmentSchedulesData, roleEligibilitySchedulesData
+        Remove-Variable roleAssignmentScheduleInstancesData, roleEligibilityScheduleInstancesData
         # clear cache as data is not further used by other reports
         $LookupCache.group.Clear()
         $LookupCache.administrativeUnit.Clear()
