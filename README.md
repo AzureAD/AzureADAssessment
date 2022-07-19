@@ -42,9 +42,9 @@ On each server running hybrid components, install the same module and run the In
 Invoke-AADAssessmentHybridDataCollection
 ```
 
-The output package will be named according to the following pattern: `AzureADAssessmentData-<TenantDomain>.zip`
+The output package will be named according to the following pattern: `AzureADAssessmentData-<TenantDomain>.aad`
 
-Once data collection is complete, provide the output packages to whoever is completing the assessment. Please avoid making any changes to the generated zip files including the name of the file.
+Once data collection is complete, provide the output packages to whoever is completing the assessment. Please avoid making any changes to the generated files including the name of the file.
 
 ## Complete Assessment Reports
 If you are generating and reviewing the output yourself, please see the Wiki for the [Assessment Guide](https://github.com/AzureAD/AzureADAssessment/wiki).
