@@ -66,16 +66,57 @@ function Complete-AADAssessmentReports {
 
         ## Expand Data Package
         Write-Progress -Id 0 -Activity 'Microsoft Azure AD Assessment Complete Reports' -Status 'Expand Data' -PercentComplete 0
-        Expand-Archive $Path -DestinationPath $OutputDirectoryData -Force -ErrorAction Stop
+        #Expand-Archive $Path -DestinationPath $OutputDirectoryData -Force -ErrorAction Stop
+        # Remove destination before extract
+        if (Test-Path -Path $OutputDirectoryData) {
+            Remove-Item $OutputDirectoryData -Recurse -Force
+        }
+        # Extract content
+        [System.IO.Compression.ZipFile]::ExtractToDirectory($Path,$OutputDirectoryData)
         $AssessmentDetail = Get-Content $AssessmentDetailPath -Raw | ConvertFrom-Json
+        #Check for DataFiles
+        $OutputDirectoryAAD = Join-Path $OutputDirectoryData 'AAD-*' -Resolve -ErrorAction Stop
+        [array] $DataFiles = Get-Item -Path (Join-Path $OutputDirectoryAAD "*") -Include "*Data.xml"
+        $SkippedReportOutput = $DataFiles -and $DataFiles.Count -eq 9
+
+        ## Check the provided archive
+        $archiveState = Test-AADAssessmentPackage -Path $Path -SkippedReportOutput $SkippedReportOutput
+        if (!$archiveState) {
+            Write-Warning "The provided package is incomplete. Please review how data was collected and any related errors"
+            Write-Warning "If reporting has been skipped this command will generate the reports"
+        }
+
+        # Check assessment version
+        $moduleVersion = $MyInvocation.MyCommand.ScriptBlock.Module.Version
+        [System.Version]$packageVersion = $AssessmentDetail.AssessmentVersion
+        if ($packageVersion.Build -eq -1) {
+            Write-Warning "The package was not generate with a module installed from the PowerShell Gallery"
+            Write-Warning "Please install the module from the gallery to generate the package:"
+            Write-Warning "PS > Install-Module -Name AzureADAssessment"
+        }
+        elseif ($moduleVersion.Build -eq -1) {
+            Write-Warning "The Azure AD Assessment module was not installed from the PowerShell Gallery"
+            Write-Warning "Please install the module from the gallery to complete the assessment:"
+            Write-Warning "PS > Install-Module -Name AzureADAssessment"
+        }
+        elseif ($moduleVersion -ne $packageVersion) {
+            Write-Warning "The module version differs from the provided package and the Assessment module version used to run the complete command"
+            Write-Warning "Please use the same module version to generate the package and complete the assessment"
+            Write-Warning ""
+            Write-Warning "package version: $packageVersion"
+            Write-Warning "module version: $moduleVersion"
+            Write-Warning ""
+            Write-Warning "To install a specific version of the module:"
+            Write-Warning "PS > Remove-Module -Name AzureADAssessment"
+            Write-Warning "PS > Install-Module -Name AzureADAssessment -RequiredVersion $packageVersion"
+            Write-Warning "PS > Import-Module -Name AzureADAssessment -RequiredVersion $packageVersion"
+        }
 
         ## Load Data
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Complete Reports - {0}' -f $AssessmentDetail.AssessmentTenantDomain) -Status 'Load Data' -PercentComplete 10
-        $OutputDirectoryAAD = Join-Path $OutputDirectoryData 'AAD-*' -Resolve -ErrorAction Stop
 
         ## Generate Reports
-        [array] $DataFiles = Get-Item -Path (Join-Path $OutputDirectoryAAD "*") -Include "*Data.xml"
-        if ($DataFiles -and $DataFiles.Count -eq 9) {
+        if ($SkippedReportOutput) {
             Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Complete Reports - {0}' -f $AssessmentDetail.AssessmentTenantDomain) -Status 'Output Report Data' -PercentComplete 20
             Export-AADAssessmentReportData -SourceDirectory $OutputDirectoryAAD -OutputDirectory $OutputDirectoryAAD
 

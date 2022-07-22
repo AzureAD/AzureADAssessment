@@ -203,7 +203,7 @@
         <Area>Access Surface Area</Area>
         <ID>AR0006</ID>
         <Name>Grants for high level permissions</Name>
-        <Summary>Application can request high level permission trough fishing. Such permissions include those allowing "ReadWrite" actions or "Mail" operations. Regular reviews should be in place and non-necessary grants should be removed</Summary>
+        <Summary>Applications can request high level permission trough consent fishing. Such permissions include those allowing "ReadWrite" actions or "Mail" operations. Regular reviews should be in place and non-necessary grants should be removed</Summary>
         <Recommendation>Review applications having high permissions and remove unnecessary grants</Recommendation>
     </recommendation>
     <recommendation>
@@ -286,7 +286,7 @@
         <Area>Entitlement Management</Area>
         <ID>AR0009</ID>
         <Name>Assignment of Apps with "All users" group</Name>
-        <Summary>The "All users" group contains both Members and Guests. Resource owners might misunderstand this group to contain only members. As a result, special condsideration should be takeb when using this group for application assignment or grant access tor resource such as SharePoint Content or Azure resources</Summary>
+        <Summary>The "All users" group contains both Members and Guests. Resource owners might misunderstand this group to contain only members. As a result, special condsideration should be taken when using this group for application assignment or grant access tor resource such as SharePoint Content or Azure resources</Summary>
         <Recommendation>Fix the entittlements by creating the right groups (e.g. "all members")</Recommendation>
     </recommendation>
     <recommendation>
@@ -2186,7 +2186,6 @@
         </Recommendation>        
         <Sources>
             <File>roleDefinitions.csv</File>
-            <File>RoleAssignmentReport.csv</File>
             <File>conditionalAccessPolicies.json</File>
         </Sources>
         <PowerShell>

@@ -27,7 +27,7 @@ function New-AADAssessmentRecommendations {
         [string] $InterviewSpreadsheetPath
     )
 
-    #Start-AppInsightsRequest $MyInvocation.MyCommand.Name
+    Start-AppInsightsRequest $MyInvocation.MyCommand.Name
 
     ## Expand extracted data
     if (-not $SkipExpand) {
@@ -185,7 +185,7 @@ function New-AADAssessmentRecommendations {
         Write-Error "No Tenant Data found"
     }
 
-    #Complete-AppInsightsRequest $MyInvocation.MyCommand.Name -Success $?
+    Complete-AppInsightsRequest $MyInvocation.MyCommand.Name -Success $?
 }
 
 function Set-TypeQnAResult($data, $recommendationDef, $recommendation){

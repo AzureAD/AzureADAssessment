@@ -148,7 +148,7 @@ function Export-AADAssessmentReportData {
         }
 
         # generate the report
-        Set-Content -Path (Join-Path $OutputDirectory "users.csv") -Value 'id,userPrincipalName,displayName,userType,accountEnabled,onPremisesSyncEnabled,onPremisesImmutableId,mail,otherMails,AADLicense,lastInteractiveSignInDateTime,lastNonInteractiveSignInDateTime,isMfaRegistered,isMfaCapable,methodsRegistered'
+        Set-Content -Path (Join-Path $OutputDirectory "users.csv") -Value 'id,userPrincipalName,displayName,userType,accountEnabled,onPremisesSyncEnabled,onPremisesImmutableId,mail,otherMails,AADLicense,lastInteractiveSignInDateTime,lastNonInteractiveSignInDateTime,isMfaRegistered,isMfaCapable,methodsRegistered,defaultMfaMethod'
         Get-AADAssessUserReport -Offline -UserData $LookupCache.user -RegistrationDetailsData  $LookupCache.userRegistrationDetails`
         | Use-Progress -Activity 'Exporting UserReport' -Property id -PassThru -WriteSummary `
         | Format-Csv `

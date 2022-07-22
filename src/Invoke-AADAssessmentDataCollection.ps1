@@ -64,13 +64,13 @@ function Invoke-AADAssessmentDataCollection {
         #$OutputDirectory = Join-Path $OutputDirectory "AzureADAssessment"
         $OutputDirectoryData = Join-Path $OutputDirectory "AzureADAssessmentData"
         $AssessmentDetailPath = Join-Path $OutputDirectoryData "AzureADAssessment.json"
-        $PackagePath = Join-Path $OutputDirectory "AzureADAssessmentData.zip"
+        $PackagePath = Join-Path $OutputDirectory "AzureADAssessmentData.aad"
 
         ### Organization Data - 0
         Write-Progress -Id 0 -Activity 'Microsoft Azure AD Assessment Data Collection' -Status 'Organization Details' -PercentComplete 0
         $OrganizationData = Get-MsGraphResults 'organization?$select=id,displayName,verifiedDomains,technicalNotificationMails' -ErrorAction Stop
         $InitialTenantDomain = $OrganizationData.verifiedDomains | Where-Object isInitial -EQ $true | Select-Object -ExpandProperty name -First 1
-        $PackagePath = $PackagePath.Replace("AzureADAssessmentData.zip", "AzureADAssessmentData-$InitialTenantDomain.zip")
+        $PackagePath = $PackagePath.Replace("AzureADAssessmentData.aad", "AzureADAssessmentData-$InitialTenantDomain.aad")
         $OutputDirectoryAAD = Join-Path $OutputDirectoryData "AAD-$InitialTenantDomain"
         Assert-DirectoryExists $OutputDirectoryAAD
 
@@ -228,9 +228,10 @@ function Invoke-AADAssessmentDataCollection {
         $ReferencedIdCache.servicePrincipal.Clear()
 
         ### Administrative units data - 14
+        Set-Content -Path (Join-Path $OutputDirectoryAAD "administrativeUnits.csv") -Value 'id,displayName,visibility'
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Administrative Units' -PercentComplete 65
         Get-MsGraphResults 'directory/administrativeUnits' -Select 'id,displayName,visibility' `
-        | Export-Csv (Join-Path $OutputDirectoryAAD "administrativeUnits.csv")
+        | Export-Csv (Join-Path $OutputDirectoryAAD "administrativeUnits.csv")  -NoTypeInformation -Append
 
         ### Registration details data - 15
         if ($licenseType -ne "Free") {
@@ -333,10 +334,16 @@ function Invoke-AADAssessmentDataCollection {
         }
 
         if (!$SkipPackaging) {
-            ### Package Output
-            Compress-Archive (Join-Path $OutputDirectoryData '\*') -DestinationPath $PackagePath -Force -ErrorAction Stop
+            ### Remove pre existing package (zip) if it exists
+            if (Test-Path -Path $PackagePath) {
+                Remove-Item $PackagePath -Force
+            }
+            
 
-            ### Clean-Up Data Files
+            ### Package Output
+            #Compress-Archive (Join-Path $OutputDirectoryData '\*') -DestinationPath $PackagePath -Force -ErrorAction Stop
+            [System.IO.Compression.ZipFile]::CreateFromDirectory($OutputDirectoryData,$PackagePath)
+
             Remove-Item $OutputDirectoryData -Recurse -Force
         }
 
@@ -345,5 +352,23 @@ function Invoke-AADAssessmentDataCollection {
 
     }
     catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException $_.Exception }; throw }
-    finally { Complete-AppInsightsRequest $MyInvocation.MyCommand.Name -Success $? }
+    finally {
+        # check generated package and issue warning
+        $issue = $false
+        if (!(Test-Path -PathType Leaf -Path $PackagePath) -and !$SkipPackaging) {
+            Write-Warning "The export package has not been generated"
+            $issue = $true
+        } elseif (!$SkipPackaging) {
+            if (!(Test-AADAssessmentPackage -Path $PackagePath -SkippedReportOutput $SkipReportOutput)) {
+                Write-Warning "The generated package is missing some data"
+                $issue = $true
+            }
+        }
+        if ($issue) {
+            Write-Warning "If you are working with microsoft or a provider on the assessment please warn them"
+            Write-Warning "Please check GitHub issues and fill a new one or reply on existing ones mentionning the errors seen"
+            Write-warning "https://github.com/AzureAD/AzureADAssessment/issues"
+        }
+        Complete-AppInsightsRequest $MyInvocation.MyCommand.Name -Success $? 
+    }
 }

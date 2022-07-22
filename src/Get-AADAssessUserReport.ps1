@@ -57,10 +57,14 @@ function Get-AADAssessUserReport {
                 $isMfaCapable = $false
                 $isMfaRegistered = $false
                 $methodsRegistered = ""
+                $defaultMfaMethod = ""
                 if ($registerationDetails) {
                     $isMfaRegistered = $registerationDetails.isMfaRegistered
                     $isMfaCapable = $registerationDetails.isMfaCapable
                     $methodsRegistered = $registerationDetails.methodsRegistered -join ";"
+                    if ($registerationDetails.defaultMfaMethod -ne "none") {
+                        $defaultMfaMethod = $registerationDetails.defaultMfaMethod
+                    }
                 } else {
                     Write-Warning "authentication method registration not found for $($InputObject.id)"
                 }
@@ -81,6 +85,7 @@ function Get-AADAssessUserReport {
                     "isMfaRegistered" = $isMfaRegistered
                     "isMfaCapable" = $isMfaCapable
                     "methodsRegistered" = $methodsRegistered
+                    "defaultMfaMethod" = $defaultMfaMethod
                 }
             }    
         }
