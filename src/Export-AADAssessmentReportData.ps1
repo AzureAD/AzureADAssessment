@@ -159,34 +159,34 @@ function Export-AADAssessmentReportData {
     }
 
     # notificaiton emails report
-    if (!(Test-Path -Path (Join-Path $OutputDirectory "NotificationsEmailsReport.csv")) -or $Force) {
-        # load unique data
-        $OrganizationData = Get-Content -Path (Join-Path $SourceDirectory "organization.json") -Raw | ConvertFrom-Json
-        [array] $DirectoryRoleData = Import-Clixml -Path (Join-Path $SourceDirectory "directoryRoleData.xml")
-        # load data if cache empty
-        if ($LookupCache.user.Count -eq 0) {
-            Write-Output "Loading users in lookup cache"
-            Import-Clixml -Path (Join-Path $SourceDirectory "userData.xml") | Add-AadObjectToLookupCache -Type user -LookupCache $LookupCache
-        }
-        if ($LookupCache.group.Count -eq 0) {
-            Write-Output "Loading groups in lookup cache"
-            Import-Clixml -Path (Join-Path $SourceDirectory "groupData.xml") | Add-AadObjectToLookupCache -Type group -LookupCache $LookupCache
-        }
+    # if (!(Test-Path -Path (Join-Path $OutputDirectory "NotificationsEmailsReport.csv")) -or $Force) {
+    #     # load unique data
+    #     $OrganizationData = Get-Content -Path (Join-Path $SourceDirectory "organization.json") -Raw | ConvertFrom-Json
+    #     [array] $DirectoryRoleData = Import-Clixml -Path (Join-Path $SourceDirectory "directoryRoleData.xml")
+    #     # load data if cache empty
+    #     if ($LookupCache.user.Count -eq 0) {
+    #         Write-Output "Loading users in lookup cache"
+    #         Import-Clixml -Path (Join-Path $SourceDirectory "userData.xml") | Add-AadObjectToLookupCache -Type user -LookupCache $LookupCache
+    #     }
+    #     if ($LookupCache.group.Count -eq 0) {
+    #         Write-Output "Loading groups in lookup cache"
+    #         Import-Clixml -Path (Join-Path $SourceDirectory "groupData.xml") | Add-AadObjectToLookupCache -Type group -LookupCache $LookupCache
+    #     }
 
-        # generate the report
-        Set-Content -Path (Join-Path $OutputDirectory "NotificationsEmailsReport.csv") -Value 'notificationType,notificationScope,recipientType,recipientEmail,recipientEmailAlternate,recipientId,recipientUserPrincipalName,recipientDisplayName'
-        Get-AADAssessNotificationEmailsReport -Offline -OrganizationData $OrganizationData -UserData $LookupCache.user -GroupData $LookupCache.group -DirectoryRoleData $DirectoryRoleData `
-        | Use-Progress -Activity 'Exporting NotificationsEmailsReport' -Property recipientEmail -PassThru -WriteSummary `
-        | Export-Csv -Path (Join-Path $OutputDirectory "NotificationsEmailsReport.csv") -NoTypeInformation -Append
+    #     # generate the report
+    #     Set-Content -Path (Join-Path $OutputDirectory "NotificationsEmailsReport.csv") -Value 'notificationType,notificationScope,recipientType,recipientEmail,recipientEmailAlternate,recipientId,recipientUserPrincipalName,recipientDisplayName'
+    #     Get-AADAssessNotificationEmailsReport -Offline -OrganizationData $OrganizationData -UserData $LookupCache.user -GroupData $LookupCache.group -DirectoryRoleData $DirectoryRoleData `
+    #     | Use-Progress -Activity 'Exporting NotificationsEmailsReport' -Property recipientEmail -PassThru -WriteSummary `
+    #     | Export-Csv -Path (Join-Path $OutputDirectory "NotificationsEmailsReport.csv") -NoTypeInformation -Append
 
-        # clean unique data
-        Remove-Variable DirectoryRoleData
-    }
+    #     # clean unique data
+    #     Remove-Variable DirectoryRoleData
+    # }
 
     # role assignment report
     if (!(Test-Path -Path (Join-Path $OutputDirectory "RoleAssignmentReport.csv")) -or $Force) {
         # Set file header
-        Set-Content -Path (Join-Path $OutputDirectory "RoleAssignmentReport.csv") -Value "id,directoryScopeId,directoryScopeObjectId,directoryScopeDisplayName,directoryScopeType,roleDefinitionId,roleDefinitionTemplateId,roleDefinitionDisplayName,principalId,principalDisplayName,principalType,memberType,status,assignmentType,startDateTime,endDateTime"
+        Set-Content -Path (Join-Path $OutputDirectory "RoleAssignmentReport.csv") -Value "id,directoryScopeId,directoryScopeObjectId,directoryScopeDisplayName,directoryScopeType,roleDefinitionId,roleDefinitionTemplateId,roleDefinitionDisplayName,principalId,principalDisplayName,principalType,principalMail,principalOtherMails,memberType,assignmentType,startDateTime,endDateTime"
         # load unique data
         [array] $roleAssignmentScheduleInstancesData =  @()
         [array] $roleEligibilityScheduleInstancesData = @()
@@ -220,7 +220,7 @@ function Export-AADAssessmentReportData {
         }
 
         # generate the report
-        Get-AADAssessRoleAssignmentReport -Offline -RoleAssignmentsData $roleAssignmentsData -roleAssignmentScheduleInstancesData $roleAssignmentScheduleInstancesData -roleEligibilityScheduleInstancesData $roleEligibilityScheduleInstancesData -OrganizationData $OrganizationData -AdministrativeUnitsData $LookupCache.administrativeUnit -UsersData $LookupCache.user -GroupsData $LookupCache.group -ApplicationsData $LookupCache.application -ServicePrincipalsData $LookupCache.servicePrincipal `
+        Get-AADAssessRoleAssignmentReport -Offline -RoleAssignmentsData $roleAssignmentsData -RoleAssignmentScheduleInstancesData $roleAssignmentScheduleInstancesData -RoleEligibilityScheduleInstancesData $roleEligibilityScheduleInstancesData -OrganizationData $OrganizationData -AdministrativeUnitsData $LookupCache.administrativeUnit -UsersData $LookupCache.user -GroupsData $LookupCache.group -ApplicationsData $LookupCache.application -ServicePrincipalsData $LookupCache.servicePrincipal `
         | Use-Progress -Activity 'Exporting RoleAssignmentReport' -Property id -PassThru -WriteSummary `
         | Format-Csv `
         | Export-Csv -Path (Join-Path $OutputDirectory "RoleAssignmentReport.csv") -NoTypeInformation -Append

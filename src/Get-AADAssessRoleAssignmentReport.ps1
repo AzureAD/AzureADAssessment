@@ -94,10 +94,10 @@ function Get-AADAssessRoleAssignmentReport {
 
                     # get details of principal
                     $principalType = 'user'
-                    $principal = Get-AadObjectById $RoleScheduleInstance.principalId -Type $principalType -LookupCache $LookupCache -UseLookupCacheOnly:$UseLookupCacheOnly -Properties 'id,displayName'
+                    $principal = Get-AadObjectById $RoleScheduleInstance.principalId -Type $principalType -LookupCache $LookupCache -UseLookupCacheOnly:$UseLookupCacheOnly -Properties 'id,displayName,mail,otherMails'
                     if (!$principal) {
                         $principalType = 'group'
-                        $principal = Get-AadObjectById $RoleScheduleInstance.principalId -Type $principalType -LookupCache $LookupCache -UseLookupCacheOnly:$UseLookupCacheOnly -Properties 'id,displayName'
+                        $principal = Get-AadObjectById $RoleScheduleInstance.principalId -Type $principalType -LookupCache $LookupCache -UseLookupCacheOnly:$UseLookupCacheOnly -Properties 'id,displayName,mail'
                     } 
                     if (!$principal) {
                         $principalType = 'servicePrincipal'
@@ -119,6 +119,8 @@ function Get-AADAssessRoleAssignmentReport {
                         principalId               = $RoleScheduleInstance.principalId
                         principalDisplayName      = if ($principal) { $principal.displayName } else { $null }
                         principalType             = $principalType
+                        principalMail             = if ($principal) { Get-ObjectPropertyValue $principal mail } else { $null }
+                        principalOtherMails       = if ($principal) { Get-ObjectPropertyValue $principal otherMails } else { $null }
                         memberType                = $RoleScheduleInstance.memberType
                         assignmentType            = $RoleScheduleInstance.assignmentType
                         startDateTime             = if ($RoleScheduleInstance.psobject.Properties.Name.Contains('startDateTime')) { $RoleScheduleInstance.startDateTime } else { $null }
@@ -137,15 +139,19 @@ function Get-AADAssessRoleAssignmentReport {
                                 $OutputObject.principalId = $_.id
                                 $OutputObject.principalDisplayName = if ($principal) { $principal.displayName } else { $null }
                                 $OutputObject.principalType = $principalType
+                                $OutputObject.principalMail = if ($principal) { Get-ObjectPropertyValue $principal mail } else { $null }
+                                $OutputObject.principalOtherMails = if ($principal) { Get-ObjectPropertyValue $principal otherMails } else { $null }
                                 $OutputObject
                             }
                         }
                         else {
-                            Get-MsGraphResults 'groups/{0}/transitiveMembers' -UniqueId $RoleScheduleInstance.principal.id -Select id, displayName -Top 999 -DisableUniqueIdDeduplication `
+                            Get-MsGraphResults 'groups/{0}/transitiveMembers' -UniqueId $RoleScheduleInstance.principal.id -Select id, displayName, mail, otherMails -Top 999 -DisableUniqueIdDeduplication `
                             | ForEach-Object {
                                 $OutputObject.principalId = $_.id
                                 $OutputObject.principalDisplayName = $_.displayName
                                 $OutputObject.principalType = $_.'@odata.type' -replace '#microsoft.graph.', ''
+                                $OutputObject.principalMail = if ($principal) { Get-ObjectPropertyValue $principal mail } else { $null }
+                                $OutputObject.principalOtherMails = if ($principal) { Get-ObjectPropertyValue $principal otherMails } else { $null }
                                 $OutputObject
                             }
                         }
@@ -234,7 +240,7 @@ function Get-AADAssessRoleAssignmentReport {
         }
 
         if ($RoleEligibilityScheduleInstancesData) {
-            $RoleEligibilityScheduleInstancesData | Select-Object -Property *, @{Name = "assignmentType"; Expression = { "Eligible" }} `
+            $RoleEligibilityScheduleInstancesData | Select-Object -Property *, @{Name = "assignmentType"; Expression = { "Eligible" } } `
             | Process-RoleAssignment -LookupCache $LookupCache -UseLookupCacheOnly:$Offline
         }
         elseif (!$Offline -and $isAadP2Tenant) {
