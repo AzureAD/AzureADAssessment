@@ -38,7 +38,6 @@ function Test-AADAssessmentPackage {
         "AAD-*/emailOTPMethodPolicy.json",
         "AAD-*/groups.csv",
         "AAD-*/namedLocations.json",
-        "AAD-*/NotificationsEmailsReport.csv",
         "AAD-*/oauth2PermissionGrants.csv",
         "AAD-*/organization.json",
         "AAD-*/RoleAssignmentReport.csv",

@@ -66,18 +66,18 @@ function Complete-AADAssessmentReports {
 
         ## Expand Data Package
         Write-Progress -Id 0 -Activity 'Microsoft Azure AD Assessment Complete Reports' -Status 'Expand Data' -PercentComplete 0
-        #Expand-Archive $Path -DestinationPath $OutputDirectoryData -Force -ErrorAction Stop
         # Remove destination before extract
         if (Test-Path -Path $OutputDirectoryData) {
             Remove-Item $OutputDirectoryData -Recurse -Force
         }
         # Extract content
         [System.IO.Compression.ZipFile]::ExtractToDirectory($Path,$OutputDirectoryData)
+        #xpand-Archive $Path -DestinationPath $OutputDirectoryData -Force -ErrorAction Stop
         $AssessmentDetail = Get-Content $AssessmentDetailPath -Raw | ConvertFrom-Json
         #Check for DataFiles
         $OutputDirectoryAAD = Join-Path $OutputDirectoryData 'AAD-*' -Resolve -ErrorAction Stop
         [array] $DataFiles = Get-Item -Path (Join-Path $OutputDirectoryAAD "*") -Include "*Data.xml"
-        $SkippedReportOutput = $DataFiles -and $DataFiles.Count -eq 8
+        $SkippedReportOutput = $DataFiles -and $DataFiles.Count -ge 8
 
         ## Check the provided archive
         $archiveState = Test-AADAssessmentPackage -Path $Path -SkippedReportOutput $SkippedReportOutput

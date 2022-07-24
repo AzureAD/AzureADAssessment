@@ -246,7 +246,7 @@ function Get-AADAssessRoleAssignmentReport {
         elseif (!$Offline -and $isAadP2Tenant) {
             Write-Verbose "Getting roleEligibleScheduleInstances..."
             #Get-MsGraphResults 'roleManagement/directory/roleEligibilitySchedules' -Select 'id,directoryScopeId,memberType,scheduleInfo,status' -Filter "status eq 'Provisioned'" -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -ApiVersion 'beta' `
-            Get-MsGraphResults 'roleManagement/directory/roleEligibilityScheduleInstances' -Select 'id,directoryScopeId,memberType,principalId,startDateTime,endDateTime' -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' }
+            Get-MsGraphResults 'roleManagement/directory/roleEligibilityScheduleInstances' -Select 'id,directoryScopeId,memberType,principalId,startDateTime,endDateTime' -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } `
             | Select-Object -Property *, @{Name = "assignmentType"; Expression = { "Eligible" } } `
             | Process-RoleAssignment -LookupCache $LookupCache
         }
