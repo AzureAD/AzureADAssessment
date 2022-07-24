@@ -198,6 +198,7 @@ function Export-AADAssessmentReportData {
             $roleAssignmentsData = Import-Clixml -Path (Join-Path $SourceDirectory "roleAssignmentsData.xml")
         }
         # load data if cache empty
+        $OrganizationData = Get-Content -Path (Join-Path $SourceDirectory "organization.json") -Raw | ConvertFrom-Json
         if ($LookupCache.user.Count -eq 0) {
             Write-Output "Loading users in lookup cache"
             Import-Clixml -Path (Join-Path $SourceDirectory "userData.xml") | Add-AadObjectToLookupCache -Type user -LookupCache $LookupCache

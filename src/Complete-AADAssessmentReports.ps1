@@ -77,7 +77,7 @@ function Complete-AADAssessmentReports {
         #Check for DataFiles
         $OutputDirectoryAAD = Join-Path $OutputDirectoryData 'AAD-*' -Resolve -ErrorAction Stop
         [array] $DataFiles = Get-Item -Path (Join-Path $OutputDirectoryAAD "*") -Include "*Data.xml"
-        $SkippedReportOutput = $DataFiles -and $DataFiles.Count -eq 9
+        $SkippedReportOutput = $DataFiles -and $DataFiles.Count -eq 8
 
         ## Check the provided archive
         $archiveState = Test-AADAssessmentPackage -Path $Path -SkippedReportOutput $SkippedReportOutput

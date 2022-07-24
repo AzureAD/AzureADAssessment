@@ -57,7 +57,6 @@ function Test-AADAssessmentPackage {
             "AAD-*/applicationData.xml",
             "AAD-*/appRoleAssignmentData.xml",
             "AAD-*/conditionalAccessPolicies.json",
-            "AAD-*/directoryRoleData.xml"
             "AAD-*/emailOTPMethodPolicy.json",
             "AAD-*/groupData.xml",
             "AAD-*/namedLocations.json",
