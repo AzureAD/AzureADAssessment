@@ -142,7 +142,7 @@ function Get-AADAssessRoleAssignmentReport {
                         $OutputObject.memberType = 'Group'
 
                         if ($UseLookupCacheOnly) {
-                            Expand-GroupTransitiveMembership $RoleSchedule.principal.id -LookupCache $LookupCache `
+                            Expand-GroupTransitiveMembership $RoleSchedule.principalId -LookupCache $LookupCache `
                             | ForEach-Object {
                                 $principalType = $_.'@odata.type' -replace '#microsoft.graph.', ''
                                 $principal = Get-AadObjectById $_.id -Type $principalType -LookupCache $LookupCache -UseLookupCacheOnly:$UseLookupCacheOnly
@@ -153,7 +153,7 @@ function Get-AADAssessRoleAssignmentReport {
                             }
                         }
                         else {
-                            Get-MsGraphResults 'groups/{0}/transitiveMembers' -UniqueId $RoleSchedule.principal.id -Select id, displayName -Top 999 -DisableUniqueIdDeduplication `
+                            Get-MsGraphResults 'groups/{0}/transitiveMembers' -UniqueId $RoleSchedule.principalId -Select id, displayName -Top 999 -DisableUniqueIdDeduplication `
                             | ForEach-Object {
                                 $OutputObject.principalId = $_.id
                                 $OutputObject.principalDisplayName = $_.displayName
