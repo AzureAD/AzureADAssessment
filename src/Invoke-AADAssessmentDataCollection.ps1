@@ -170,9 +170,10 @@ function Invoke-AADAssessmentDataCollection {
         $ReferencedIdCache.unknownType | Get-MsGraphResults 'directoryObjects' -Select 'id' `
         | ForEach-Object {
             $ObjectType = $_.'@odata.type' -replace '#microsoft.graph.', ''
+            
             [void] $ReferencedIdCache.$ObjectType.Add($_.id)
             if ($ObjectType -eq 'group') {
-                [void] $ReferencedIdCache.roleGroup.Add($InputObject.principalId)
+                [void] $ReferencedIdCache.roleGroup.Add($_.id)
             }
         }
         $ReferencedIdCache.unknownType.Clear()
