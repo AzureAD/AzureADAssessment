@@ -71,8 +71,8 @@ function Complete-AADAssessmentReports {
             Remove-Item $OutputDirectoryData -Recurse -Force
         }
         # Extract content
+        #Expand-Archive $Path -DestinationPath $OutputDirectoryData -Force -ErrorAction Stop
         [System.IO.Compression.ZipFile]::ExtractToDirectory($Path,$OutputDirectoryData)
-        #xpand-Archive $Path -DestinationPath $OutputDirectoryData -Force -ErrorAction Stop
         $AssessmentDetail = Get-Content $AssessmentDetailPath -Raw | ConvertFrom-Json
         #Check for DataFiles
         $OutputDirectoryAAD = Join-Path $OutputDirectoryData 'AAD-*' -Resolve -ErrorAction Stop
