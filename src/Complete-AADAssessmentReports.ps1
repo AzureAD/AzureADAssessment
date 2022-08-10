@@ -87,7 +87,7 @@ function Complete-AADAssessmentReports {
         }
 
         # Check assessment version
-        $moduleVersion = $MyInvocation.MyCommand.ScriptBlock.Module.Version
+        $moduleVersion = $MyInvocation.MyCommand.Module.Version
         [System.Version]$packageVersion = $AssessmentDetail.AssessmentVersion
         if ($packageVersion.Build -eq -1) {
             Write-Warning "The package was not generate with a module installed from the PowerShell Gallery"
