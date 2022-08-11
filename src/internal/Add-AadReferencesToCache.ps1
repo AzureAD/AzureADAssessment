@@ -7,7 +7,7 @@ function Add-AadReferencesToCache {
         #
         [Parameter(Mandatory = $true)]
         [Alias('Type')]
-        [ValidateSet('appRoleAssignment', 'oauth2PermissionGrant', 'servicePrincipal', 'group', 'directoryRole', 'conditionalAccessPolicy', 'roleAssignmentSchedules','roleAssignments')]
+        [ValidateSet('appRoleAssignment', 'oauth2PermissionGrant', 'servicePrincipal', 'group', 'directoryRole', 'conditionalAccessPolicy', 'roleAssignmentScheduleInstances','roleAssignments')]
         [string] $ObjectType,
         #
         [Parameter(Mandatory = $true)]
@@ -74,13 +74,13 @@ function Add-AadReferencesToCache {
             # roleDefinition {
             #     [void] $ReferencedIdCache.roleDefinition.Add($InputObject.id)
             # }
-            roleAssignmentSchedules {
+            roleAssignmentScheduleInstances {
                 if ($InputObject.directoryScopeId -match '/(?:(.+)s/)([0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12})') {
                     $directoryScopeType = $Matches[1]
                     [void] $ReferencedIdCache.$directoryScopeType.Add($Matches[2])
                 }
                 elseif ($InputObject.directoryScopeId -match '/([0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12})') {
-                    [void] $ReferencedIdCache.UnknownType.Add($Matches[1])
+                    [void] $ReferencedIdCache.unknownType.Add($Matches[1])
                 }
                 $principalType = $InputObject.principal.'@odata.type' -replace '#microsoft.graph.', ''
                 [void] $ReferencedIdCache.$principalType.Add($InputObject.principal.id)
