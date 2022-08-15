@@ -38,7 +38,6 @@ function Test-AADAssessmentPackage {
         "AAD-*/emailOTPMethodPolicy.json",
         "AAD-*/groups.csv",
         "AAD-*/namedLocations.json",
-        "AAD-*/NotificationsEmailsReport.csv",
         "AAD-*/oauth2PermissionGrants.csv",
         "AAD-*/organization.json",
         "AAD-*/RoleAssignmentReport.csv",
@@ -46,7 +45,6 @@ function Test-AADAssessmentPackage {
         "AAD-*/servicePrincipals.csv",
         "AAD-*/servicePrincipals.json",
         "AAD-*/subscribedSkus.json",
-        "AAD-*/userRegistrationDetails.json",
         "AAD-*/users.csv",
         "AzureADAssessment.json"
     )
@@ -57,19 +55,17 @@ function Test-AADAssessmentPackage {
             "AAD-*/applicationData.xml",
             "AAD-*/appRoleAssignmentData.xml",
             "AAD-*/conditionalAccessPolicies.json",
-            "AAD-*/directoryRoleData.xml"
             "AAD-*/emailOTPMethodPolicy.json",
             "AAD-*/groupData.xml",
             "AAD-*/namedLocations.json",
             "AAD-*/oauth2PermissionGrantData.xml",
             "AAD-*/organization.json",
-            "AAD-*/roleAssignmentSchedulesData.xml",
+            "AAD-*/roleAssignmentScheduleInstancesData.xml",
             "AAD-*/roleDefinitions.csv",
-            "AAD-*/roleEligibilitySchedulesData.xml",
+            "AAD-*/roleEligibilityScheduleInstancesData.xml",
             "AAD-*/servicePrincipalData.xml",
             "AAD-*/subscribedSkus.json",
             "AAD-*/userData.xml",
-            "AAD-*/userRegistrationDetails.json",
             "AzureADAssessment.json"
         )
     }

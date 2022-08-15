@@ -66,18 +66,18 @@ function Complete-AADAssessmentReports {
 
         ## Expand Data Package
         Write-Progress -Id 0 -Activity 'Microsoft Azure AD Assessment Complete Reports' -Status 'Expand Data' -PercentComplete 0
-        #Expand-Archive $Path -DestinationPath $OutputDirectoryData -Force -ErrorAction Stop
         # Remove destination before extract
         if (Test-Path -Path $OutputDirectoryData) {
             Remove-Item $OutputDirectoryData -Recurse -Force
         }
         # Extract content
+        #Expand-Archive $Path -DestinationPath $OutputDirectoryData -Force -ErrorAction Stop
         [System.IO.Compression.ZipFile]::ExtractToDirectory($Path,$OutputDirectoryData)
         $AssessmentDetail = Get-Content $AssessmentDetailPath -Raw | ConvertFrom-Json
         #Check for DataFiles
         $OutputDirectoryAAD = Join-Path $OutputDirectoryData 'AAD-*' -Resolve -ErrorAction Stop
         [array] $DataFiles = Get-Item -Path (Join-Path $OutputDirectoryAAD "*") -Include "*Data.xml"
-        $SkippedReportOutput = $DataFiles -and $DataFiles.Count -eq 9
+        $SkippedReportOutput = $DataFiles -and $DataFiles.Count -ge 8
 
         ## Check the provided archive
         $archiveState = Test-AADAssessmentPackage -Path $Path -SkippedReportOutput $SkippedReportOutput
@@ -87,7 +87,7 @@ function Complete-AADAssessmentReports {
         }
 
         # Check assessment version
-        $moduleVersion = $MyInvocation.MyCommand.ScriptBlock.Module.Version
+        $moduleVersion = $MyInvocation.MyCommand.Module.Version
         [System.Version]$packageVersion = $AssessmentDetail.AssessmentVersion
         if ($packageVersion.Build -eq -1) {
             Write-Warning "The package was not generate with a module installed from the PowerShell Gallery"

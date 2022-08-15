@@ -65,9 +65,10 @@ function Get-AADAssessUserReport {
                     if ($registerationDetails.defaultMfaMethod -ne "none") {
                         $defaultMfaMethod = $registerationDetails.defaultMfaMethod
                     }
-                } else {
-                    Write-Warning "authentication method registration not found for $($InputObject.id)"
                 }
+                # else {
+                #     Write-Warning "authentication method registration not found for $($InputObject.id)"
+                # }
                 # output user object
                 [PSCustomObject]@{
                     "id" = $InputObject.id

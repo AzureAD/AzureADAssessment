@@ -155,7 +155,7 @@ function Get-MsGraphResults {
                 else {
                     if ($ResponseContent.error.code -eq 'Request_ResourceNotFound') {
                         Write-Error -Exception $_.Exception -Message $ResponseContent.error.message -ErrorId $ResponseContent.error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorVariable cmdError -ErrorAction SilentlyContinue
-                        Write-Warning $ResponseContent.error.message
+                        #Write-Warning $ResponseContent.error.message
                     }
                     else {
                         Write-Error -Exception $_.Exception -Message $ResponseContent.error.message -ErrorId $ResponseContent.error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorVariable cmdError
@@ -185,7 +185,7 @@ function Get-MsGraphResults {
                 else {
                     if ($BatchResponse.body.error.code -eq 'Request_ResourceNotFound') {
                         Write-Error -Message $BatchResponse.body.error.message -ErrorId $BatchResponse.body.error.code -ErrorVariable cmdError -ErrorAction SilentlyContinue
-                        Write-Warning $BatchResponse.body.error.message
+                        #Write-Warning $BatchResponse.body.error.message
                     }
                     else {
                         Write-Error -Message $BatchResponse.body.error.message -ErrorId $BatchResponse.body.error.code -ErrorVariable cmdError

@@ -119,43 +119,43 @@ stages:
               moduleName: '$(moduleName)'
               moduleVersion: '$(moduleVersion)'
 
-- stage: DeployTest
-  displayName: 'Deploy Test'
-  dependsOn:
-  - Build
-  jobs: 
-  - job: Prepare
-    variables:
-      skipComponentGovernanceDetection: true
-    steps:
-    - download: current
-      artifact: '$(artifactModuleSigned)'
-    - task: PowerShell@2
-      name: ModuleInfo
-      displayName: 'Get PowerShell Module Information'
-      inputs:
-        filePath: '$(System.DefaultWorkingDirectory)/build/Get-PSModuleInfo.ps1'
-        arguments: '-ModuleManifestPath "$(Pipeline.Workspace)/$(artifactModuleSigned)/*/*.psd1"'
-        pwsh: true
+# - stage: DeployTest
+#   displayName: 'Deploy Test'
+#   dependsOn:
+#   - Build
+#   jobs: 
+#   - job: Prepare
+#     variables:
+#       skipComponentGovernanceDetection: true
+#     steps:
+#     - download: current
+#       artifact: '$(artifactModuleSigned)'
+#     - task: PowerShell@2
+#       name: ModuleInfo
+#       displayName: 'Get PowerShell Module Information'
+#       inputs:
+#         filePath: '$(System.DefaultWorkingDirectory)/build/Get-PSModuleInfo.ps1'
+#         arguments: '-ModuleManifestPath "$(Pipeline.Workspace)/$(artifactModuleSigned)/*/*.psd1"'
+#         pwsh: true
 
-  - deployment: Publish
-    environment: Test
-    dependsOn: Prepare
-    variables:
-      moduleName: '$[ dependencies.Prepare.outputs[''ModuleInfo.moduleName''] ]'
-      moduleVersion: '$[ dependencies.Prepare.outputs[''ModuleInfo.moduleVersion''] ]'
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-          - template: template-psmodule-publish.yml
-            parameters:
-              moduleName: '$(moduleName)'
-              RepositorySourceLocation: 'https://www.poshtestgallery.com/api/v2'
-              NuGetApiKeyAzureConnection: 'GTP - Architecture (980e0e9f-178a-4c38-9372-f17806c6b944)'
-              NuGetApiKeyVaultName: 'codesign-kv'
-              NuGetApiKeySecretName: 'PSTestGallery-API-Key'
-              Unlist: true
+#   - deployment: Publish
+#     environment: Test
+#     dependsOn: Prepare
+#     variables:
+#       moduleName: '$[ dependencies.Prepare.outputs[''ModuleInfo.moduleName''] ]'
+#       moduleVersion: '$[ dependencies.Prepare.outputs[''ModuleInfo.moduleVersion''] ]'
+#     strategy:
+#       runOnce:
+#         deploy:
+#           steps:
+#           - template: template-psmodule-publish.yml
+#             parameters:
+#               moduleName: '$(moduleName)'
+#               RepositorySourceLocation: 'https://www.poshtestgallery.com/api/v2'
+#               NuGetApiKeyAzureConnection: 'GTP - Architecture (980e0e9f-178a-4c38-9372-f17806c6b944)'
+#               NuGetApiKeyVaultName: 'codesign-kv'
+#               NuGetApiKeySecretName: 'PSTestGallery-API-Key'
+#               Unlist: true
 
 - stage: Production
   displayName: 'Deploy Production'

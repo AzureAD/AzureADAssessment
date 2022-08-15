@@ -158,7 +158,7 @@ function Export-AADAssessmentReportData {
         $LookupCache.userRegistrationDetails.Clear()
     }
 
-    # notificaiton emails report
+    # notificaiton emails report (Remove on next release)
     if (!(Test-Path -Path (Join-Path $OutputDirectory "NotificationsEmailsReport.csv")) -or $Force) {
         # load unique data
         $OrganizationData = Get-Content -Path (Join-Path $SourceDirectory "organization.json") -Raw | ConvertFrom-Json
@@ -186,18 +186,19 @@ function Export-AADAssessmentReportData {
     # role assignment report
     if (!(Test-Path -Path (Join-Path $OutputDirectory "RoleAssignmentReport.csv")) -or $Force) {
         # Set file header
-        Set-Content -Path (Join-Path $OutputDirectory "RoleAssignmentReport.csv") -Value "id,directoryScopeId,directoryScopeObjectId,directoryScopeDisplayName,directoryScopeType,roleDefinitionId,roleDefinitionTemplateId,roleDefinitionDisplayName,principalId,principalDisplayName,principalType,memberType,status,assignmentType,startDateTime,endDateTime"
+        Set-Content -Path (Join-Path $OutputDirectory "RoleAssignmentReport.csv") -Value "id,directoryScopeId,directoryScopeObjectId,directoryScopeDisplayName,directoryScopeType,roleDefinitionId,roleDefinitionTemplateId,roleDefinitionDisplayName,principalId,principalDisplayName,principalType,principalMail,principalOtherMails,memberType,assignmentType,startDateTime,endDateTime"
         # load unique data
-        [array] $roleAssignmentSchedulesData =  @()
-        [array] $roleEligibilitySchedulesData = @()
+        [array] $roleAssignmentScheduleInstancesData =  @()
+        [array] $roleEligibilityScheduleInstancesData = @()
         [array] $roleAssignmentsData = @()
         if ($licenseType -eq "P2") {
-            $roleAssignmentSchedulesData = Import-Clixml -Path (Join-Path $SourceDirectory "roleAssignmentSchedulesData.xml")
-            $roleEligibilitySchedulesData = Import-Clixml -Path (Join-Path $SourceDirectory "roleEligibilitySchedulesData.xml")
+            $roleAssignmentScheduleInstancesData = Import-Clixml -Path (Join-Path $SourceDirectory "roleAssignmentScheduleInstancesData.xml")
+            $roleEligibilityScheduleInstancesData = Import-Clixml -Path (Join-Path $SourceDirectory "roleEligibilityScheduleInstancesData.xml")
         } else {
             $roleAssignmentsData = Import-Clixml -Path (Join-Path $SourceDirectory "roleAssignmentsData.xml")
         }
         # load data if cache empty
+        $OrganizationData = Get-Content -Path (Join-Path $SourceDirectory "organization.json") -Raw | ConvertFrom-Json
         if ($LookupCache.user.Count -eq 0) {
             Write-Output "Loading users in lookup cache"
             Import-Clixml -Path (Join-Path $SourceDirectory "userData.xml") | Add-AadObjectToLookupCache -Type user -LookupCache $LookupCache
@@ -220,13 +221,13 @@ function Export-AADAssessmentReportData {
         }
 
         # generate the report
-        Get-AADAssessRoleAssignmentReport -Offline -TenantHasP2 ($licenseType -eq "P2") -RoleAssignmentsData $roleAssignmentsData -RoleAssignmentSchedulesData $roleAssignmentSchedulesData -RoleEligibilitySchedulesData $roleEligibilitySchedulesData -OrganizationData $OrganizationData -AdministrativeUnitsData $LookupCache.administrativeUnit -UsersData $LookupCache.user -GroupsData $LookupCache.group -ApplicationsData $LookupCache.application -ServicePrincipalsData $LookupCache.servicePrincipal `
+        Get-AADAssessRoleAssignmentReport -Offline -RoleAssignmentsData $roleAssignmentsData -RoleAssignmentScheduleInstancesData $roleAssignmentScheduleInstancesData -RoleEligibilityScheduleInstancesData $roleEligibilityScheduleInstancesData -OrganizationData $OrganizationData -AdministrativeUnitsData $LookupCache.administrativeUnit -UsersData $LookupCache.user -GroupsData $LookupCache.group -ApplicationsData $LookupCache.application -ServicePrincipalsData $LookupCache.servicePrincipal `
         | Use-Progress -Activity 'Exporting RoleAssignmentReport' -Property id -PassThru -WriteSummary `
         | Format-Csv `
         | Export-Csv -Path (Join-Path $OutputDirectory "RoleAssignmentReport.csv") -NoTypeInformation -Append
 
         # clear unique data
-        Remove-Variable roleAssignmentSchedulesData, roleEligibilitySchedulesData
+        Remove-Variable roleAssignmentScheduleInstancesData, roleEligibilityScheduleInstancesData
         # clear cache as data is not further used by other reports
         $LookupCache.group.Clear()
         $LookupCache.administrativeUnit.Clear()
