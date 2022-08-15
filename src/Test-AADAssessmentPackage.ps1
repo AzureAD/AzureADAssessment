@@ -45,7 +45,6 @@ function Test-AADAssessmentPackage {
         "AAD-*/servicePrincipals.csv",
         "AAD-*/servicePrincipals.json",
         "AAD-*/subscribedSkus.json",
-        "AAD-*/userRegistrationDetails.json",
         "AAD-*/users.csv",
         "AzureADAssessment.json"
     )
@@ -67,7 +66,6 @@ function Test-AADAssessmentPackage {
             "AAD-*/servicePrincipalData.xml",
             "AAD-*/subscribedSkus.json",
             "AAD-*/userData.xml",
-            "AAD-*/userRegistrationDetails.json",
             "AzureADAssessment.json"
         )
     }
