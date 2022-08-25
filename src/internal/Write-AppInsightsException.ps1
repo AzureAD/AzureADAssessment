@@ -11,9 +11,12 @@ function Write-AppInsightsException {
     [CmdletBinding()]
     [Alias('Write-AIException')]
     param (
-        # Exception
-        [Parameter(Mandatory = $true)]
-        [Exception[]] $Exceptions,
+        # Exceptions
+        [Parameter(Mandatory = $true, ParameterSetName = 'Exception', Position = 1)]
+        [Exception[]] $Exception,
+        # ErrorRecords
+        [Parameter(Mandatory = $true, ParameterSetName = 'ErrorRecord', Position = 1)]
+        [System.Management.Automation.ErrorRecord[]] $ErrorRecord,
         # Severity Level
         [Parameter(Mandatory = $false)]
         [ValidateSet('Verbose', 'Information', 'Warning', 'Error', 'Critical')]
@@ -21,6 +24,9 @@ function Write-AppInsightsException {
         # Custom Properties
         [Parameter(Mandatory = $false)]
         [hashtable] $Properties,
+        # Custom Ordered Properties. An ordered dictionary can be defined as: [ordered]@{ first = '1'; second = '2' }
+        [Parameter(Mandatory = $false)]
+        [System.Collections.Specialized.OrderedDictionary] $OrderedProperties,
         # Instrumentation Key
         [Parameter(Mandatory = $false)]
         [string] $InstrumentationKey = $script:ModuleConfig.'ai.instrumentationKey',
@@ -199,17 +205,41 @@ function Write-AppInsightsException {
         ## Return Immediately when Telemetry is Disabled
         if ($script:ModuleConfig.'ai.disabled') { return }
         
-        foreach ($Exception in $Exceptions) {
+        switch ($PSCmdlet.ParameterSetName) {
+            'Exception' {
+                $InputObjects = $Exception
+                break
+            }
+            'ErrorRecord' {
+                $InputObjects = $ErrorRecord
+                break
+            }
+        }
+
+        foreach ($InputObject in $InputObjects) {
             ## Get New Telemetry Entry
             $AppInsightsTelemetry = New-AppInsightsTelemetry 'AppExceptions' -InstrumentationKey $InstrumentationKey
 
-            ## Get Exception Details
-            [System.Collections.Generic.List[hashtable]] $exceptions = New-Object System.Collections.Generic.List[hashtable]
-            ConvertExceptionTree $Exception $null $exceptions
+            ## Determine ErrorRecord from Exception input
+            [Exception] $InputException = $null
+            if ($InputObject -is [System.Management.Automation.ErrorRecord]) {
+                $InputException = $InputObject.Exception
+                $AppInsightsTelemetry.data.baseData['properties']['ScriptStackTrace'] = $InputObject.ScriptStackTrace.Replace($MyInvocation.MyCommand.Module.ModuleBase,'')
+            }
+            elseif ($InputObject -is [System.Management.Automation.ErrorRecord]) {
+                $InputException = $InputObject
+            }
 
+            if ($InputException) {
+                ## Get Exception Details
+                [System.Collections.Generic.List[hashtable]] $exceptions = New-Object System.Collections.Generic.List[hashtable]
+                ConvertExceptionTree $InputException $null $exceptions
+                $AppInsightsTelemetry.data.baseData['exceptions'] = $exceptions
+            }
+            
             ## Update Telemetry Data
-            $AppInsightsTelemetry.data.baseData['exceptions'] = $exceptions
             if ($SeverityLevel) { $AppInsightsTelemetry.data.baseData['severityLevel'] = $SeverityLevel }
+            if ($OrderedProperties) { $AppInsightsTelemetry.data.baseData['properties'] += $OrderedProperties }
             if ($Properties) { $AppInsightsTelemetry.data.baseData['properties'] += $Properties }
 
             ## Write Data to Application Insights

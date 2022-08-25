@@ -27,6 +27,6 @@ function Export-AADAssessmentPortableModule {
         #Invoke-WebRequest -Uri 'https://github.com/AzureAD/Deployment-Plans/raw/master/ADFS%20to%20AzureAD%20App%20Migration/ADFSAADMigrationUtils.psm1' -UseBasicParsing -OutFile $AdfsAadMigrationModulePath
 
     }
-    catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException $_.Exception -Properties @{ ScriptStackTrace = $_.ScriptStackTrace } }; throw }
+    catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException -ErrorRecord $_ }; throw }
     finally { Complete-AppInsightsRequest $MyInvocation.MyCommand.Name -Success $? }
 }

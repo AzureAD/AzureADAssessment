@@ -174,6 +174,6 @@ function Complete-AADAssessmentReports {
         Invoke-Item $OutputDirectoryData
 
     }
-    catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException $_.Exception -Properties @{ ScriptStackTrace = $_.ScriptStackTrace } }; throw }
+    catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException -ErrorRecord $_ }; throw }
     finally { Complete-AppInsightsRequest $MyInvocation.MyCommand.Name -Success $? }
 }

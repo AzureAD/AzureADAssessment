@@ -346,7 +346,7 @@ function Invoke-AADAssessmentDataCollection {
         Invoke-Item $OutputDirectory
 
     }
-    catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException $_.Exception -Properties @{ ScriptStackTrace = $_.ScriptStackTrace } }; throw }
+    catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException -ErrorRecord $_ }; throw }
     finally {
         # check generated package and issue warning
         $issue = $false

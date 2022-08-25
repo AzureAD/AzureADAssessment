@@ -193,6 +193,9 @@ PrivateData = @{
         # ReleaseNotes of this module
         # ReleaseNotes = ''
 
+        # Prerelease string of this module
+        Prerelease = 'source'
+
         # External dependent modules of this module
         # ExternalModuleDependencies = @()
 

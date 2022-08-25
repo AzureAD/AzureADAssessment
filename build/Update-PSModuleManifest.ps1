@@ -22,12 +22,13 @@ Import-Module "$PSScriptRoot\CommonFunctions.psm1" -Force -WarningAction Silentl
 [hashtable] $paramUpdateModuleManifest = @{ }
 if ($Guid) { $paramUpdateModuleManifest['Guid'] = $Guid }
 if ($ModuleVersion) { $paramUpdateModuleManifest['ModuleVersion'] = $ModuleVersion }
-if ($Prerelease) { $paramUpdateModuleManifest['Prerelease'] = $Prerelease }
 
 [System.IO.FileInfo] $ModuleManifestFileInfo = Get-PathInfo $ModuleManifestPath -DefaultFilename "*.psd1" -ErrorAction Stop
 
 ## Read Module Manifest
 $ModuleManifest = Import-PowerShellDataFile $ModuleManifestFileInfo.FullName
+if ($ModuleManifest.PrivateData.PSData['Prerelease'] -eq 'source') { $paramUpdateModuleManifest['Prerelease'] = "" }
+if ($Prerelease) { $paramUpdateModuleManifest['Prerelease'] = $Prerelease }
 if ($ModuleManifest.NestedModules) { $paramUpdateModuleManifest['NestedModules'] = $ModuleManifest.NestedModules }
 $paramUpdateModuleManifest['FunctionsToExport'] = $ModuleManifest.FunctionsToExport
 $paramUpdateModuleManifest['CmdletsToExport'] = $ModuleManifest.CmdletsToExport

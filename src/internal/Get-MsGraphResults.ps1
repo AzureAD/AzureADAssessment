@@ -49,6 +49,9 @@ function Get-MsGraphResults {
         # Specifies consistency level.
         [Parameter(Mandatory = $false)]
         [string] $ConsistencyLevel = "eventual",
+        # Correlation Id (client-request-id).
+        [Parameter(Mandatory = $false)]
+        [guid] $CorrelationId = (New-Guid),
         # Total requests to calcuate progress bar when using pipeline.
         [Parameter(Mandatory = $false)]
         [int] $TotalRequests,
@@ -117,59 +120,27 @@ function Get-MsGraphResults {
             if (!$_.Exception.psobject.Properties.Name.Contains('Response')) {
                 throw $ErrorRecord
             }
+            
+            $ResponseDetail = Get-MsGraphResponseDetail $_
+            Write-Debug -Message (ConvertTo-Json ([PSCustomObject]$ResponseDetail) -Depth 3)
 
-            ## Get Response Body
-            if ($_.ErrorDetails) {
-                $Response = '{0} {1} HTTP/{2}' -f $_.Exception.Response.StatusCode.value__, $_.Exception.Response.ReasonPhrase, $_.Exception.Response.Version
-                $ContentType = $_.Exception.Response.Content.Headers.ContentType.ToString()
-                $ResponseContent = ConvertFrom-Json $_.ErrorDetails.Message
-            }
-            elseif ($_.Exception -is [System.Net.WebException]) {
-                if ($_.Exception.Response) {
-                    $Response = '{0} {1} HTTP/{2}' -f $_.Exception.Response.StatusCode.value__, $_.Exception.Response.StatusDescription, $_.Exception.Response.ProtocolVersion
-                    $ContentType = $_.Exception.Response.Headers.GetValues('Content-Type') -join '; '
-
-                    $StreamReader = New-Object System.IO.StreamReader -ArgumentList $_.Exception.Response.GetResponseStream()
-                    try { $ResponseContent = ConvertFrom-Json $StreamReader.ReadToEnd() }
-                    finally { $StreamReader.Close() }
-                }
-            }
-
-            Write-Debug -Message (ConvertTo-Json ([PSCustomObject]@{
-                        'Request'                             = '{0} {1}' -f $_.TargetObject.Method, $_.TargetObject.RequestUri.AbsoluteUri
-                        'Response'                            = $Response
-                        'Response.Content-Type'               = $ContentType
-                        'Response.Content'                    = $ResponseContent
-                        'Response.Header.Date'                = $_.Exception.Response.Headers.GetValues('Date')[0]
-                        'Response.Header.request-id'          = $_.Exception.Response.Headers.GetValues('request-id')[0]
-                        'Response.Header.client-request-id'   = $_.Exception.Response.Headers.GetValues('client-request-id')[0]
-                        'Response.Header.x-ms-ags-diagnostic' = $_.Exception.Response.Headers.GetValues('x-ms-ags-diagnostic')[0] | ConvertFrom-Json
-                    }) -Depth 3)
-
-            if ($ResponseContent) {
+            if ($ResponseDetail['ContentParsed']) {
                 ## Write Custom Error
-                if ($ResponseContent.error.code -eq 'Authentication_ExpiredToken' -or $ResponseContent.error.code -eq 'Service_ServiceUnavailable' -or $ResponseContent.error.code -eq 'Request_UnsupportedQuery') {
-                    #Write-AppInsightsException $_.Exception
-                    Write-Error -Exception $_.Exception -Message $ResponseContent.error.message -ErrorId $ResponseContent.error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorAction Stop
+                if ($ResponseDetail['ContentParsed'].error.code -eq 'Authentication_ExpiredToken' -or $ResponseDetail['ContentParsed'].error.code -eq 'Service_ServiceUnavailable' -or $ResponseDetail['ContentParsed'].error.code -eq 'Request_UnsupportedQuery') {
+                    #Write-AppInsightsException -ErrorRecord $_ -OrderedProperties $ResponseDetail  # Not needed when calling function has try finally to write terminating errors
+                    Write-Error -Exception $_.Exception -Message $ResponseDetail['ContentParsed'].error.message -ErrorId $ResponseDetail['ContentParsed'].error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorAction Stop
                 }
                 else {
-                    if ($ResponseContent.error.code -eq 'Request_ResourceNotFound') {
-                        Write-Error -Exception $_.Exception -Message $ResponseContent.error.message -ErrorId $ResponseContent.error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorVariable cmdError -ErrorAction SilentlyContinue
-                        #Write-Warning $ResponseContent.error.message
+                    if ($ResponseDetail['ContentParsed'].error.code -eq 'Request_ResourceNotFound') {
+                        Write-Error -Exception $_.Exception -Message $ResponseDetail['ContentParsed'].error.message -ErrorId $ResponseDetail['ContentParsed'].error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorVariable cmdError -ErrorAction SilentlyContinue
+                        #Write-Warning $ResponseDetail['ContentParsed'].error.message
                     }
                     else {
-                        Write-Error -Exception $_.Exception -Message $ResponseContent.error.message -ErrorId $ResponseContent.error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorVariable cmdError
+                        Write-Error -Exception $_.Exception -Message $ResponseDetail['ContentParsed'].error.message -ErrorId $ResponseDetail['ContentParsed'].error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorVariable cmdError
                     }
-                    # generate extra properties for the exception
-                    $Properties = @{}
-                    $Properties["request"] = '{0} {1}' -f $_.TargetObject.Method, $_.TargetObject.RequestUri.AbsoluteUri
-                    $Properties["response"] = $Response 
-                    if ($_.Exception.Response.psobject.Properties.Name.Contains("Headers")) {
-                        $Properties["date"] = $_.Exception.Response.Headers.GetValues('Date')[0]
-                        $Properties["requestId"] = $_.Exception.Response.Headers.GetValues('request-id')[0]
-                        $Properties["clientRequestId"] = $_.Exception.Response.Headers.GetValues('client-request-id')[0]
-                    }
-                    Write-AppInsightsException $cmdError.Exception -Properties $Properties
+                    
+                    if ($ResponseDetail.Contains('ContentParsed')) { $ResponseDetail.Remove('ContentParsed') }
+                    Write-AppInsightsException -ErrorRecord $cmdError -OrderedProperties $ResponseDetail
                 }
             }
             else { throw $ErrorRecord }
@@ -191,25 +162,30 @@ function Get-MsGraphResults {
                         Write-Error -Message $BatchResponse.body.error.message -ErrorId $BatchResponse.body.error.code -ErrorVariable cmdError
                     }
                     # generate extra properties for the exception
-                    $Properties = @{}
-                    if ($BatchRequest) {
-                        $Properties["request"] = "{0} {1}" -f $BatchRequest.method, $BatchRequest.url
-                    }
-                    if ($BatchResponse.body.error.psobject.Properties.Name.Contains('code') -and $BatchResponse.body.error.psobject.Properties.Name.Contains('message')) {
-                        $Properties["response"] = "{0} {1}" -f $BatchResponse.body.error.code, $BatchResponse.body.error.message
-                    }
-                    if ($BatchResponse.body.error.psobject.Properties.Name.Contains('innerError')) {
-                        if ($BatchResponse.body.error.innerError.psobject.Properties.Name.Contains('date')) {
-                            $Properties["date"] = $BatchResponse.body.error.innerError.date
-                        }
-                        if ($BatchResponse.body.error.innerError.psobject.Properties.Name.Contains('request-id')) {
-                            $Properties["requestId"] = $BatchResponse.body.error.innerError."request-id"
-                        }
-                        if ($BatchResponse.body.error.innerError.psobject.Properties.Name.Contains('client-request-id')) {
-                            $Properties["clientRequestId"] = $BatchResponse.body.error.innerError."client-request-id"
-                        }
-                    }
-                    Write-AppInsightsException $cmdError.Exception -Properties $Properties
+                    $ResponseDetail = Get-MsGraphResponseDetail $BatchResponse
+                    if ($BatchRequest) { $ResponseDetail["Request"] = "{0} {1}" -f $BatchRequest.method, $BatchRequest.url }
+
+                    # $Properties = @{}
+                    # if ($BatchRequest) {
+                    #     $Properties["request"] = "{0} {1}" -f $BatchRequest.method, $BatchRequest.url
+                    # }
+                    # if ($BatchResponse.body.error.psobject.Properties.Name.Contains('code') -and $BatchResponse.body.error.psobject.Properties.Name.Contains('message')) {
+                    #     $Properties["response"] = "{0} {1}" -f $BatchResponse.body.error.code, $BatchResponse.body.error.message
+                    # }
+                    # if ($BatchResponse.body.error.psobject.Properties.Name.Contains('innerError')) {
+                    #     if ($BatchResponse.body.error.innerError.psobject.Properties.Name.Contains('date')) {
+                    #         $Properties["date"] = $BatchResponse.body.error.innerError.date
+                    #     }
+                    #     if ($BatchResponse.body.error.innerError.psobject.Properties.Name.Contains('request-id')) {
+                    #         $Properties["requestId"] = $BatchResponse.body.error.innerError."request-id"
+                    #     }
+                    #     if ($BatchResponse.body.error.innerError.psobject.Properties.Name.Contains('client-request-id')) {
+                    #         $Properties["clientRequestId"] = $BatchResponse.body.error.innerError."client-request-id"
+                    #     }
+                    # }
+
+                    if ($ResponseDetail.Contains('ContentParsed')) { $ResponseDetail.Remove('ContentParsed') }
+                    Write-AppInsightsException -ErrorRecord $cmdError -OrderedProperties $ResponseDetail
                 }
                 return $true
             }
@@ -586,7 +562,7 @@ function Get-MsGraphResults {
                                     # update query 
                                     $uriQueryEndpointUniqueId.Query = ConvertTo-QueryString $QueryParametersInIds
                                     # add new batch request
-                                    New-MsGraphRequest $uriQueryEndpointUniqueId.Uri -Headers @{ ConsistencyLevel = $ConsistencyLevel } | Add-MsGraphRequest -GraphBaseUri $BaseUri
+                                    New-MsGraphRequest $uriQueryEndpointUniqueId.Uri -Headers @{ 'client-request-id' = $CorrelationId; ConsistencyLevel = $ConsistencyLevel } | Add-MsGraphRequest -GraphBaseUri $BaseUri
                                     # remove ids from ids to request
                                     $listIds.RemoveRange(0, $InFilterBatchSize)
                                     # update progress
@@ -602,7 +578,7 @@ function Get-MsGraphResults {
                                 }
                             }
                             else {
-                                New-MsGraphRequest $uriQueryEndpointUniqueId.Uri -Headers @{ ConsistencyLevel = $ConsistencyLevel } | Add-MsGraphRequest -GraphBaseUri $BaseUri
+                                New-MsGraphRequest $uriQueryEndpointUniqueId.Uri -Headers @{ 'client-request-id' = $CorrelationId; ConsistencyLevel = $ConsistencyLevel } | Add-MsGraphRequest -GraphBaseUri $BaseUri
                             }
                         }
                         elseif ($ProgressState) { $ProgressState.Total -= 1 }
@@ -611,7 +587,7 @@ function Get-MsGraphResults {
                 }
             }
             else {
-                New-MsGraphRequest $uriQueryEndpoint.Uri -Headers @{ ConsistencyLevel = $ConsistencyLevel } | Add-MsGraphRequest -GraphBaseUri $BaseUri
+                New-MsGraphRequest $uriQueryEndpoint.Uri -Headers @{ 'client-request-id' = $CorrelationId; ConsistencyLevel = $ConsistencyLevel } | Add-MsGraphRequest -GraphBaseUri $BaseUri
             }
         }
     }
@@ -912,5 +888,57 @@ function Get-MsGraphResultsCount {
         }
         catch {}
         return $Count
+    }
+}
+
+function Get-MsGraphResponseDetail {
+    [CmdletBinding()]
+    param (
+        # ErrorRecord from exception or batch response object
+        [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
+        [object] $InputObject
+    )
+
+    process {
+        $ResponseDetail = [ordered]@{}
+
+        if ($InputObject -is [System.Management.Automation.ErrorRecord]) {
+            ## Get Response Body
+            if ($InputObject.ErrorDetails) {
+                $ResponseDetail['Response'] = '{0} {1} HTTP/{2}' -f $InputObject.Exception.Response.StatusCode.value__, $InputObject.Exception.Response.ReasonPhrase, $InputObject.Exception.Response.Version
+                $ResponseDetail['Content-Type'] = $InputObject.Exception.Response.Content.Headers.ContentType.ToString()
+                $ResponseDetail['Content'] = $InputObject.ErrorDetails.Message
+            }
+            elseif ($InputObject.Exception -is [System.Net.WebException]) {
+                if ($InputObject.Exception.Response) {
+                    $ResponseDetail['Response'] = '{0} {1} HTTP/{2}' -f $InputObject.Exception.Response.StatusCode.value__, $InputObject.Exception.Response.StatusDescription, $InputObject.Exception.Response.ProtocolVersion
+                    $ResponseDetail['Content-Type'] = $InputObject.Exception.Response.Headers.GetValues('Content-Type') -join '; '
+
+                    $StreamReader = New-Object System.IO.StreamReader -ArgumentList $InputObject.Exception.Response.GetResponseStream()
+                    try { $ResponseDetail['Content'] = $StreamReader.ReadToEnd() }
+                    finally { $StreamReader.Close() }
+                }
+            }
+
+            $ResponseDetail['ContentParsed'] = $null
+            if ($ResponseDetail['Content-Type'] -eq 'application/json') { $ResponseDetail['ContentParsed'] = ConvertFrom-Json $ResponseDetail['Content'] }
+            $ResponseDetail['error-message'] = Get-ObjectPropertyValue $ResponseDetail['ContentParsed'] error message
+            $ResponseDetail['Request'] = '{0} {1}' -f $InputObject.TargetObject.Method, $InputObject.TargetObject.RequestUri.AbsoluteUri
+            $ResponseDetail['Date'] = $InputObject.Exception.Response.Headers.GetValues('Date')[0]
+            $ResponseDetail['request-id'] = $InputObject.Exception.Response.Headers.GetValues('request-id')[0]
+            $ResponseDetail['client-request-id'] = $InputObject.Exception.Response.Headers.GetValues('client-request-id')[0]
+        }
+        else {
+            $ResponseDetail['Response'] = '{0} {1}' -f $InputObject.status, (Get-ObjectPropertyValue $InputObject body error code)
+            $ResponseDetail['Content-Type'] = Get-ObjectPropertyValue $InputObject headers 'Content-Type'
+            $ResponseDetail['ContentParsed'] = Get-ObjectPropertyValue $InputObject body
+            $ResponseDetail['Content'] = ConvertTo-Json $ResponseDetail['ContentParsed'] -Depth 5 -Compress
+            $ResponseDetail['error-message'] = Get-ObjectPropertyValue $InputObject body error message
+            $ResponseDetail['Date'] = Get-ObjectPropertyValue $InputObject body error innerError 'date'
+            $ResponseDetail['request-id'] = Get-ObjectPropertyValue $InputObject body error innerError 'request-id'
+            $ResponseDetail['client-request-id'] = Get-ObjectPropertyValue $InputObject body error innerError 'client-request-id'
+        }
+
+        Write-Output $ResponseDetail
     }
 }

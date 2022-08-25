@@ -63,6 +63,12 @@ function New-AppInsightsTelemetry {
         }
     }
 
+    ## Add Prerelease tag to version number if it exists
+    try {
+        $AppInsightsTelemetry.tags['ai.application.ver'] = '{0}-{1}' -f $MyInvocation.MyCommand.Module.Version, $MyInvocation.MyCommand.Module.PrivateData.PSData['Prerelease']
+    }
+    catch {}
+    
     ## Update Time
     if ($PSVersionTable.PSVersion -ge [version]'7.1') { $AppInsightsTelemetry['time'] = Get-Date -AsUTC -Format 'o' }
     else { $AppInsightsTelemetry['time'] = [datetime]::UtcNow.ToString('o') }
@@ -76,7 +82,7 @@ function New-AppInsightsTelemetry {
     }
 
     ## Add Authenticated MSFT User
-    if ((Get-ObjectPropertyValue $script:ConnectState.MsGraphToken 'Account' 'HomeAccountId' 'TenantId') -in ('72f988bf-86f1-41af-91ab-2d7cd011db47', 'cc7d0b33-84c6-4368-a879-2e47139b7b1f')) {
+    if ((Get-ObjectPropertyValue $script:ConnectState.MsGraphToken 'Account' 'HomeAccountId' 'TenantId') -in ('72f988bf-86f1-41af-91ab-2d7cd011db47', '536279f6-15cc-45f2-be2d-61e352b51eef', 'cc7d0b33-84c6-4368-a879-2e47139b7b1f')) {
         $AppInsightsTelemetry.tags['ai.user.authUserId'] = $script:ConnectState.MsGraphToken.Account.HomeAccountId.Identifier
     }
 
@@ -85,7 +91,7 @@ function New-AppInsightsTelemetry {
         Culture         = [System.Threading.Thread]::CurrentThread.CurrentCulture.Name
         PsEdition       = $PSVersionTable.PSEdition.ToString()
         PsVersion       = $PSVersionTable.PSVersion.ToString()
-        DebugPreference = $DebugPreference
+        DebugPreference = '{0} ({1})' -f $DebugPreference.ToString(), $DebugPreference.value__
     }
     if ($script:ConnectState.MsGraphToken) {
         if ($script:ConnectState.MsGraphToken.TenantId) {
