@@ -165,25 +165,6 @@ function Get-MsGraphResults {
                     $ResponseDetail = Get-MsGraphResponseDetail $BatchResponse
                     if ($BatchRequest) { $ResponseDetail["Request"] = "{0} {1}" -f $BatchRequest.method, $BatchRequest.url }
 
-                    # $Properties = @{}
-                    # if ($BatchRequest) {
-                    #     $Properties["request"] = "{0} {1}" -f $BatchRequest.method, $BatchRequest.url
-                    # }
-                    # if ($BatchResponse.body.error.psobject.Properties.Name.Contains('code') -and $BatchResponse.body.error.psobject.Properties.Name.Contains('message')) {
-                    #     $Properties["response"] = "{0} {1}" -f $BatchResponse.body.error.code, $BatchResponse.body.error.message
-                    # }
-                    # if ($BatchResponse.body.error.psobject.Properties.Name.Contains('innerError')) {
-                    #     if ($BatchResponse.body.error.innerError.psobject.Properties.Name.Contains('date')) {
-                    #         $Properties["date"] = $BatchResponse.body.error.innerError.date
-                    #     }
-                    #     if ($BatchResponse.body.error.innerError.psobject.Properties.Name.Contains('request-id')) {
-                    #         $Properties["requestId"] = $BatchResponse.body.error.innerError."request-id"
-                    #     }
-                    #     if ($BatchResponse.body.error.innerError.psobject.Properties.Name.Contains('client-request-id')) {
-                    #         $Properties["clientRequestId"] = $BatchResponse.body.error.innerError."client-request-id"
-                    #     }
-                    # }
-
                     if ($ResponseDetail.Contains('ContentParsed')) { $ResponseDetail.Remove('ContentParsed') }
                     Write-AppInsightsException -ErrorRecord $cmdError -OrderedProperties $ResponseDetail
                 }
