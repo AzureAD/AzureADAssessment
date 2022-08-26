@@ -244,22 +244,27 @@ function Get-MsGraphResults {
 
                     [array] $resultsBatch = $resultsBatch.responses | Sort-Object -Property { [int]$_.id }
 
-                    $throttledRequests = @()
-                    [double]$maxRetryAfter = 1.0
                     foreach ($results in ($resultsBatch)) {
                         # check if batch result failed and call the endpoint or throw
                         if ($results.status -eq "429") {
-                            # request was throttled
-                            $throttledRequests += $listRequests[$results.id]
-                            # check if a retry after was recieved
-                            if ($results.psobject.Properties.Name.Contains('headers')) {
-                                if ($results.headers.psobject.Properties.Name.Contains('Retry-After')) {
-                                    $RetryAfter = [double]$results.headers.'Retry-After'
-                                    if ($RetryAfter -gt $maxRetryAfter) {
-                                        $maxRetryAfter = $RetryAfter
-                                    }
-                                }
+                            [int] $RetryAfter = Get-ObjectPropertyValue $results headers 'Retry-After'
+                            [double] $SecondsRemaining = $RetryAfter
+                            $Date = Get-ObjectPropertyValue $results body error innerError 'date'
+                            if ($Date) {
+                                if ($PSVersionTable.PSVersion -ge [version]'7.1') { $CurrentTime = Get-Date -AsUTC }
+                                else { $CurrentTime = [datetime]::UtcNow }
+                                $SecondsRemaining = $(([datetime]$Date).AddSeconds($RetryAfter) - $CurrentTime).TotalSeconds
                             }
+
+                            if ($SecondsRemaining -gt 0) {
+                                Write-Warning ("Request from batch was throttled and will attempt retry after {0:0}s." -f $SecondsRemaining)
+                                Start-Sleep -Seconds $SecondsRemaining
+                            }
+                            else {
+                                Write-Warning "Request from batch was throttled and will attempt retry."
+                            }
+
+                            Invoke-MsGraphRequest $request -NoAppInsights -GraphBaseUri $GraphBaseUri
                             continue
                         }
                         $currentRequest = $BatchRequests[$iRequest] | Where-Object {$_.id -eq $results.id}
@@ -274,13 +279,6 @@ function Get-MsGraphResults {
                             else {
                                 Complete-MsGraphResult $results.body -DisablePaging:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType -GroupOutputByRequest:$GroupOutputByRequest -Request $listRequests[$results.id] -GraphBaseUri $GraphBaseUri
                             }
-                        }
-                    }
-                    if ($throttledRequests.Count -gt 0) {
-                        Write-Warning "$($throttledRequests.Count) requests have been throttled; Retrying after $($maxRetryAfter)s"
-                        Start-Sleep -Seconds $maxRetryAfter
-                        foreach($request in $throttledRequests) {
-                            Invoke-MsGraphRequest $request -NoAppInsights -GraphBaseUri $GraphBaseUri -RetryAfter $RetryAfter
                         }
                     }
                 }
@@ -307,8 +305,9 @@ function Get-MsGraphResults {
                 # Number of retries in case of throttling
                 [Parameter(Mandatory = $false)]
                 [int] $MaxRetries = 5,
+                # Default Retry-After value
                 [Parameter(Mandatory = $false)]
-                [double] $RetryAfter = 1
+                [int] $RetryAfter = 1
             )
 
             process {
@@ -333,43 +332,44 @@ function Get-MsGraphResults {
                 $MsGraphSession = Confirm-ModuleAuthentication -MsGraphSession -ErrorAction Stop
                 if (!$NoAppInsights) { $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew() }
                 try {
-                    for($Retries = 0; $Retries -lt $MaxRetries; $Retries++) {
+                    for($Retries = 0; $Retries -le $MaxRetries; $Retries++) {
                         try {
                             $results = Invoke-RestMethod -WebSession $MsGraphSession -UseBasicParsing @paramInvokeRestMethod -ErrorAction Stop
-                            # break the loop if no error was raised
-                            break
+                            break  # break the loop if no error was raised
                         }
                         catch {
-                            ## error while invoking graph
-                            if ($Retries -eq $MaxRetries-1) {
-                                # catch error if it was the last try
-                                Catch-MsGraphError $_ 
-                            }
-                            ## check if throttling happened
-                            if ($_.Exception.PSobject.Properties.Name.Contains("Response") -and $_.Exception.Response.PSobject.Properties.Name.Contains("StatusCode") -and $_.Exception.Response.StatusCode.value__ -eq 429) {
+                            ## Retry request if response indicates throttling 
+                            # ToDo: Also identity other connection-based errors such as connection was forcably closed
+                            if ($Retries -lt $MaxRetries -and (Get-ObjectPropertyValue $_ Exception Response StatusCode value__) -eq 429) {
+                                $ResponseDetail = Get-MsGraphResponseDetail $_
+                                if ($ResponseDetail.Contains('ContentParsed')) { $ResponseDetail.Remove('ContentParsed') }
+                                Write-AppInsightsException -ErrorRecord $_ -OrderedProperties $ResponseDetail
                                 # Get the retry after header
                                 try {
-                                    $RetryAfter = [double]($_.Exception.Response.Headers.GetValues('Retry-After')[0])
-                                } catch {
-                                    Write-Verbose "Request throttled but Retry-After not provided ($(Request.url)) using exponential backoff ($(RetryAfter)s)"
+                                    $RetryAfter = $_.Exception.Response.Headers.GetValues('Retry-After')[0]
                                 }
+                                catch {
+                                    if ($Retries -gt 0) { $RetryAfter *= 2 }
+                                }
+                                Write-Warning "Request was throttled and will attempt retry $($Retries+1) of $MaxRetries after $($RetryAfter)s."
+                                Start-Sleep -Seconds $RetryAfter
                             }
-                            # request had an error and has not reached maximum retries
-                            Write-Warning "$($paramInvokeRestMethod['Method']) $($paramInvokeRestMethod['Uri']); error $($_.Exception.Message); attempt $($Retries+1) out of $MaxRetries. Retrying after $($RetryAfter)s"
-                            Start-Sleep -Seconds $RetryAfter
-                            $RetryAfter = $RetryAfter * 2
-                        }                 
+                            else {
+                                # catch error if it was the last try
+                                Catch-MsGraphError $_
+                            }
+                        }
                     }
                     if ($results) {
                         if ($IncapsulateReferenceListInParentObject -and $Request.url -match '.*/(.+)/(.+)/((?:transitive)?members|owners)') {
                             [PSCustomObject]@{
                                 id            = $Matches[2]
                                 '@odata.type' = '#{0}' -f (Get-MsGraphEntityType $GraphBaseUri.AbsoluteUri -EntityName $Matches[1])
-                                $Matches[3]   = Complete-MsGraphResult $results -DisablePaging:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType -GroupOutputByRequest -Request $Request -GraphBaseUri $GraphBaseUri
+                                $Matches[3]   = Complete-MsGraphResult $results -DisablePaging:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType -GroupOutputByRequest -Request $Request -GraphBaseUri $GraphBaseUri -MaxRetries $MaxRetries -RetryAfter $RetryAfter
                             }
                         }
                         else {
-                            Complete-MsGraphResult $results -DisablePaging:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType -GroupOutputByRequest:$GroupOutputByRequest -Request $Request -GraphBaseUri $GraphBaseUri
+                            Complete-MsGraphResult $results -DisablePaging:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType -GroupOutputByRequest:$GroupOutputByRequest -Request $Request -GraphBaseUri $GraphBaseUri -MaxRetries $MaxRetries -RetryAfter $RetryAfter
                         }       
                     }
                 }
@@ -404,7 +404,13 @@ function Get-MsGraphResults {
                 [psobject] $Request,
                 # Base URL for Microsoft Graph API.
                 [Parameter(Mandatory = $false)]
-                [uri] $GraphBaseUri = 'https://graph.microsoft.com/'
+                [uri] $GraphBaseUri = 'https://graph.microsoft.com/',
+                # Number of retries in case of throttling
+                [Parameter(Mandatory = $false)]
+                [int] $MaxRetries = 5,
+                # Default Retry-After value
+                [Parameter(Mandatory = $false)]
+                [int] $RetryAfter = 1
             )
 
             begin {
@@ -431,32 +437,32 @@ function Get-MsGraphResults {
                                     $nextLink = $Result.'@odata.nextLink'
                                     $MsGraphSession = Confirm-ModuleAuthentication -MsGraphSession -ErrorAction Stop
                                     $Result = $null
-                                    [double]$RetryAfter = 1.0
-                                    for($Retries = 0; $Retries -lt $MaxRetries; $Retries++) {
+                                    for ($Retries = 0; $Retries -le $MaxRetries; $Retries++) {
                                         try {
                                             $Result = Invoke-RestMethod -WebSession $MsGraphSession -UseBasicParsing -Method Get -Uri $nextLink -Headers $Request.headers -ErrorAction Stop
-                                            # break the loop if no error was raised
-                                            break
+                                            break  # break the loop if no error was raised
                                         }
                                         catch {
-                                            ## error while invoking graph
-                                            if ($Retries -eq $MaxRetries-1) {
-                                                # catch error if it was the last try
-                                                Catch-MsGraphError $_ 
-                                            }
-                                            # update retry after if throttling
-                                            if ($_.Exception.PSobject.Properties.Name.Contains("Response") -and $_.Exception.Response.StatusCode.value__ -eq 429) {
+                                            ## Retry request if response indicates throttling 
+                                            # ToDo: Also identity other connection-based errors such as connection was forcably closed
+                                            if ($Retries -lt $MaxRetries -and (Get-ObjectPropertyValue $_ Exception Response StatusCode value__) -eq 429) {
+                                                $ResponseDetail = Get-MsGraphResponseDetail $_
+                                                if ($ResponseDetail.Contains('ContentParsed')) { $ResponseDetail.Remove('ContentParsed') }
+                                                Write-AppInsightsException -ErrorRecord $_ -OrderedProperties $ResponseDetail
                                                 # Get the retry after header
                                                 try {
-                                                    $RetryAfter = [double]($_.Exception.Response.Headers.GetValues('Retry-After')[0])
-                                                } catch {
-                                                    Write-Verbose "Request throttled but Retry-After not provided ($nextLink) using exponential backoff ($(RetryAfter)s)"
+                                                    $RetryAfter = $_.Exception.Response.Headers.GetValues('Retry-After')[0]
                                                 }
+                                                catch {
+                                                    if ($Retries -gt 0) { $RetryAfter *= 2 }
+                                                }
+                                                Write-Warning "Request was throttled and will attempt retry $($Retries+1) of $MaxRetries after $($RetryAfter)s."
+                                                Start-Sleep -Seconds $RetryAfter
                                             }
-                                            # request has encountered and error and has not hit the maximum retires
-                                            Write-Warning "GET $nextLink; error '$($_.Exception.Message); attempt $($Retries+1) out of $MaxRetries. Retrying after $($RetryAfter)s"
-                                            Start-Sleep -Seconds $RetryAfter
-                                            $RetryAfter = $RetryAfter * 2
+                                            else {
+                                                # catch error if it was the last try
+                                                Catch-MsGraphError $_
+                                            }
                                         }
                                     }
                                     if ($Result) {
@@ -884,30 +890,36 @@ function Get-MsGraphResponseDetail {
         $ResponseDetail = [ordered]@{}
 
         if ($InputObject -is [System.Management.Automation.ErrorRecord]) {
-            ## Get Response Body
-            if ($InputObject.ErrorDetails) {
-                $ResponseDetail['Response'] = '{0} {1} HTTP/{2}' -f $InputObject.Exception.Response.StatusCode.value__, $InputObject.Exception.Response.ReasonPhrase, $InputObject.Exception.Response.Version
-                $ResponseDetail['Content-Type'] = $InputObject.Exception.Response.Content.Headers.ContentType.ToString()
-                $ResponseDetail['Content'] = $InputObject.ErrorDetails.Message
-            }
-            elseif ($InputObject.Exception -is [System.Net.WebException]) {
-                if ($InputObject.Exception.Response) {
-                    $ResponseDetail['Response'] = '{0} {1} HTTP/{2}' -f $InputObject.Exception.Response.StatusCode.value__, $InputObject.Exception.Response.StatusDescription, $InputObject.Exception.Response.ProtocolVersion
-                    $ResponseDetail['Content-Type'] = $InputObject.Exception.Response.Headers.GetValues('Content-Type') -join '; '
-
-                    $StreamReader = New-Object System.IO.StreamReader -ArgumentList $InputObject.Exception.Response.GetResponseStream()
-                    try { $ResponseDetail['Content'] = $StreamReader.ReadToEnd() }
-                    finally { $StreamReader.Close() }
+            if ($InputObject.Exception.psobject.Properties.Name.Contains('Response')) {
+                ## Get Response Body
+                if ($InputObject.ErrorDetails) {
+                    $ResponseDetail['Response'] = '{0} {1} HTTP/{2}' -f $InputObject.Exception.Response.StatusCode.value__, $InputObject.Exception.Response.ReasonPhrase, $InputObject.Exception.Response.Version
+                    $ResponseDetail['Content-Type'] = $InputObject.Exception.Response.Content.Headers.ContentType.ToString()
+                    $ResponseDetail['Content'] = $InputObject.ErrorDetails.Message
                 }
-            }
+                elseif ($InputObject.Exception -is [System.Net.WebException]) {
+                    if ($InputObject.Exception.Response) {
+                        $ResponseDetail['Response'] = '{0} {1} HTTP/{2}' -f $InputObject.Exception.Response.StatusCode.value__, $InputObject.Exception.Response.StatusDescription, $InputObject.Exception.Response.ProtocolVersion
+                        $ResponseDetail['Content-Type'] = $InputObject.Exception.Response.Headers.GetValues('Content-Type') -join '; '
 
-            $ResponseDetail['ContentParsed'] = $null
-            if ($ResponseDetail['Content-Type'] -eq 'application/json') { $ResponseDetail['ContentParsed'] = ConvertFrom-Json $ResponseDetail['Content'] }
-            $ResponseDetail['error-message'] = Get-ObjectPropertyValue $ResponseDetail['ContentParsed'] error message
-            $ResponseDetail['Request'] = '{0} {1}' -f $InputObject.TargetObject.Method, $InputObject.TargetObject.RequestUri.AbsoluteUri
-            $ResponseDetail['Date'] = $InputObject.Exception.Response.Headers.GetValues('Date')[0]
-            $ResponseDetail['request-id'] = $InputObject.Exception.Response.Headers.GetValues('request-id')[0]
-            $ResponseDetail['client-request-id'] = $InputObject.Exception.Response.Headers.GetValues('client-request-id')[0]
+                        $StreamReader = New-Object System.IO.StreamReader -ArgumentList $InputObject.Exception.Response.GetResponseStream()
+                        try { $ResponseDetail['Content'] = $StreamReader.ReadToEnd() }
+                        finally { $StreamReader.Close() }
+                    }
+                }
+
+                $ResponseDetail['ContentParsed'] = $null
+                if ($ResponseDetail['Content-Type'] -eq 'application/json') { $ResponseDetail['ContentParsed'] = ConvertFrom-Json $ResponseDetail['Content'] }
+                $ResponseDetail['error-message'] = Get-ObjectPropertyValue $ResponseDetail['ContentParsed'] error message
+                $ResponseDetail['Request'] = '{0} {1}' -f $InputObject.TargetObject.Method, $InputObject.TargetObject.RequestUri.AbsoluteUri
+                $ResponseDetail['Date'] = $InputObject.Exception.Response.Headers.GetValues('Date')[0]
+                $ResponseDetail['request-id'] = $InputObject.Exception.Response.Headers.GetValues('request-id')[0]
+                $ResponseDetail['client-request-id'] = $InputObject.Exception.Response.Headers.GetValues('client-request-id')[0]
+                try {
+                    if ($InputObject.Exception.Response.Headers.GetValues('Retry-After')[0]) { $ResponseDetail['Retry-After'] = $InputObject.Exception.Response.Headers.GetValues('Retry-After')[0] }
+                }
+                catch {}
+            }
         }
         else {
             $ResponseDetail['Response'] = '{0} {1}' -f $InputObject.status, (Get-ObjectPropertyValue $InputObject body error code)
@@ -918,6 +930,7 @@ function Get-MsGraphResponseDetail {
             $ResponseDetail['Date'] = Get-ObjectPropertyValue $InputObject body error innerError 'date'
             $ResponseDetail['request-id'] = Get-ObjectPropertyValue $InputObject body error innerError 'request-id'
             $ResponseDetail['client-request-id'] = Get-ObjectPropertyValue $InputObject body error innerError 'client-request-id'
+            if (Get-ObjectPropertyValue $InputObject headers 'Retry-After') { $ResponseDetail['Retry-After'] = Get-ObjectPropertyValue $InputObject headers 'Retry-After' }
         }
 
         Write-Output $ResponseDetail

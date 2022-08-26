@@ -64,10 +64,7 @@ function New-AppInsightsTelemetry {
     }
 
     ## Add Prerelease tag to version number if it exists
-    try {
-        $AppInsightsTelemetry.tags['ai.application.ver'] = '{0}-{1}' -f $MyInvocation.MyCommand.Module.Version, $MyInvocation.MyCommand.Module.PrivateData.PSData['Prerelease']
-    }
-    catch {}
+    if ($MyInvocation.MyCommand.Module.PrivateData.PSData['Prerelease']) { $AppInsightsTelemetry.tags['ai.application.ver'] = '{0}-{1}' -f $MyInvocation.MyCommand.Module.Version, $MyInvocation.MyCommand.Module.PrivateData.PSData['Prerelease'] }
     
     ## Update Time
     if ($PSVersionTable.PSVersion -ge [version]'7.1') { $AppInsightsTelemetry['time'] = Get-Date -AsUTC -Format 'o' }

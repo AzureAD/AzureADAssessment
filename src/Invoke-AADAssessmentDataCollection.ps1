@@ -138,7 +138,7 @@ function Invoke-AADAssessmentDataCollection {
             Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Directory Role Assignments' -PercentComplete 30
             ## Getting role assignments via unified role API
             # Get-MsGraphResults 'roleManagement/directory/roleAssignmentScheduleInstances' -Select 'id,directoryScopeId,assignmentType,memberType,principalId,startDateTime,endDateTime' -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -ApiVersion 'v1.0' `
-            $roleDefinitions | Get-MsGraphResults 'roleManagement/directory/roleAssignmentScheduleInstances' -Select 'id,directoryScopeId,assignmentType,memberType,principalId,startDateTime,endDateTime' -Filter "roleDefinitionId eq '{0}'" -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -ApiVersion 'v1.0' `
+            $roleDefinitions | Get-MsGraphResults 'roleManagement/directory/roleAssignmentScheduleInstances' -Select 'id,directoryScopeId,assignmentType,memberType,principalId,startDateTime,endDateTime' -Filter "roleDefinitionId eq '{0}'" -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -TotalRequests $roleDefinitions.Count -ApiVersion 'v1.0' `
             | Add-AadReferencesToCache -Type roleAssignmentScheduleInstances -ReferencedIdCache $ReferencedIdCache -PassThru `
             | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "roleAssignmentScheduleInstancesData.xml")
 
@@ -146,7 +146,7 @@ function Invoke-AADAssessmentDataCollection {
             Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Directory Role Eligibility' -PercentComplete 35
             # Getting role eligibility via unified role API
             #Get-MsGraphResults 'roleManagement/directory/roleEligibilityScheduleInstances' -Select 'id,directoryScopeId,memberType,principalId,startDateTime,endDateTime' -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -ApiVersion 'v1.0' `
-            $roleDefinitions | Get-MsGraphResults 'roleManagement/directory/roleEligibilityScheduleInstances' -Select 'id,directoryScopeId,memberType,principalId,startDateTime,endDateTime' -Filter "roleDefinitionId eq '{0}'" -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -ApiVersion 'v1.0' `
+            $roleDefinitions | Get-MsGraphResults 'roleManagement/directory/roleEligibilityScheduleInstances' -Select 'id,directoryScopeId,memberType,principalId,startDateTime,endDateTime' -Filter "roleDefinitionId eq '{0}'" -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -TotalRequests $roleDefinitions.Count -ApiVersion 'v1.0' `
             | Add-AadReferencesToCache -Type roleAssignmentScheduleInstances -ReferencedIdCache $ReferencedIdCache -PassThru `
             | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "roleEligibilityScheduleInstancesData.xml")
             #| Export-JsonArray (Join-Path $OutputDirectoryAAD "roleEligibilityScheduleInstances.json") -Depth 5 -Compress
@@ -303,7 +303,7 @@ function Invoke-AADAssessmentDataCollection {
         if (!$NoAssignedPlans) {
             $userQuery += ",assignedPlans"
         }
-        $ReferencedIdCache.user | Get-MsGraphResults $userQuery -TotalRequests $ReferencedIdCache.user.Count -DisableUniqueIdDeduplication -ApiVersion 'beta' `
+        $ReferencedIdCache.user | Get-MsGraphResults $userQuery -TotalRequests $ReferencedIdCache.user.Count -DisableUniqueIdDeduplication -BatchSize 2 -ApiVersion 'beta' `
         | Select-Object -Property "*" -ExcludeProperty '@odata.type' `
         | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "userData.xml")
         $ReferencedIdCache.user.Clear()
