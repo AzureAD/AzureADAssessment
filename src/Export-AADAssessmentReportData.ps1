@@ -35,7 +35,7 @@ function Export-AADAssessmentReportData {
     # | Export-JsonArray (Join-Path $OutputDirectory "directoryRoles.json") -Depth 5 -Compress
 
     if (!(Test-Path -Path (Join-Path $OutputDirectory "appRoleAssignments.csv")) -or $Force) {
-        Set-Content -Path (Join-Path $OutputDirectory "appRoleAssignments.csv") -Value 'id,creationTimestamp,appRoleId,principalDisplayName,principalId,principalType,resourceDisplayName,resourceId'
+        Set-Content -Path (Join-Path $OutputDirectory "appRoleAssignments.csv") -Value 'id,deletedDateTime,appRoleId,createdDateTime,principalDisplayName,principalId,principalType,resourceDisplayName,resourceId'
         Import-Clixml -Path (Join-Path $SourceDirectory "appRoleAssignmentData.xml") `
         | Use-Progress -Activity 'Exporting appRoleAssignments' -Property id -PassThru -WriteSummary `
         | Format-Csv `
@@ -158,30 +158,30 @@ function Export-AADAssessmentReportData {
         $LookupCache.userRegistrationDetails.Clear()
     }
 
-    # notificaiton emails report (Remove on next release)
-    if (!(Test-Path -Path (Join-Path $OutputDirectory "NotificationsEmailsReport.csv")) -or $Force) {
-        # load unique data
-        $OrganizationData = Get-Content -Path (Join-Path $SourceDirectory "organization.json") -Raw | ConvertFrom-Json
-        [array] $DirectoryRoleData = Import-Clixml -Path (Join-Path $SourceDirectory "directoryRoleData.xml")
-        # load data if cache empty
-        if ($LookupCache.user.Count -eq 0) {
-            Write-Output "Loading users in lookup cache"
-            Import-Clixml -Path (Join-Path $SourceDirectory "userData.xml") | Add-AadObjectToLookupCache -Type user -LookupCache $LookupCache
-        }
-        if ($LookupCache.group.Count -eq 0) {
-            Write-Output "Loading groups in lookup cache"
-            Import-Clixml -Path (Join-Path $SourceDirectory "groupData.xml") | Add-AadObjectToLookupCache -Type group -LookupCache $LookupCache
-        }
+    # # notificaiton emails report (Remove on next release)
+    # if (!(Test-Path -Path (Join-Path $OutputDirectory "NotificationsEmailsReport.csv")) -or $Force) {
+    #     # load unique data
+    #     $OrganizationData = Get-Content -Path (Join-Path $SourceDirectory "organization.json") -Raw | ConvertFrom-Json
+    #     [array] $DirectoryRoleData = Import-Clixml -Path (Join-Path $SourceDirectory "directoryRoleData.xml")
+    #     # load data if cache empty
+    #     if ($LookupCache.user.Count -eq 0) {
+    #         Write-Output "Loading users in lookup cache"
+    #         Import-Clixml -Path (Join-Path $SourceDirectory "userData.xml") | Add-AadObjectToLookupCache -Type user -LookupCache $LookupCache
+    #     }
+    #     if ($LookupCache.group.Count -eq 0) {
+    #         Write-Output "Loading groups in lookup cache"
+    #         Import-Clixml -Path (Join-Path $SourceDirectory "groupData.xml") | Add-AadObjectToLookupCache -Type group -LookupCache $LookupCache
+    #     }
 
-        # generate the report
-        Set-Content -Path (Join-Path $OutputDirectory "NotificationsEmailsReport.csv") -Value 'notificationType,notificationScope,recipientType,recipientEmail,recipientEmailAlternate,recipientId,recipientUserPrincipalName,recipientDisplayName'
-        Get-AADAssessNotificationEmailsReport -Offline -OrganizationData $OrganizationData -UserData $LookupCache.user -GroupData $LookupCache.group -DirectoryRoleData $DirectoryRoleData `
-        | Use-Progress -Activity 'Exporting NotificationsEmailsReport' -Property recipientEmail -PassThru -WriteSummary `
-        | Export-Csv -Path (Join-Path $OutputDirectory "NotificationsEmailsReport.csv") -NoTypeInformation -Append
+    #     # generate the report
+    #     Set-Content -Path (Join-Path $OutputDirectory "NotificationsEmailsReport.csv") -Value 'notificationType,notificationScope,recipientType,recipientEmail,recipientEmailAlternate,recipientId,recipientUserPrincipalName,recipientDisplayName'
+    #     Get-AADAssessNotificationEmailsReport -Offline -OrganizationData $OrganizationData -UserData $LookupCache.user -GroupData $LookupCache.group -DirectoryRoleData $DirectoryRoleData `
+    #     | Use-Progress -Activity 'Exporting NotificationsEmailsReport' -Property recipientEmail -PassThru -WriteSummary `
+    #     | Export-Csv -Path (Join-Path $OutputDirectory "NotificationsEmailsReport.csv") -NoTypeInformation -Append
 
-        # clean unique data
-        Remove-Variable DirectoryRoleData
-    }
+    #     # clean unique data
+    #     Remove-Variable DirectoryRoleData
+    # }
 
     # role assignment report
     if (!(Test-Path -Path (Join-Path $OutputDirectory "RoleAssignmentReport.csv")) -or $Force) {

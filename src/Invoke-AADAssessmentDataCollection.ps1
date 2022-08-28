@@ -66,6 +66,10 @@ function Invoke-AADAssessmentDataCollection {
         $AssessmentDetailPath = Join-Path $OutputDirectoryData "AzureADAssessment.json"
         $PackagePath = Join-Path $OutputDirectory "AzureADAssessmentData.aad"
 
+        ### Start Output Log
+        #Start-Transcript -OutputDirectory $OutputDirectoryData -Force -IncludeInvocationHeader | Out-Null
+        #$ErrorStartCount = $Error.Count
+
         ### Organization Data - 0
         Write-Progress -Id 0 -Activity 'Microsoft Azure AD Assessment Data Collection' -Status 'Organization Details' -PercentComplete 0
         $OrganizationData = Get-MsGraphResults 'organization?$select=id,displayName,verifiedDomains,technicalNotificationMails' -ErrorAction Stop
@@ -119,12 +123,12 @@ function Invoke-AADAssessmentDataCollection {
         | ConvertTo-Json -Depth 5 -Compress | Set-Content -Path (Join-Path $OutputDirectoryAAD "emailOTPMethodPolicy.json")
 
         ### Directory Role Data - 5 (Remove from next release)
-        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Directory Roles' -PercentComplete 21
-        ## $expand on directoryRole members caps results at 20 members with no NextLink so call members endpoint for each.
-        Get-MsGraphResults 'directoryRoles?$select=id,displayName,roleTemplateId' -DisableUniqueIdDeduplication `
-        | Expand-MsGraphRelationship -ObjectType directoryRoles -PropertyName members -References `
-        | Add-AadReferencesToCache -Type directoryRole -ReferencedIdCache $ReferencedIdCache -PassThru `
-        | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "directoryRoleData.xml")
+        # Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Directory Roles' -PercentComplete 21
+        # ## $expand on directoryRole members caps results at 20 members with no NextLink so call members endpoint for each.
+        # Get-MsGraphResults 'directoryRoles?$select=id,displayName,roleTemplateId' -DisableUniqueIdDeduplication `
+        # | Expand-MsGraphRelationship -ObjectType directoryRoles -PropertyName members -References `
+        # | Add-AadReferencesToCache -Type directoryRole -ReferencedIdCache $ReferencedIdCache -PassThru `
+        # | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "directoryRoleData.xml")
 
         ### Directory Role Definitions - 6
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Directory Role Definitions' -PercentComplete 25
@@ -174,7 +178,7 @@ function Invoke-AADAssessmentDataCollection {
 
         ### Application Data - 9
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Applications' -PercentComplete 40
-        Get-MsGraphResults 'applications?$select=id,appId,displayName,appRoles,keyCredentials,passwordCredentials' -Top 999 -ApiVersion 'beta' `
+        Get-MsGraphResults 'applications?$select=id,appId,displayName,appRoles,keyCredentials,passwordCredentials' -Top 999 -ApiVersion 'v1.0' `
         | Where-Object { $_.keyCredentials.Count -or $_.passwordCredentials.Count -or $ReferencedIdCache.application.Contains($_.id) -or $ReferencedIdCache.appId.Contains($_.appId) } `
         | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "applicationData.xml")
 
@@ -187,7 +191,7 @@ function Invoke-AADAssessmentDataCollection {
         # | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "servicePrincipalData.xml")
         ## Option 2: Expand appRoleAssignedTo when retrieving servicePrincipal object. This is at least 50x faster but appears to miss some appRoleAssignments.
         $listAppRoleAssignments = New-Object 'System.Collections.Generic.List[psobject]'
-        Get-MsGraphResults 'servicePrincipals?$select=id,appId,servicePrincipalType,displayName,accountEnabled,appOwnerOrganizationId,appRoles,oauth2PermissionScopes,keyCredentials,passwordCredentials&$expand=appRoleAssignedTo' -Top 999 -ApiVersion 'beta' `
+        Get-MsGraphResults 'servicePrincipals?$select=id,appId,servicePrincipalType,displayName,accountEnabled,appOwnerOrganizationId,appRoles,oauth2PermissionScopes,keyCredentials,passwordCredentials&$expand=appRoleAssignedTo' -Top 999 -ApiVersion 'v1.0' `
         | Extract-AppRoleAssignments -ListVariable $listAppRoleAssignments -PassThru `
         | Select-Object -Property "*" -ExcludeProperty 'appRoleAssignedTo', 'appRoleAssignedTo@odata.context' `
         | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "servicePrincipalData.xml")
@@ -303,7 +307,7 @@ function Invoke-AADAssessmentDataCollection {
         if (!$NoAssignedPlans) {
             $userQuery += ",assignedPlans"
         }
-        $ReferencedIdCache.user | Get-MsGraphResults $userQuery -TotalRequests $ReferencedIdCache.user.Count -DisableUniqueIdDeduplication -BatchSize 2 -ApiVersion 'beta' `
+        $ReferencedIdCache.user | Get-MsGraphResults $userQuery -TotalRequests $ReferencedIdCache.user.Count -DisableUniqueIdDeduplication -BatchSize 20 -ApiVersion 'beta' `
         | Select-Object -Property "*" -ExcludeProperty '@odata.type' `
         | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "userData.xml")
         $ReferencedIdCache.user.Clear()
@@ -328,6 +332,10 @@ function Invoke-AADAssessmentDataCollection {
             AssessmentTenantId = $OrganizationData.id
         }
 
+        ### Stop Transcript
+        #Stop-Transcript
+        #$Error | Select-Object -Last ($Error.Count - $ErrorStartCount) | Export-Clixml -Path (Join-Path $OutputDirectoryData "PowerShell_errors.xml") -Depth 10
+
         if (!$SkipPackaging) {
             ### Remove pre existing package (zip) if it exists
             if (Test-Path -Path $PackagePath) {
@@ -348,6 +356,10 @@ function Invoke-AADAssessmentDataCollection {
     }
     catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException -ErrorRecord $_ }; throw }
     finally {
+        ## Stop transcript if not already
+        #try { Stop-Transcript | Out-Null }
+        #catch {}
+
         # check generated package and issue warning
         $issue = $false
         if (!(Test-Path -PathType Leaf -Path $PackagePath) -and !$SkipPackaging) {
