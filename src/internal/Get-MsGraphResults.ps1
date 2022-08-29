@@ -125,12 +125,13 @@ function Get-MsGraphResults {
             Write-Debug -Message (ConvertTo-Json ([PSCustomObject]$ResponseDetail) -Depth 3)
 
             if ($ResponseDetail['ContentParsed']) {
-                ## Write Custom Error
-                if ($ResponseDetail['ContentParsed'].error.code -eq 'Authentication_ExpiredToken' -or $ResponseDetail['ContentParsed'].error.code -eq 'Service_ServiceUnavailable' -or $ResponseDetail['ContentParsed'].error.code -eq 'Request_UnsupportedQuery') {
+                ## Terminating errors with specific codes
+                if ($ResponseDetail['ContentParsed'].error.code -in ('Authentication_ExpiredToken', 'Service_ServiceUnavailable', 'Request_UnsupportedQuery')) {
                     #Write-AppInsightsException -ErrorRecord $_ -OrderedProperties $ResponseDetail  # Not needed when calling function has try finally to write terminating errors
                     Write-Error -Exception $_.Exception -Message $ResponseDetail['ContentParsed'].error.message -ErrorId $ResponseDetail['ContentParsed'].error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorAction Stop
                 }
                 else {
+                    ## Ignore errors with specific codes else display non-terminating error
                     if ($ResponseDetail['ContentParsed'].error.code -eq 'Request_ResourceNotFound') {
                         Write-Error -Exception $_.Exception -Message $ResponseDetail['ContentParsed'].error.message -ErrorId $ResponseDetail['ContentParsed'].error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorVariable cmdError -ErrorAction SilentlyContinue
                         #Write-Warning $ResponseDetail['ContentParsed'].error.message
@@ -150,10 +151,12 @@ function Get-MsGraphResults {
             if ($BatchResponse.status -ne '200') {
                 Write-Debug -Message (ConvertTo-Json $BatchResponse -Depth 3)
 
-                if ($BatchResponse.body.error.code -eq 'Authentication_ExpiredToken' -or $BatchResponse.body.error.code -eq 'Service_ServiceUnavailable' -or $BatchResponse.body.error.code -eq 'Request_UnsupportedQuery') {
+                ## Terminating errors with specific codes
+                if ($BatchResponse.body.error.code -in ('Authentication_ExpiredToken','Service_ServiceUnavailable','Request_UnsupportedQuery')) {
                     Write-Error -Message $BatchResponse.body.error.message -ErrorId $BatchResponse.body.error.code -ErrorAction Stop
                 }
                 else {
+                    ## Ignore errors with specific codes else display non-terminating error
                     if ($BatchResponse.body.error.code -eq 'Request_ResourceNotFound') {
                         Write-Error -Message $BatchResponse.body.error.message -ErrorId $BatchResponse.body.error.code -ErrorVariable cmdError -ErrorAction SilentlyContinue
                         #Write-Warning $BatchResponse.body.error.message
@@ -357,6 +360,7 @@ function Get-MsGraphResults {
                             else {
                                 # catch error if it was the last try
                                 Catch-MsGraphError $_
+                                break  # break the loop if error was not due to throttling
                             }
                         }
                     }
@@ -462,6 +466,7 @@ function Get-MsGraphResults {
                                             else {
                                                 # catch error if it was the last try
                                                 Catch-MsGraphError $_
+                                                break  # break the loop if error was not due to throttling
                                             }
                                         }
                                     }
