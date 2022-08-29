@@ -22,20 +22,11 @@ function Confirm-ModuleAuthentication {
         [guid] $CorrelationId = (New-Guid),
         # Scopes for MS Graph
         [Parameter(Mandatory = $false, ValueFromPipelineByPropertyName = $true)]
-        [string[]] $MsGraphScopes = @(
-            'Organization.Read.All'
-            'RoleManagement.Read.Directory'
-            'Application.Read.All'
-            'User.Read.All'
-            'Group.Read.All'
-            'Policy.Read.All'
-            'Directory.Read.All'
-            'SecurityEvents.Read.All'
-            'UserAuthenticationMethod.Read.All'
-            'AuditLog.Read.All'
-            'Reports.Read.All'
-        )
+        [string[]] $MsGraphScopes = $script:MsGraphScopes
     )
+
+    ## Override scopes on microsoft tenant only
+    if ($ClientApplication.AppConfig.TenantId -in ('72f988bf-86f1-41af-91ab-2d7cd011db47', 'microsoft.onmicrosoft.com', 'microsoft.com') -and $ClientApplication.ClientId -in ('1b730954-1685-4b74-9bfd-dac224a7b894', '1950a258-227b-4e31-a9cf-717495945fc2', '65df9042-2439-4b70-94ac-6cc892f61d85')) { $MsGraphScopes = '.default' }
 
     ## Add Microsoft Graph endpoint for the appropriate cloud
     for ($iScope = 0; $iScope -lt $MsGraphScopes.Count; $iScope++) {
@@ -80,11 +71,20 @@ function Confirm-ModuleAuthentication {
         catch { throw }
         finally {
             $Stopwatch.Stop()
+            if ($MsGraphToken) {
+                $AuthDetail = [ordered]@{
+                    TokenType     = $MsGraphToken.TokenType
+                    ExpiresOn     = $MsGraphToken.ExpiresOn
+                    CorrelationId = $MsGraphToken.CorrelationId
+                    Scopes        = $MsGraphToken.Scopes -join ' '
+                }
+            }
+            else { $AuthDetail = [ordered]@{} }
             if (!$script:ConnectState.MsGraphToken -or $paramMsalToken.ContainsKey('Interactive')) {
-                Write-AppInsightsDependency 'GET Access Token (Interactive)' -Type 'Azure AD' -Data 'GET Access Token (Interactive)' -Duration $Stopwatch.Elapsed -Success ($null -ne $MsGraphToken)
+                Write-AppInsightsDependency 'GET Access Token (Interactive)' -Type 'Azure AD' -Data 'GET Access Token (Interactive)' -Duration $Stopwatch.Elapsed -Success ($null -ne $MsGraphToken) -OrderedProperties $AuthDetail
             }
             elseif ($script:ConnectState.MsGraphToken.AccessToken -ne $MsGraphToken.AccessToken) {
-                Write-AppInsightsDependency 'GET Access Token' -Type 'Azure AD' -Data 'GET Access Token' -Duration $Stopwatch.Elapsed -Success ($null -ne $MsGraphToken)
+                Write-AppInsightsDependency 'GET Access Token' -Type 'Azure AD' -Data 'GET Access Token' -Duration $Stopwatch.Elapsed -Success ($null -ne $MsGraphToken) -OrderedProperties $AuthDetail
             }
         }
         if (!$script:ConnectState.MsGraphToken -or ($script:ConnectState.MsGraphToken.AccessToken -ne $MsGraphToken.AccessToken)) {
@@ -108,7 +108,16 @@ function Confirm-ModuleAuthentication {
         finally {
             $Stopwatch.Stop()
             if (!$script:ConnectState.MsGraphToken -or ($script:ConnectState.MsGraphToken.AccessToken -ne $MsGraphToken.AccessToken)) {
-                Write-AppInsightsDependency 'GET Access Token (Confidential Client)' -Type 'Azure AD' -Data 'GET Access Token (Confidential Client)' -Duration $Stopwatch.Elapsed -Success ($null -ne $MsGraphToken)
+                if ($MsGraphToken) {
+                    $AuthDetail = [ordered]@{
+                        TokenType     = $MsGraphToken.TokenType
+                        ExpiresOn     = $MsGraphToken.ExpiresOn
+                        CorrelationId = $MsGraphToken.CorrelationId
+                        Scopes        = $MsGraphToken.Scopes -join ' '
+                    }
+                }
+                else { $AuthDetail = [ordered]@{} }
+                Write-AppInsightsDependency 'GET Access Token (Confidential Client)' -Type 'Azure AD' -Data 'GET Access Token (Confidential Client)' -Duration $Stopwatch.Elapsed -Success ($null -ne $MsGraphToken) -OrderedProperties $AuthDetail
             }
         }
         if (!$script:ConnectState.MsGraphToken -or ($script:ConnectState.MsGraphToken.AccessToken -ne $MsGraphToken.AccessToken)) {

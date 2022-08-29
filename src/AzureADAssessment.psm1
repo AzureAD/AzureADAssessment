@@ -41,6 +41,20 @@ $script:MsGraphSession.UserAgent += ' AzureADAssessment'
 #     UseDefaultCredentials = $true
 # }
 
+[string[]] $script:MsGraphScopes = @(
+    'Organization.Read.All'
+    'RoleManagement.Read.Directory'
+    'Application.Read.All'
+    'User.Read.All'
+    'Group.Read.All'
+    'Policy.Read.All'
+    'Directory.Read.All'
+    'SecurityEvents.Read.All'
+    'UserAuthenticationMethod.Read.All'
+    'AuditLog.Read.All'
+    'Reports.Read.All'
+)
+
 $script:mapMgEnvironmentToAzureCloudInstance = @{
     'Global'   = 'AzurePublic'
     'China'    = 'AzureChina'
