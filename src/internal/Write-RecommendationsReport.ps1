@@ -106,7 +106,10 @@ Please be aware of the following disclaimers
     $Utf8BomEncoding = New-Object System.Text.UTF8Encoding $true
     [System.IO.File]::WriteAllLines($htmlReportPath, $html, $Utf8BomEncoding)
 
-    Invoke-Item $htmlReportPath
+    try {
+        Invoke-Item $htmlReportPath -ErrorAction SilentlyContinue
+    }
+    catch {}
 }
 
 

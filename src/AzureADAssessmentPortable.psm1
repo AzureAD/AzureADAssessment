@@ -156,7 +156,10 @@ function Export-AADAssessADFSConfiguration {
     #Add-Type -assembly "system.io.compression.filesystem"
     #[io.compression.zipfile]::CreateFromDirectory($filePathBase, $zipfileName)
 
-    #Invoke-Item $zipfileBase
+    # try {
+    #     Invoke-Item $zipfileBase -ErrorAction SilentlyContinue
+    # }
+    # catch {}
 }
 
 

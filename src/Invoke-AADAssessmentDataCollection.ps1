@@ -342,7 +342,6 @@ function Invoke-AADAssessmentDataCollection {
                 Remove-Item $PackagePath -Force
             }
             
-
             ### Package Output
             #Compress-Archive (Join-Path $OutputDirectoryData '\*') -DestinationPath $PackagePath -Force -ErrorAction Stop
             [System.IO.Compression.ZipFile]::CreateFromDirectory($OutputDirectoryData,$PackagePath)
@@ -351,8 +350,10 @@ function Invoke-AADAssessmentDataCollection {
         }
 
         ### Open Directory
-        Invoke-Item $OutputDirectory
-
+        try {
+            Invoke-Item $OutputDirectory -ErrorAction SilentlyContinue
+        }
+        catch {}
     }
     catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException -ErrorRecord $_ }; throw }
     finally {
