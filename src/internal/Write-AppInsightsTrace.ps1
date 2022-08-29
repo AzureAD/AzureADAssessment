@@ -21,6 +21,9 @@ function Write-AppInsightsTrace {
         # Custom Properties
         [Parameter(Mandatory = $false)]
         [hashtable] $Properties,
+        # Custom Ordered Properties. An ordered dictionary can be defined as: [ordered]@{ first = '1'; second = '2' }
+        [Parameter(Mandatory = $false)]
+        [System.Collections.Specialized.OrderedDictionary] $OrderedProperties,
         # Instrumentation Key
         [Parameter(Mandatory = $false)]
         [string] $InstrumentationKey = $script:ModuleConfig.'ai.instrumentationKey',
@@ -38,6 +41,7 @@ function Write-AppInsightsTrace {
     ## Update Telemetry Data
     $AppInsightsTelemetry.data.baseData['message'] = $Message
     if ($SeverityLevel) { $AppInsightsTelemetry.data.baseData['severityLevel'] = $SeverityLevel }
+    if ($OrderedProperties) { $AppInsightsTelemetry.data.baseData['properties'] += $OrderedProperties }
     if ($Properties) { $AppInsightsTelemetry.data.baseData['properties'] += $Properties }
 
     ## Write Data to Application Insights
