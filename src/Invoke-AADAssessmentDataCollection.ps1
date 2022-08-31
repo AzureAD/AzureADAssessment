@@ -288,7 +288,7 @@ function Invoke-AADAssessmentDataCollection {
         ## Option 1: Populate direct members on groups (including nested groups) and calculate transitiveMembers later.
         ## $expand on group members caps results at 20 members with no NextLink so call members endpoint for each.
         $ReferencedIdCache.group | Get-MsGraphResults 'groups?$select=id,groupTypes,displayName,mail,proxyAddresses,mailEnabled,securityEnabled,onPremisesSyncEnabled' -TotalRequests $ReferencedIdCache.group.Count -DisableUniqueIdDeduplication -BatchSize 1 -GetByIdsBatchSize 20 `
-        | Expand-MsGraphRelationship -ObjectType groups -PropertyName members -References -Top 999 `
+        | Expand-MsGraphRelationship -ObjectType groups -PropertyName members -References -Top 999 -SkipRelationshipThreshold 100 `
         | Add-AadReferencesToCache -Type group -ReferencedIdCache $ReferencedIdCache -ReferencedTypes '#microsoft.graph.user', '#microsoft.graph.servicePrincipal' -PassThru `
         | Select-Object -Property "*" -ExcludeProperty '@odata.type' `
         | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "groupData.xml")
