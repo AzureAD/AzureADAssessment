@@ -854,9 +854,13 @@ function Get-MsGraphResultsCount {
         # Graph endpoint such as "users".
         [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
         [uri] $Uri,
+        # API Version.
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('v1.0', 'beta')]
+        [string] $ApiVersion = 'v1.0',
         # Base URL for Microsoft Graph API.
         [Parameter(Mandatory = $false)]
-        [uri] $GraphBaseUri = 'https://graph.microsoft.com/'
+        [uri] $GraphBaseUri = $script:mapMgEnvironmentToMgEndpoint[$script:ConnectState.CloudEnvironment]
     )
 
     process {
@@ -865,6 +869,7 @@ function Get-MsGraphResultsCount {
         }
         else {
             $uriEndpointCount = New-Object System.UriBuilder -ArgumentList $GraphBaseUri -ErrorAction Stop
+            $uriEndpointCount.Path = ([IO.Path]::Combine($uriEndpointCount.Path, $ApiVersion, $Uri))
         }
         ## Remove $ref from path
         $uriEndpointCount.Path = $uriEndpointCount.Path -replace '/\$ref$', ''
