@@ -88,6 +88,7 @@ function New-AppInsightsTelemetry {
         Culture         = [System.Threading.Thread]::CurrentThread.CurrentCulture.Name
         PsEdition       = $PSVersionTable.PSEdition.ToString()
         PsVersion       = $PSVersionTable.PSVersion.ToString()
+        Ps64BitProcess  = [System.Environment]::Is64BitProcess
         DebugPreference = '{0} ({1})' -f $DebugPreference.ToString(), $DebugPreference.value__
     }
     if ($script:ConnectState.MsGraphToken) {
