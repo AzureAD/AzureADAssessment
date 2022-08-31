@@ -343,7 +343,8 @@ function Get-MsGraphResults {
                         catch {
                             ## Retry request if response indicates throttling 
                             # ToDo: Also identity other connection-based errors such as connection was forcably closed
-                            if ($Retries -lt $MaxRetries -and (Get-ObjectPropertyValue $_ Exception Response StatusCode value__) -eq 429) {
+                            # Windows PowerShell WebException Example: $_.Exception.Status -eq 'Timeout'
+                            if ($Retries -lt $MaxRetries -and ((Get-ObjectPropertyValue $_ Exception Response StatusCode value__) -eq 429 -or !(Get-ObjectPropertyValue $_ Exception Response))) {
                                 $ResponseDetail = Get-MsGraphResponseDetail $_
                                 if ($ResponseDetail.Contains('ContentParsed')) { $ResponseDetail.Remove('ContentParsed') }
                                 Write-AppInsightsException -ErrorRecord $_ -OrderedProperties $ResponseDetail
@@ -449,7 +450,7 @@ function Get-MsGraphResults {
                                         catch {
                                             ## Retry request if response indicates throttling 
                                             # ToDo: Also identity other connection-based errors such as connection was forcably closed
-                                            if ($Retries -lt $MaxRetries -and (Get-ObjectPropertyValue $_ Exception Response StatusCode value__) -eq 429) {
+                                            if ($Retries -lt $MaxRetries -and ((Get-ObjectPropertyValue $_ Exception Response StatusCode value__) -eq 429 -or !(Get-ObjectPropertyValue $_ Exception Response))) {
                                                 $ResponseDetail = Get-MsGraphResponseDetail $_
                                                 if ($ResponseDetail.Contains('ContentParsed')) { $ResponseDetail.Remove('ContentParsed') }
                                                 Write-AppInsightsException -ErrorRecord $_ -OrderedProperties $ResponseDetail
@@ -917,13 +918,15 @@ function Get-MsGraphResponseDetail {
                 if ($ResponseDetail['Content-Type'] -eq 'application/json') { $ResponseDetail['ContentParsed'] = ConvertFrom-Json $ResponseDetail['Content'] }
                 $ResponseDetail['error-message'] = Get-ObjectPropertyValue $ResponseDetail['ContentParsed'] error message
                 $ResponseDetail['Request'] = '{0} {1}' -f $InputObject.TargetObject.Method, $InputObject.TargetObject.RequestUri.AbsoluteUri
-                $ResponseDetail['Date'] = $InputObject.Exception.Response.Headers.GetValues('Date')[0]
-                $ResponseDetail['request-id'] = $InputObject.Exception.Response.Headers.GetValues('request-id')[0]
-                $ResponseDetail['client-request-id'] = $InputObject.Exception.Response.Headers.GetValues('client-request-id')[0]
-                try {
-                    if ($InputObject.Exception.Response.Headers.GetValues('Retry-After')[0]) { $ResponseDetail['Retry-After'] = $InputObject.Exception.Response.Headers.GetValues('Retry-After')[0] }
+                if ($InputObject.Exception.Response) {
+                    $ResponseDetail['Date'] = $InputObject.Exception.Response.Headers.GetValues('Date')[0]
+                    $ResponseDetail['request-id'] = $InputObject.Exception.Response.Headers.GetValues('request-id')[0]
+                    $ResponseDetail['client-request-id'] = $InputObject.Exception.Response.Headers.GetValues('client-request-id')[0]
+                    try {
+                        if ($InputObject.Exception.Response.Headers.GetValues('Retry-After')[0]) { $ResponseDetail['Retry-After'] = $InputObject.Exception.Response.Headers.GetValues('Retry-After')[0] }
+                    }
+                    catch {}
                 }
-                catch {}
             }
         }
         else {
