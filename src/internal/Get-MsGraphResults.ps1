@@ -310,7 +310,7 @@ function Get-MsGraphResults {
                 [int] $MaxRetries = 5,
                 # Default Retry-After value
                 [Parameter(Mandatory = $false)]
-                [int] $RetryAfter = 1
+                [int] $RetryAfter = 2
             )
 
             process {
@@ -341,13 +341,16 @@ function Get-MsGraphResults {
                             break  # break the loop if no error was raised
                         }
                         catch {
-                            ## Retry request if response indicates throttling 
-                            # ToDo: Also identity other connection-based errors such as connection was forcably closed
-                            # Windows PowerShell WebException Example: $_.Exception.Status -eq 'Timeout'
-                            if ($Retries -lt $MaxRetries -and ((Get-ObjectPropertyValue $_ Exception Response StatusCode value__) -eq 429 -or !(Get-ObjectPropertyValue $_ Exception Response))) {
+                            ## Retry request if response returns error or indicates throttling
+                            # Windows PowerShell WebException Example: $_.Exception.Status -eq 'Timeout' # Response is also null because there was no response.
+                            # Example: $_.Exception.Response.StatusCode.value__ -eq 429  # Throttling
+                            # Example: $_.Exception.Response.StatusCode.value__ -eq 503  # ServiceUnavailable
+                            #if ($Retries -lt $MaxRetries -and ((Get-ObjectPropertyValue $_ Exception Response StatusCode value__) -eq 429 -or (Get-ObjectPropertyValue $_ Exception Response StatusCode value__) -eq 503 -or !(Get-ObjectPropertyValue $_ Exception Response))) {
+                            if ($Retries -lt $MaxRetries -and (Get-ObjectPropertyValue $_ Exception Response StatusCode value__) -notin 400,403) {
                                 $ResponseDetail = Get-MsGraphResponseDetail $_
                                 if ($ResponseDetail.Contains('ContentParsed')) { $ResponseDetail.Remove('ContentParsed') }
                                 Write-AppInsightsException -ErrorRecord $_ -OrderedProperties $ResponseDetail
+
                                 # Get the retry after header
                                 try {
                                     $RetryAfter = $_.Exception.Response.Headers.GetValues('Retry-After')[0]
@@ -355,7 +358,13 @@ function Get-MsGraphResults {
                                 catch {
                                     if ($Retries -gt 0) { $RetryAfter *= 2 }
                                 }
-                                Write-Warning "Request was throttled and will attempt retry $($Retries+1) of $MaxRetries after $($RetryAfter)s."
+
+                                if ((Get-ObjectPropertyValue $_ Exception Response StatusCode value__) -eq 429) {
+                                    Write-Warning "Request was throttled and will attempt retry $($Retries+1) of $MaxRetries after $($RetryAfter)s."
+                                }
+                                else {
+                                    Write-Warning "Request returned error and will attempt retry $($Retries+1) of $MaxRetries after $($RetryAfter)s."
+                                }
                                 Start-Sleep -Seconds $RetryAfter
                             }
                             else {
@@ -415,7 +424,7 @@ function Get-MsGraphResults {
                 [int] $MaxRetries = 5,
                 # Default Retry-After value
                 [Parameter(Mandatory = $false)]
-                [int] $RetryAfter = 1
+                [int] $RetryAfter = 2
             )
 
             begin {
@@ -432,7 +441,7 @@ function Get-MsGraphResults {
                         if (Get-ObjectPropertyValue $Result '@odata.nextLink') {
                             [uri] $uriEndpoint = [IO.Path]::Combine($GraphBaseUri.AbsoluteUri, $Request.url.TrimStart('/'))
                             [int] $Total = Get-MsGraphResultsCount $uriEndpoint -GraphBaseUri $GraphBaseUri
-                            $Activity = ('Microsoft Graph Request - {0} {1}' -f $Request.method.ToUpper(), $uriEndpoint.AbsolutePath)
+                            $Activity = ('{0} {1}' -f $Request.method.ToUpper(), $uriEndpoint.AbsolutePath)
                             $ProgressState = Start-Progress -Activity $Activity -Total $Total
                             $ProgressState.CurrentIteration = $Result.value.Count
                             $MaxRetries = 5
@@ -448,12 +457,13 @@ function Get-MsGraphResults {
                                             break  # break the loop if no error was raised
                                         }
                                         catch {
-                                            ## Retry request if response indicates throttling 
-                                            # ToDo: Also identity other connection-based errors such as connection was forcably closed
-                                            if ($Retries -lt $MaxRetries -and ((Get-ObjectPropertyValue $_ Exception Response StatusCode value__) -eq 429 -or !(Get-ObjectPropertyValue $_ Exception Response))) {
+                                            ## Retry request if response returns error or indicates throttling
+                                            #if ($Retries -lt $MaxRetries -and ((Get-ObjectPropertyValue $_ Exception Response StatusCode value__) -eq 429 -or (Get-ObjectPropertyValue $_ Exception Response StatusCode value__) -eq 503 -or !(Get-ObjectPropertyValue $_ Exception Response))) {
+                                            if ($Retries -lt $MaxRetries -and (Get-ObjectPropertyValue $_ Exception Response StatusCode value__) -notin 400, 403) {
                                                 $ResponseDetail = Get-MsGraphResponseDetail $_
                                                 if ($ResponseDetail.Contains('ContentParsed')) { $ResponseDetail.Remove('ContentParsed') }
                                                 Write-AppInsightsException -ErrorRecord $_ -OrderedProperties $ResponseDetail
+
                                                 # Get the retry after header
                                                 try {
                                                     $RetryAfter = $_.Exception.Response.Headers.GetValues('Retry-After')[0]
@@ -461,7 +471,13 @@ function Get-MsGraphResults {
                                                 catch {
                                                     if ($Retries -gt 0) { $RetryAfter *= 2 }
                                                 }
-                                                Write-Warning "Request was throttled and will attempt retry $($Retries+1) of $MaxRetries after $($RetryAfter)s."
+
+                                                if ((Get-ObjectPropertyValue $_ Exception Response StatusCode value__) -eq 429) {
+                                                    Write-Warning "Request was throttled and will attempt retry $($Retries+1) of $MaxRetries after $($RetryAfter)s."
+                                                }
+                                                else {
+                                                    Write-Warning "Request returned error and will attempt retry $($Retries+1) of $MaxRetries after $($RetryAfter)s."
+                                                }
                                                 Start-Sleep -Seconds $RetryAfter
                                             }
                                             else {
