@@ -31,6 +31,11 @@ Import-Config | Set-Config
 if ($PSBoundParameters.ContainsKey('ModuleConfiguration')) { Set-Config $ModuleConfiguration }
 #Export-Config
 
+# Load zip dll on Windows PowerShell
+if ($PSVersionTable.PSEdition -eq 'Desktop') {
+    Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction Stop
+}
+
 ## Initialize Module Variables
 $script:ConnectState = @{
     ClientApplication = $null
