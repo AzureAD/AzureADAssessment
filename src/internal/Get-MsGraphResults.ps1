@@ -49,6 +49,9 @@ function Get-MsGraphResults {
         # Specifies consistency level.
         [Parameter(Mandatory = $false)]
         [string] $ConsistencyLevel = "eventual",
+        # Correlation Id (client-request-id).
+        [Parameter(Mandatory = $false)]
+        [guid] $CorrelationId = (New-Guid),
         # Total requests to calcuate progress bar when using pipeline.
         [Parameter(Mandatory = $false)]
         [int] $TotalRequests,
@@ -117,59 +120,28 @@ function Get-MsGraphResults {
             if (!$_.Exception.psobject.Properties.Name.Contains('Response')) {
                 throw $ErrorRecord
             }
+            
+            $ResponseDetail = Get-MsGraphResponseDetail $_
+            Write-Debug -Message (ConvertTo-Json ([PSCustomObject]$ResponseDetail) -Depth 3)
 
-            ## Get Response Body
-            if ($_.ErrorDetails) {
-                $Response = '{0} {1} HTTP/{2}' -f $_.Exception.Response.StatusCode.value__, $_.Exception.Response.ReasonPhrase, $_.Exception.Response.Version
-                $ContentType = $_.Exception.Response.Content.Headers.ContentType.ToString()
-                $ResponseContent = ConvertFrom-Json $_.ErrorDetails.Message
-            }
-            elseif ($_.Exception -is [System.Net.WebException]) {
-                if ($_.Exception.Response) {
-                    $Response = '{0} {1} HTTP/{2}' -f $_.Exception.Response.StatusCode.value__, $_.Exception.Response.StatusDescription, $_.Exception.Response.ProtocolVersion
-                    $ContentType = $_.Exception.Response.Headers.GetValues('Content-Type') -join '; '
-
-                    $StreamReader = New-Object System.IO.StreamReader -ArgumentList $_.Exception.Response.GetResponseStream()
-                    try { $ResponseContent = ConvertFrom-Json $StreamReader.ReadToEnd() }
-                    finally { $StreamReader.Close() }
-                }
-            }
-
-            Write-Debug -Message (ConvertTo-Json ([PSCustomObject]@{
-                        'Request'                             = '{0} {1}' -f $_.TargetObject.Method, $_.TargetObject.RequestUri.AbsoluteUri
-                        'Response'                            = $Response
-                        'Response.Content-Type'               = $ContentType
-                        'Response.Content'                    = $ResponseContent
-                        'Response.Header.Date'                = $_.Exception.Response.Headers.GetValues('Date')[0]
-                        'Response.Header.request-id'          = $_.Exception.Response.Headers.GetValues('request-id')[0]
-                        'Response.Header.client-request-id'   = $_.Exception.Response.Headers.GetValues('client-request-id')[0]
-                        'Response.Header.x-ms-ags-diagnostic' = $_.Exception.Response.Headers.GetValues('x-ms-ags-diagnostic')[0] | ConvertFrom-Json
-                    }) -Depth 3)
-
-            if ($ResponseContent) {
-                ## Write Custom Error
-                if ($ResponseContent.error.code -eq 'Authentication_ExpiredToken' -or $ResponseContent.error.code -eq 'Service_ServiceUnavailable' -or $ResponseContent.error.code -eq 'Request_UnsupportedQuery') {
-                    #Write-AppInsightsException $_.Exception
-                    Write-Error -Exception $_.Exception -Message $ResponseContent.error.message -ErrorId $ResponseContent.error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorAction Stop
+            if ($ResponseDetail['ContentParsed']) {
+                ## Terminating errors with specific codes
+                if ($ResponseDetail['ContentParsed'].error.code -in ('Authentication_ExpiredToken', 'Service_ServiceUnavailable', 'Request_UnsupportedQuery')) {
+                    #Write-AppInsightsException -ErrorRecord $_ -OrderedProperties $ResponseDetail  # Not needed when calling function has try finally to write terminating errors
+                    Write-Error -Exception $_.Exception -Message $ResponseDetail['ContentParsed'].error.message -ErrorId $ResponseDetail['ContentParsed'].error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorAction Stop
                 }
                 else {
-                    if ($ResponseContent.error.code -eq 'Request_ResourceNotFound') {
-                        Write-Error -Exception $_.Exception -Message $ResponseContent.error.message -ErrorId $ResponseContent.error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorVariable cmdError -ErrorAction SilentlyContinue
-                        #Write-Warning $ResponseContent.error.message
+                    ## Ignore errors with specific codes else display non-terminating error
+                    if ($ResponseDetail['ContentParsed'].error.code -eq 'Request_ResourceNotFound') {
+                        Write-Error -Exception $_.Exception -Message $ResponseDetail['ContentParsed'].error.message -ErrorId $ResponseDetail['ContentParsed'].error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorVariable cmdError -ErrorAction SilentlyContinue
+                        #Write-Warning $ResponseDetail['ContentParsed'].error.message
                     }
                     else {
-                        Write-Error -Exception $_.Exception -Message $ResponseContent.error.message -ErrorId $ResponseContent.error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorVariable cmdError
+                        Write-Error -Exception $_.Exception -Message $ResponseDetail['ContentParsed'].error.message -ErrorId $ResponseDetail['ContentParsed'].error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorVariable cmdError
                     }
-                    # generate extra properties for the exception
-                    $Properties = @{}
-                    $Properties["request"] = '{0} {1}' -f $_.TargetObject.Method, $_.TargetObject.RequestUri.AbsoluteUri
-                    $Properties["response"] = $Response 
-                    if ($_.Exception.Response.psobject.Properties.Name.Contains("Headers")) {
-                        $Properties["date"] = $_.Exception.Response.Headers.GetValues('Date')[0]
-                        $Properties["requestId"] = $_.Exception.Response.Headers.GetValues('request-id')[0]
-                        $Properties["clientRequestId"] = $_.Exception.Response.Headers.GetValues('client-request-id')[0]
-                    }
-                    Write-AppInsightsException $cmdError.Exception -Properties $Properties
+                    
+                    if ($ResponseDetail.Contains('ContentParsed')) { $ResponseDetail.Remove('ContentParsed') }
+                    Write-AppInsightsException -ErrorRecord $cmdError -OrderedProperties $ResponseDetail
                 }
             }
             else { throw $ErrorRecord }
@@ -179,10 +151,12 @@ function Get-MsGraphResults {
             if ($BatchResponse.status -ne '200') {
                 Write-Debug -Message (ConvertTo-Json $BatchResponse -Depth 3)
 
-                if ($BatchResponse.body.error.code -eq 'Authentication_ExpiredToken' -or $BatchResponse.body.error.code -eq 'Service_ServiceUnavailable' -or $BatchResponse.body.error.code -eq 'Request_UnsupportedQuery') {
+                ## Terminating errors with specific codes
+                if ($BatchResponse.body.error.code -in ('Authentication_ExpiredToken','Service_ServiceUnavailable','Request_UnsupportedQuery')) {
                     Write-Error -Message $BatchResponse.body.error.message -ErrorId $BatchResponse.body.error.code -ErrorAction Stop
                 }
                 else {
+                    ## Ignore errors with specific codes else display non-terminating error
                     if ($BatchResponse.body.error.code -eq 'Request_ResourceNotFound') {
                         Write-Error -Message $BatchResponse.body.error.message -ErrorId $BatchResponse.body.error.code -ErrorVariable cmdError -ErrorAction SilentlyContinue
                         #Write-Warning $BatchResponse.body.error.message
@@ -191,25 +165,11 @@ function Get-MsGraphResults {
                         Write-Error -Message $BatchResponse.body.error.message -ErrorId $BatchResponse.body.error.code -ErrorVariable cmdError
                     }
                     # generate extra properties for the exception
-                    $Properties = @{}
-                    if ($BatchRequest) {
-                        $Properties["request"] = "{0} {1}" -f $BatchRequest.method, $BatchRequest.url
-                    }
-                    if ($BatchResponse.body.error.psobject.Properties.Name.Contains('code') -and $BatchResponse.body.error.psobject.Properties.Name.Contains('message')) {
-                        $Properties["response"] = "{0} {1}" -f $BatchResponse.body.error.code, $BatchResponse.body.error.message
-                    }
-                    if ($BatchResponse.body.error.psobject.Properties.Name.Contains('innerError')) {
-                        if ($BatchResponse.body.error.innerError.psobject.Properties.Name.Contains('date')) {
-                            $Properties["date"] = $BatchResponse.body.error.innerError.date
-                        }
-                        if ($BatchResponse.body.error.innerError.psobject.Properties.Name.Contains('request-id')) {
-                            $Properties["requestId"] = $BatchResponse.body.error.innerError."request-id"
-                        }
-                        if ($BatchResponse.body.error.innerError.psobject.Properties.Name.Contains('client-request-id')) {
-                            $Properties["clientRequestId"] = $BatchResponse.body.error.innerError."client-request-id"
-                        }
-                    }
-                    Write-AppInsightsException $cmdError.Exception -Properties $Properties
+                    $ResponseDetail = Get-MsGraphResponseDetail $BatchResponse
+                    if ($BatchRequest) { $ResponseDetail["Request"] = "{0} {1}" -f $BatchRequest.method, $BatchRequest.url }
+
+                    if ($ResponseDetail.Contains('ContentParsed')) { $ResponseDetail.Remove('ContentParsed') }
+                    Write-AppInsightsException -ErrorRecord $cmdError -OrderedProperties $ResponseDetail
                 }
                 return $true
             }
@@ -287,22 +247,27 @@ function Get-MsGraphResults {
 
                     [array] $resultsBatch = $resultsBatch.responses | Sort-Object -Property { [int]$_.id }
 
-                    $throttledRequests = @()
-                    [double]$maxRetryAfter = 1.0
                     foreach ($results in ($resultsBatch)) {
                         # check if batch result failed and call the endpoint or throw
                         if ($results.status -eq "429") {
-                            # request was throttled
-                            $throttledRequests += $listRequests[$results.id]
-                            # check if a retry after was recieved
-                            if ($results.psobject.Properties.Name.Contains('headers')) {
-                                if ($results.headers.psobject.Properties.Name.Contains('Retry-After')) {
-                                    $RetryAfter = [double]$results.headers.'Retry-After'
-                                    if ($RetryAfter -gt $maxRetryAfter) {
-                                        $maxRetryAfter = $RetryAfter
-                                    }
-                                }
+                            [int] $RetryAfter = Get-ObjectPropertyValue $results headers 'Retry-After'
+                            [double] $SecondsRemaining = $RetryAfter
+                            $Date = Get-ObjectPropertyValue $results body error innerError 'date'
+                            if ($Date) {
+                                if ($PSVersionTable.PSVersion -ge [version]'7.1') { $CurrentTime = Get-Date -AsUTC }
+                                else { $CurrentTime = [datetime]::UtcNow }
+                                $SecondsRemaining = $(([datetime]$Date).AddSeconds($RetryAfter) - $CurrentTime).TotalSeconds
                             }
+
+                            if ($SecondsRemaining -gt 0) {
+                                Write-Warning ("Request from batch was throttled and will attempt retry after {0:0}s." -f $SecondsRemaining)
+                                Start-Sleep -Seconds $SecondsRemaining
+                            }
+                            else {
+                                Write-Warning "Request from batch was throttled and will attempt retry."
+                            }
+
+                            Invoke-MsGraphRequest $request -NoAppInsights -GraphBaseUri $GraphBaseUri
                             continue
                         }
                         $currentRequest = $BatchRequests[$iRequest] | Where-Object {$_.id -eq $results.id}
@@ -317,13 +282,6 @@ function Get-MsGraphResults {
                             else {
                                 Complete-MsGraphResult $results.body -DisablePaging:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType -GroupOutputByRequest:$GroupOutputByRequest -Request $listRequests[$results.id] -GraphBaseUri $GraphBaseUri
                             }
-                        }
-                    }
-                    if ($throttledRequests.Count -gt 0) {
-                        Write-Warning "$($throttledRequests.Count) requests have been throttled; Retrying after $($maxRetryAfter)s"
-                        Start-Sleep -Seconds $maxRetryAfter
-                        foreach($request in $throttledRequests) {
-                            Invoke-MsGraphRequest $request -NoAppInsights -GraphBaseUri $GraphBaseUri -RetryAfter $RetryAfter
                         }
                     }
                 }
@@ -350,8 +308,9 @@ function Get-MsGraphResults {
                 # Number of retries in case of throttling
                 [Parameter(Mandatory = $false)]
                 [int] $MaxRetries = 5,
+                # Default Retry-After value
                 [Parameter(Mandatory = $false)]
-                [double] $RetryAfter = 1
+                [int] $RetryAfter = 2
             )
 
             process {
@@ -376,43 +335,55 @@ function Get-MsGraphResults {
                 $MsGraphSession = Confirm-ModuleAuthentication -MsGraphSession -ErrorAction Stop
                 if (!$NoAppInsights) { $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew() }
                 try {
-                    for($Retries = 0; $Retries -lt $MaxRetries; $Retries++) {
+                    for($Retries = 0; $Retries -le $MaxRetries; $Retries++) {
                         try {
                             $results = Invoke-RestMethod -WebSession $MsGraphSession -UseBasicParsing @paramInvokeRestMethod -ErrorAction Stop
-                            # break the loop if no error was raised
-                            break
+                            break  # break the loop if no error was raised
                         }
                         catch {
-                            ## error while invoking graph
-                            if ($Retries -eq $MaxRetries-1) {
-                                # catch error if it was the last try
-                                Catch-MsGraphError $_ 
-                            }
-                            ## check if throttling happened
-                            if ($_.Exception.PSobject.Properties.Name.Contains("Response") -and $_.Exception.Response.PSobject.Properties.Name.Contains("StatusCode") -and $_.Exception.Response.StatusCode.value__ -eq 429) {
+                            ## Retry request if response returns error or indicates throttling
+                            # Windows PowerShell WebException Example: $_.Exception.Status -eq 'Timeout' # Response is also null because there was no response.
+                            # Example: $_.Exception.Response.StatusCode.value__ -eq 429  # Throttling
+                            # Example: $_.Exception.Response.StatusCode.value__ -eq 503  # ServiceUnavailable
+                            #if ($Retries -lt $MaxRetries -and ((Get-ObjectPropertyValue $_ Exception Response StatusCode value__) -eq 429 -or (Get-ObjectPropertyValue $_ Exception Response StatusCode value__) -eq 503 -or !(Get-ObjectPropertyValue $_ Exception Response))) {
+                            if ($Retries -lt $MaxRetries -and (Get-ObjectPropertyValue $_ Exception Response StatusCode value__) -notin 400,403) {
+                                $ResponseDetail = Get-MsGraphResponseDetail $_
+                                if ($ResponseDetail.Contains('ContentParsed')) { $ResponseDetail.Remove('ContentParsed') }
+                                Write-AppInsightsException -ErrorRecord $_ -OrderedProperties $ResponseDetail
+
                                 # Get the retry after header
                                 try {
-                                    $RetryAfter = [double]($_.Exception.Response.Headers.GetValues('Retry-After')[0])
-                                } catch {
-                                    Write-Verbose "Request throttled but Retry-After not provided ($(Request.url)) using exponential backoff ($(RetryAfter)s)"
+                                    $RetryAfter = $_.Exception.Response.Headers.GetValues('Retry-After')[0]
                                 }
+                                catch {
+                                    if ($Retries -gt 0) { $RetryAfter *= 2 }
+                                }
+
+                                if ((Get-ObjectPropertyValue $_ Exception Response StatusCode value__) -eq 429) {
+                                    Write-Warning "Request was throttled and will attempt retry $($Retries+1) of $MaxRetries after $($RetryAfter)s."
+                                }
+                                else {
+                                    Write-Warning "Request returned error and will attempt retry $($Retries+1) of $MaxRetries after $($RetryAfter)s."
+                                }
+                                Start-Sleep -Seconds $RetryAfter
                             }
-                            # request had an error and has not reached maximum retries
-                            Write-Warning "$($paramInvokeRestMethod['Method']) $($paramInvokeRestMethod['Uri']); error $($_.Exception.Message); attempt $($Retries+1) out of $MaxRetries. Retrying after $($RetryAfter)s"
-                            Start-Sleep -Seconds $RetryAfter
-                            $RetryAfter = $RetryAfter * 2
-                        }                 
+                            else {
+                                # catch error if it was the last try
+                                Catch-MsGraphError $_
+                                break  # break the loop if error was not due to throttling
+                            }
+                        }
                     }
                     if ($results) {
                         if ($IncapsulateReferenceListInParentObject -and $Request.url -match '.*/(.+)/(.+)/((?:transitive)?members|owners)') {
                             [PSCustomObject]@{
                                 id            = $Matches[2]
                                 '@odata.type' = '#{0}' -f (Get-MsGraphEntityType $GraphBaseUri.AbsoluteUri -EntityName $Matches[1])
-                                $Matches[3]   = Complete-MsGraphResult $results -DisablePaging:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType -GroupOutputByRequest -Request $Request -GraphBaseUri $GraphBaseUri
+                                $Matches[3]   = Complete-MsGraphResult $results -DisablePaging:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType -GroupOutputByRequest -Request $Request -GraphBaseUri $GraphBaseUri -MaxRetries $MaxRetries -RetryAfter $RetryAfter
                             }
                         }
                         else {
-                            Complete-MsGraphResult $results -DisablePaging:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType -GroupOutputByRequest:$GroupOutputByRequest -Request $Request -GraphBaseUri $GraphBaseUri
+                            Complete-MsGraphResult $results -DisablePaging:$DisablePaging -KeepODataContext:$KeepODataContext -AddODataType:$AddODataType -GroupOutputByRequest:$GroupOutputByRequest -Request $Request -GraphBaseUri $GraphBaseUri -MaxRetries $MaxRetries -RetryAfter $RetryAfter
                         }       
                     }
                 }
@@ -447,7 +418,13 @@ function Get-MsGraphResults {
                 [psobject] $Request,
                 # Base URL for Microsoft Graph API.
                 [Parameter(Mandatory = $false)]
-                [uri] $GraphBaseUri = 'https://graph.microsoft.com/'
+                [uri] $GraphBaseUri = 'https://graph.microsoft.com/',
+                # Number of retries in case of throttling
+                [Parameter(Mandatory = $false)]
+                [int] $MaxRetries = 5,
+                # Default Retry-After value
+                [Parameter(Mandatory = $false)]
+                [int] $RetryAfter = 2
             )
 
             begin {
@@ -464,7 +441,7 @@ function Get-MsGraphResults {
                         if (Get-ObjectPropertyValue $Result '@odata.nextLink') {
                             [uri] $uriEndpoint = [IO.Path]::Combine($GraphBaseUri.AbsoluteUri, $Request.url.TrimStart('/'))
                             [int] $Total = Get-MsGraphResultsCount $uriEndpoint -GraphBaseUri $GraphBaseUri
-                            $Activity = ('Microsoft Graph Request - {0} {1}' -f $Request.method.ToUpper(), $uriEndpoint.AbsolutePath)
+                            $Activity = ('{0} {1}' -f $Request.method.ToUpper(), $uriEndpoint.AbsolutePath)
                             $ProgressState = Start-Progress -Activity $Activity -Total $Total
                             $ProgressState.CurrentIteration = $Result.value.Count
                             $MaxRetries = 5
@@ -474,32 +451,40 @@ function Get-MsGraphResults {
                                     $nextLink = $Result.'@odata.nextLink'
                                     $MsGraphSession = Confirm-ModuleAuthentication -MsGraphSession -ErrorAction Stop
                                     $Result = $null
-                                    [double]$RetryAfter = 1.0
-                                    for($Retries = 0; $Retries -lt $MaxRetries; $Retries++) {
+                                    for ($Retries = 0; $Retries -le $MaxRetries; $Retries++) {
                                         try {
                                             $Result = Invoke-RestMethod -WebSession $MsGraphSession -UseBasicParsing -Method Get -Uri $nextLink -Headers $Request.headers -ErrorAction Stop
-                                            # break the loop if no error was raised
-                                            break
+                                            break  # break the loop if no error was raised
                                         }
                                         catch {
-                                            ## error while invoking graph
-                                            if ($Retries -eq $MaxRetries-1) {
-                                                # catch error if it was the last try
-                                                Catch-MsGraphError $_ 
-                                            }
-                                            # update retry after if throttling
-                                            if ($_.Exception.PSobject.Properties.Name.Contains("Response") -and $_.Exception.Response.StatusCode.value__ -eq 429) {
+                                            ## Retry request if response returns error or indicates throttling
+                                            #if ($Retries -lt $MaxRetries -and ((Get-ObjectPropertyValue $_ Exception Response StatusCode value__) -eq 429 -or (Get-ObjectPropertyValue $_ Exception Response StatusCode value__) -eq 503 -or !(Get-ObjectPropertyValue $_ Exception Response))) {
+                                            if ($Retries -lt $MaxRetries -and (Get-ObjectPropertyValue $_ Exception Response StatusCode value__) -notin 400, 403) {
+                                                $ResponseDetail = Get-MsGraphResponseDetail $_
+                                                if ($ResponseDetail.Contains('ContentParsed')) { $ResponseDetail.Remove('ContentParsed') }
+                                                Write-AppInsightsException -ErrorRecord $_ -OrderedProperties $ResponseDetail
+
                                                 # Get the retry after header
                                                 try {
-                                                    $RetryAfter = [double]($_.Exception.Response.Headers.GetValues('Retry-After')[0])
-                                                } catch {
-                                                    Write-Verbose "Request throttled but Retry-After not provided ($nextLink) using exponential backoff ($(RetryAfter)s)"
+                                                    $RetryAfter = $_.Exception.Response.Headers.GetValues('Retry-After')[0]
                                                 }
+                                                catch {
+                                                    if ($Retries -gt 0) { $RetryAfter *= 2 }
+                                                }
+
+                                                if ((Get-ObjectPropertyValue $_ Exception Response StatusCode value__) -eq 429) {
+                                                    Write-Warning "Request was throttled and will attempt retry $($Retries+1) of $MaxRetries after $($RetryAfter)s."
+                                                }
+                                                else {
+                                                    Write-Warning "Request returned error and will attempt retry $($Retries+1) of $MaxRetries after $($RetryAfter)s."
+                                                }
+                                                Start-Sleep -Seconds $RetryAfter
                                             }
-                                            # request has encountered and error and has not hit the maximum retires
-                                            Write-Warning "GET $nextLink; error '$($_.Exception.Message); attempt $($Retries+1) out of $MaxRetries. Retrying after $($RetryAfter)s"
-                                            Start-Sleep -Seconds $RetryAfter
-                                            $RetryAfter = $RetryAfter * 2
+                                            else {
+                                                # catch error if it was the last try
+                                                Catch-MsGraphError $_
+                                                break  # break the loop if error was not due to throttling
+                                            }
                                         }
                                     }
                                     if ($Result) {
@@ -586,7 +571,7 @@ function Get-MsGraphResults {
                                     # update query 
                                     $uriQueryEndpointUniqueId.Query = ConvertTo-QueryString $QueryParametersInIds
                                     # add new batch request
-                                    New-MsGraphRequest $uriQueryEndpointUniqueId.Uri -Headers @{ ConsistencyLevel = $ConsistencyLevel } | Add-MsGraphRequest -GraphBaseUri $BaseUri
+                                    New-MsGraphRequest $uriQueryEndpointUniqueId.Uri -Headers @{ 'client-request-id' = $CorrelationId; ConsistencyLevel = $ConsistencyLevel } | Add-MsGraphRequest -GraphBaseUri $BaseUri
                                     # remove ids from ids to request
                                     $listIds.RemoveRange(0, $InFilterBatchSize)
                                     # update progress
@@ -602,7 +587,7 @@ function Get-MsGraphResults {
                                 }
                             }
                             else {
-                                New-MsGraphRequest $uriQueryEndpointUniqueId.Uri -Headers @{ ConsistencyLevel = $ConsistencyLevel } | Add-MsGraphRequest -GraphBaseUri $BaseUri
+                                New-MsGraphRequest $uriQueryEndpointUniqueId.Uri -Headers @{ 'client-request-id' = $CorrelationId; ConsistencyLevel = $ConsistencyLevel } | Add-MsGraphRequest -GraphBaseUri $BaseUri
                             }
                         }
                         elseif ($ProgressState) { $ProgressState.Total -= 1 }
@@ -611,7 +596,7 @@ function Get-MsGraphResults {
                 }
             }
             else {
-                New-MsGraphRequest $uriQueryEndpoint.Uri -Headers @{ ConsistencyLevel = $ConsistencyLevel } | Add-MsGraphRequest -GraphBaseUri $BaseUri
+                New-MsGraphRequest $uriQueryEndpoint.Uri -Headers @{ 'client-request-id' = $CorrelationId; ConsistencyLevel = $ConsistencyLevel } | Add-MsGraphRequest -GraphBaseUri $BaseUri
             }
         }
     }
@@ -885,9 +870,13 @@ function Get-MsGraphResultsCount {
         # Graph endpoint such as "users".
         [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
         [uri] $Uri,
+        # API Version.
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('v1.0', 'beta')]
+        [string] $ApiVersion = 'v1.0',
         # Base URL for Microsoft Graph API.
         [Parameter(Mandatory = $false)]
-        [uri] $GraphBaseUri = 'https://graph.microsoft.com/'
+        [uri] $GraphBaseUri = $script:mapMgEnvironmentToMgEndpoint[$script:ConnectState.CloudEnvironment]
     )
 
     process {
@@ -896,6 +885,7 @@ function Get-MsGraphResultsCount {
         }
         else {
             $uriEndpointCount = New-Object System.UriBuilder -ArgumentList $GraphBaseUri -ErrorAction Stop
+            $uriEndpointCount.Path = ([IO.Path]::Combine($uriEndpointCount.Path, $ApiVersion, $Uri))
         }
         ## Remove $ref from path
         $uriEndpointCount.Path = $uriEndpointCount.Path -replace '/\$ref$', ''
@@ -912,5 +902,66 @@ function Get-MsGraphResultsCount {
         }
         catch {}
         return $Count
+    }
+}
+
+function Get-MsGraphResponseDetail {
+    [CmdletBinding()]
+    param (
+        # ErrorRecord from exception or batch response object
+        [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
+        [object] $InputObject
+    )
+
+    process {
+        $ResponseDetail = [ordered]@{}
+
+        if ($InputObject -is [System.Management.Automation.ErrorRecord]) {
+            if ($InputObject.Exception.psobject.Properties.Name.Contains('Response')) {
+                ## Get Response Body
+                if ($InputObject.ErrorDetails) {
+                    $ResponseDetail['Response'] = '{0} {1} HTTP/{2}' -f $InputObject.Exception.Response.StatusCode.value__, $InputObject.Exception.Response.ReasonPhrase, $InputObject.Exception.Response.Version
+                    $ResponseDetail['Content-Type'] = $InputObject.Exception.Response.Content.Headers.ContentType.ToString()
+                    $ResponseDetail['Content'] = $InputObject.ErrorDetails.Message
+                }
+                elseif ($InputObject.Exception -is [System.Net.WebException]) {
+                    if ($InputObject.Exception.Response) {
+                        $ResponseDetail['Response'] = '{0} {1} HTTP/{2}' -f $InputObject.Exception.Response.StatusCode.value__, $InputObject.Exception.Response.StatusDescription, $InputObject.Exception.Response.ProtocolVersion
+                        $ResponseDetail['Content-Type'] = $InputObject.Exception.Response.Headers.GetValues('Content-Type') -join '; '
+
+                        $StreamReader = New-Object System.IO.StreamReader -ArgumentList $InputObject.Exception.Response.GetResponseStream()
+                        try { $ResponseDetail['Content'] = $StreamReader.ReadToEnd() }
+                        finally { $StreamReader.Close() }
+                    }
+                }
+
+                $ResponseDetail['ContentParsed'] = $null
+                if ($ResponseDetail['Content-Type'] -eq 'application/json') { $ResponseDetail['ContentParsed'] = ConvertFrom-Json $ResponseDetail['Content'] }
+                $ResponseDetail['error-message'] = Get-ObjectPropertyValue $ResponseDetail['ContentParsed'] error message
+                $ResponseDetail['Request'] = '{0} {1}' -f $InputObject.TargetObject.Method, $InputObject.TargetObject.RequestUri.AbsoluteUri
+                if ($InputObject.Exception.Response) {
+                    $ResponseDetail['Date'] = $InputObject.Exception.Response.Headers.GetValues('Date')[0]
+                    $ResponseDetail['request-id'] = $InputObject.Exception.Response.Headers.GetValues('request-id')[0]
+                    $ResponseDetail['client-request-id'] = $InputObject.Exception.Response.Headers.GetValues('client-request-id')[0]
+                    try {
+                        if ($InputObject.Exception.Response.Headers.GetValues('Retry-After')[0]) { $ResponseDetail['Retry-After'] = $InputObject.Exception.Response.Headers.GetValues('Retry-After')[0] }
+                    }
+                    catch {}
+                }
+            }
+        }
+        else {
+            $ResponseDetail['Response'] = '{0} {1}' -f $InputObject.status, (Get-ObjectPropertyValue $InputObject body error code)
+            $ResponseDetail['Content-Type'] = Get-ObjectPropertyValue $InputObject headers 'Content-Type'
+            $ResponseDetail['ContentParsed'] = Get-ObjectPropertyValue $InputObject body
+            $ResponseDetail['Content'] = ConvertTo-Json $ResponseDetail['ContentParsed'] -Depth 5 -Compress
+            $ResponseDetail['error-message'] = Get-ObjectPropertyValue $InputObject body error message
+            $ResponseDetail['Date'] = Get-ObjectPropertyValue $InputObject body error innerError 'date'
+            $ResponseDetail['request-id'] = Get-ObjectPropertyValue $InputObject body error innerError 'request-id'
+            $ResponseDetail['client-request-id'] = Get-ObjectPropertyValue $InputObject body error innerError 'client-request-id'
+            if (Get-ObjectPropertyValue $InputObject headers 'Retry-After') { $ResponseDetail['Retry-After'] = Get-ObjectPropertyValue $InputObject headers 'Retry-After' }
+        }
+
+        Write-Output $ResponseDetail
     }
 }

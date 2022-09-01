@@ -63,11 +63,11 @@ function Connect-AADAssessment {
         }
         $script:ConnectState.CloudEnvironment = $CloudEnvironment
 
-        Confirm-ModuleAuthentication $script:ConnectState.ClientApplication -CloudEnvironment $script:ConnectState.CloudEnvironment -User $User -ErrorAction Stop
+        Confirm-ModuleAuthentication $script:ConnectState.ClientApplication -CloudEnvironment $script:ConnectState.CloudEnvironment -User $User -CorrelationId $script:AppInsightsRuntimeState.OperationStack.Peek().Id -ErrorAction Stop
         #Get-MgContext
         #Get-AzureADCurrentSessionInfo
         Write-Debug ($script:ConnectState.MsGraphToken.Scopes -join ' ')
     }
-    catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException $_.Exception }; throw }
+    catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException -ErrorRecord $_ -IncludeProcessStatistics }; throw }
     finally { Complete-AppInsightsRequest $MyInvocation.MyCommand.Name -Success $? }
 }

@@ -9,7 +9,7 @@ resources:
       branches:
         include:
         - master
-        - preview
+        #- preview
 
 parameters:
 - name: vmImage

@@ -56,6 +56,6 @@ function Export-AADAssessConditionalAccessData {
         #| Export-JsonArray (Join-Path $OutputDirectory "servicePrincipals.json") -Depth 5 -Compress
 
     }
-    catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException $_.Exception }; throw }
+    catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException -ErrorRecord $_ -IncludeProcessStatistics }; throw }
     finally { Complete-AppInsightsRequest $MyInvocation.MyCommand.Name -Success $? }
 }

@@ -162,7 +162,10 @@ function Complete-AADAssessmentReports {
             Assert-DirectoryExists $PowerBIWorkingDirectory
             Copy-Item -Path (Join-Path $OutputDirectoryAAD '*') -Destination $PowerBIWorkingDirectory -Force
             Copy-Item -LiteralPath $PBITemplateAssessmentPath, $PBITemplateConditionalAccessPath -Destination $PowerBIWorkingDirectory -Force
-            #Invoke-Item $PowerBIWorkingDirectory
+            # try {
+            #     Invoke-Item $PowerBIWorkingDirectory -ErrorAction SilentlyContinue
+            # }
+            # catch {}
         }
 
         ## Expand AAD Connect
@@ -171,9 +174,12 @@ function Complete-AADAssessmentReports {
 
         ## Complete
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Complete Reports - {0}' -f $AssessmentDetail.AssessmentTenantDomain) -Completed
-        Invoke-Item $OutputDirectoryData
+        try {
+            Invoke-Item $OutputDirectoryData -ErrorAction SilentlyContinue
+        }
+        catch {}
 
     }
-    catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException $_.Exception }; throw }
+    catch { if ($MyInvocation.CommandOrigin -eq 'Runspace') { Write-AppInsightsException -ErrorRecord $_ -IncludeProcessStatistics }; throw }
     finally { Complete-AppInsightsRequest $MyInvocation.MyCommand.Name -Success $? }
 }

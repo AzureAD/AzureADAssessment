@@ -24,6 +24,22 @@ function Export-AADAssessmentReportData {
 
     $LookupCache = New-LookupCache
 
+    function Get-LookupCacheDetail {
+        param (
+            # LookupCache Object
+            [Parameter(Mandatory = $true, Position = 0, ValueFromPipeline = $true)]
+            [psobject] $LookupCache
+        )
+
+        process {
+            $Output = [ordered]@{}
+            foreach ($Property in $LookupCache.psobject.Properties) {
+                $Output.Add(('LookupCacheCount: {0}' -f $Property.Name), $Property.Value.Count)
+            }
+        }
+    }
+
+    Write-AppInsightsTrace ("{0} - Exporting applications" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-LookupCacheDetail $LookupCache)
     if (!(Test-Path -Path (Join-Path $OutputDirectory "applications.json")) -or $Force) {
         Import-Clixml -Path (Join-Path $SourceDirectory "applicationData.xml") `
         | Use-Progress -Activity 'Exporting applications' -Property displayName -PassThru -WriteSummary `
@@ -34,14 +50,16 @@ function Export-AADAssessmentReportData {
     # | Use-Progress -Activity 'Exporting directoryRoles' -Property displayName -PassThru -WriteSummary `
     # | Export-JsonArray (Join-Path $OutputDirectory "directoryRoles.json") -Depth 5 -Compress
 
+    Write-AppInsightsTrace ("{0} - Exporting appRoleAssignments" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-LookupCacheDetail $LookupCache)
     if (!(Test-Path -Path (Join-Path $OutputDirectory "appRoleAssignments.csv")) -or $Force) {
-        Set-Content -Path (Join-Path $OutputDirectory "appRoleAssignments.csv") -Value 'id,creationTimestamp,appRoleId,principalDisplayName,principalId,principalType,resourceDisplayName,resourceId'
+        Set-Content -Path (Join-Path $OutputDirectory "appRoleAssignments.csv") -Value 'id,deletedDateTime,appRoleId,createdDateTime,principalDisplayName,principalId,principalType,resourceDisplayName,resourceId'
         Import-Clixml -Path (Join-Path $SourceDirectory "appRoleAssignmentData.xml") `
         | Use-Progress -Activity 'Exporting appRoleAssignments' -Property id -PassThru -WriteSummary `
         | Format-Csv `
         | Export-Csv (Join-Path $OutputDirectory "appRoleAssignments.csv") -NoTypeInformation -Append
     }
 
+    Write-AppInsightsTrace ("{0} - Exporting oauth2PermissionGrants" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-LookupCacheDetail $LookupCache)
     if (!(Test-Path -Path (Join-Path $OutputDirectory "oauth2PermissionGrants.csv")) -or $Force) {
         Set-Content -Path (Join-Path $OutputDirectory "oauth2PermissionGrants.csv") -Value 'id,consentType,clientId,principalId,resourceId,scope'
         Import-Clixml -Path (Join-Path $SourceDirectory "oauth2PermissionGrantData.xml") `
@@ -49,12 +67,14 @@ function Export-AADAssessmentReportData {
         | Export-Csv (Join-Path $OutputDirectory "oauth2PermissionGrants.csv") -NoTypeInformation -Append
     }
 
+    Write-AppInsightsTrace ("{0} - Exporting servicePrincipals (JSON)" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-LookupCacheDetail $LookupCache)
     if (!(Test-Path -Path (Join-Path $OutputDirectory "servicePrincipals.json")) -or $Force) {
         Import-Clixml -Path (Join-Path $SourceDirectory "servicePrincipalData.xml") `
         | Use-Progress -Activity 'Exporting servicePrincipals (JSON)' -Property displayName -PassThru -WriteSummary `
         | Export-JsonArray (Join-Path $OutputDirectory "servicePrincipals.json") -Depth 5 -Compress
     }
 
+    Write-AppInsightsTrace ("{0} - Exporting servicePrincipals (CSV)" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-LookupCacheDetail $LookupCache)
     if (!(Test-Path -Path (Join-Path $OutputDirectory "servicePrincipals.csv")) -or $Force) {
         Set-Content -Path (Join-Path $OutputDirectory "servicePrincipals.csv") -Value 'id,appId,servicePrincipalType,displayName,accountEnabled,appOwnerOrganizationId'
         Import-Clixml -Path (Join-Path $SourceDirectory "servicePrincipalData.xml") `
@@ -83,6 +103,7 @@ function Export-AADAssessmentReportData {
     # | Use-Progress -Activity 'Exporting groups' -Property displayName -PassThru -WriteSummary `
     # | Export-JsonArray (Join-Path $OutputDirectory "groups.json") -Depth 5 -Compress
 
+    Write-AppInsightsTrace ("{0} - Exporting groups" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-LookupCacheDetail $LookupCache)
     if (!(Test-Path -Path (Join-Path $OutputDirectory "groups.csv")) -or $Force) {
         Set-Content -Path (Join-Path $OutputDirectory "groups.csv") -Value 'id,groupTypes,mailEnabled,securityEnabled,groupType,displayName,onPremisesSyncEnabled,mail'
         Import-Clixml -Path (Join-Path $SourceDirectory "groupData.xml") `
@@ -135,6 +156,7 @@ function Export-AADAssessmentReportData {
 
     # user report
     if (!(Test-Path -Path (Join-Path $OutputDirectory "users.csv")) -or $Force) {
+        Write-AppInsightsTrace ("{0} - Exporting UserReport (Start Data Load)" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-LookupCacheDetail $LookupCache)
         # load data if cache empty
         if ($LookupCache.user.Count -eq 0) {
             Write-Output "Loading users in lookup cache"
@@ -148,6 +170,7 @@ function Export-AADAssessmentReportData {
         }
 
         # generate the report
+        Write-AppInsightsTrace ("{0} - Exporting UserReport" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-LookupCacheDetail $LookupCache)
         Set-Content -Path (Join-Path $OutputDirectory "users.csv") -Value 'id,userPrincipalName,displayName,userType,accountEnabled,onPremisesSyncEnabled,onPremisesImmutableId,mail,otherMails,AADLicense,lastInteractiveSignInDateTime,lastNonInteractiveSignInDateTime,isMfaRegistered,isMfaCapable,methodsRegistered,defaultMfaMethod'
         Get-AADAssessUserReport -Offline -UserData $LookupCache.user -RegistrationDetailsData  $LookupCache.userRegistrationDetails`
         | Use-Progress -Activity 'Exporting UserReport' -Property id -PassThru -WriteSummary `
@@ -158,33 +181,34 @@ function Export-AADAssessmentReportData {
         $LookupCache.userRegistrationDetails.Clear()
     }
 
-    # notificaiton emails report (Remove on next release)
-    if (!(Test-Path -Path (Join-Path $OutputDirectory "NotificationsEmailsReport.csv")) -or $Force) {
-        # load unique data
-        $OrganizationData = Get-Content -Path (Join-Path $SourceDirectory "organization.json") -Raw | ConvertFrom-Json
-        [array] $DirectoryRoleData = Import-Clixml -Path (Join-Path $SourceDirectory "directoryRoleData.xml")
-        # load data if cache empty
-        if ($LookupCache.user.Count -eq 0) {
-            Write-Output "Loading users in lookup cache"
-            Import-Clixml -Path (Join-Path $SourceDirectory "userData.xml") | Add-AadObjectToLookupCache -Type user -LookupCache $LookupCache
-        }
-        if ($LookupCache.group.Count -eq 0) {
-            Write-Output "Loading groups in lookup cache"
-            Import-Clixml -Path (Join-Path $SourceDirectory "groupData.xml") | Add-AadObjectToLookupCache -Type group -LookupCache $LookupCache
-        }
+    # # notificaiton emails report (Remove on next release)
+    # if (!(Test-Path -Path (Join-Path $OutputDirectory "NotificationsEmailsReport.csv")) -or $Force) {
+    #     # load unique data
+    #     $OrganizationData = Get-Content -Path (Join-Path $SourceDirectory "organization.json") -Raw | ConvertFrom-Json
+    #     [array] $DirectoryRoleData = Import-Clixml -Path (Join-Path $SourceDirectory "directoryRoleData.xml")
+    #     # load data if cache empty
+    #     if ($LookupCache.user.Count -eq 0) {
+    #         Write-Output "Loading users in lookup cache"
+    #         Import-Clixml -Path (Join-Path $SourceDirectory "userData.xml") | Add-AadObjectToLookupCache -Type user -LookupCache $LookupCache
+    #     }
+    #     if ($LookupCache.group.Count -eq 0) {
+    #         Write-Output "Loading groups in lookup cache"
+    #         Import-Clixml -Path (Join-Path $SourceDirectory "groupData.xml") | Add-AadObjectToLookupCache -Type group -LookupCache $LookupCache
+    #     }
 
-        # generate the report
-        Set-Content -Path (Join-Path $OutputDirectory "NotificationsEmailsReport.csv") -Value 'notificationType,notificationScope,recipientType,recipientEmail,recipientEmailAlternate,recipientId,recipientUserPrincipalName,recipientDisplayName'
-        Get-AADAssessNotificationEmailsReport -Offline -OrganizationData $OrganizationData -UserData $LookupCache.user -GroupData $LookupCache.group -DirectoryRoleData $DirectoryRoleData `
-        | Use-Progress -Activity 'Exporting NotificationsEmailsReport' -Property recipientEmail -PassThru -WriteSummary `
-        | Export-Csv -Path (Join-Path $OutputDirectory "NotificationsEmailsReport.csv") -NoTypeInformation -Append
+    #     # generate the report
+    #     Set-Content -Path (Join-Path $OutputDirectory "NotificationsEmailsReport.csv") -Value 'notificationType,notificationScope,recipientType,recipientEmail,recipientEmailAlternate,recipientId,recipientUserPrincipalName,recipientDisplayName'
+    #     Get-AADAssessNotificationEmailsReport -Offline -OrganizationData $OrganizationData -UserData $LookupCache.user -GroupData $LookupCache.group -DirectoryRoleData $DirectoryRoleData `
+    #     | Use-Progress -Activity 'Exporting NotificationsEmailsReport' -Property recipientEmail -PassThru -WriteSummary `
+    #     | Export-Csv -Path (Join-Path $OutputDirectory "NotificationsEmailsReport.csv") -NoTypeInformation -Append
 
-        # clean unique data
-        Remove-Variable DirectoryRoleData
-    }
+    #     # clean unique data
+    #     Remove-Variable DirectoryRoleData
+    # }
 
     # role assignment report
     if (!(Test-Path -Path (Join-Path $OutputDirectory "RoleAssignmentReport.csv")) -or $Force) {
+        Write-AppInsightsTrace ("{0} - Exporting RoleAssignmentReport (Start Data Load)" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-LookupCacheDetail $LookupCache)
         # Set file header
         Set-Content -Path (Join-Path $OutputDirectory "RoleAssignmentReport.csv") -Value "id,directoryScopeId,directoryScopeObjectId,directoryScopeDisplayName,directoryScopeType,roleDefinitionId,roleDefinitionTemplateId,roleDefinitionDisplayName,principalId,principalDisplayName,principalType,principalMail,principalOtherMails,memberType,assignmentType,startDateTime,endDateTime"
         # load unique data
@@ -221,6 +245,7 @@ function Export-AADAssessmentReportData {
         }
 
         # generate the report
+        Write-AppInsightsTrace ("{0} - Exporting RoleAssignmentReport" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-LookupCacheDetail $LookupCache)
         Get-AADAssessRoleAssignmentReport -Offline -RoleAssignmentsData $roleAssignmentsData -RoleAssignmentScheduleInstancesData $roleAssignmentScheduleInstancesData -RoleEligibilityScheduleInstancesData $roleEligibilityScheduleInstancesData -OrganizationData $OrganizationData -AdministrativeUnitsData $LookupCache.administrativeUnit -UsersData $LookupCache.user -GroupsData $LookupCache.group -ApplicationsData $LookupCache.application -ServicePrincipalsData $LookupCache.servicePrincipal `
         | Use-Progress -Activity 'Exporting RoleAssignmentReport' -Property id -PassThru -WriteSummary `
         | Format-Csv `
@@ -235,6 +260,7 @@ function Export-AADAssessmentReportData {
 
     # app credential report
     if (!(Test-Path -Path (Join-Path $OutputDirectory "AppCredentialsReport.csv")) -or $Force) {
+        Write-AppInsightsTrace ("{0} - Exporting AppCredentialsReport (Start Data Load)" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-LookupCacheDetail $LookupCache)
         # load data in cache if empty
         if ($LookupCache.application.Count -eq 0) {
             Write-Output "Loading applications in lookup cache"
@@ -246,6 +272,7 @@ function Export-AADAssessmentReportData {
         }
 
         # generate the report
+        Write-AppInsightsTrace ("{0} - Exporting AppCredentialsReport" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-LookupCacheDetail $LookupCache)
         Set-Content -Path (Join-Path $OutputDirectory "AppCredentialsReport.csv") -Value 'displayName,objectType,credentialType,credentialStartDateTime,credentialEndDateTime,credentialUsage,certSubject,certIssuer,certIsSelfSigned,certSignatureAlgorithm,certKeySize,credentialHasExtendedValue'
         Get-AADAssessAppCredentialExpirationReport -Offline -ApplicationData $LookupCache.application -ServicePrincipalData $LookupCache.servicePrincipal `
         | Use-Progress -Activity 'Exporting AppCredentialsReport' -Property displayName -PassThru -WriteSummary `
@@ -258,6 +285,7 @@ function Export-AADAssessmentReportData {
 
     # consent grant report
     if (!(Test-Path -Path (Join-Path $OutputDirectory "ConsentGrantReport.csv")) -or $Force) {
+        Write-AppInsightsTrace ("{0} - Exporting ConsentGrantReport (Start Data Load)" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-LookupCacheDetail $LookupCache)
         # load unique data
         [array] $AppRoleAssignmentData = Import-Clixml -Path (Join-Path $SourceDirectory "appRoleAssignmentData.xml")
         [array] $OAuth2PermissionGrantData = Import-Clixml -Path (Join-Path $OutputDirectory "oauth2PermissionGrantData.xml")
@@ -272,6 +300,7 @@ function Export-AADAssessmentReportData {
         }
 
         # generate the report
+        Write-AppInsightsTrace ("{0} - Exporting ConsentGrantReport" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-LookupCacheDetail $LookupCache)
         Set-Content -Path (Join-Path $OutputDirectory "ConsentGrantReport.csv") -Value 'permission,permissionType,clientId,clientDisplayName,clientOwnerTenantId,resourceObjectId,resourceDisplayName,consentType,principalObjectId,principalDisplayName'
         Get-AADAssessConsentGrantReport -Offline -AppRoleAssignmentData $AppRoleAssignmentData -OAuth2PermissionGrantData $OAuth2PermissionGrantData -UserData $LookupCache.user -ServicePrincipalData $LookupCache.servicePrincipal `
         | Use-Progress -Activity 'Exporting ConsentGrantReport' -Property clientDisplayName -PassThru -WriteSummary `

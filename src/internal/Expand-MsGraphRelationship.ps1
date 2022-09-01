@@ -30,6 +30,9 @@ function Expand-MsGraphRelationship {
         # Number of results per request
         [Parameter(Mandatory = $false)]
         [int] $Top,
+        # Skip expanding object references their total is above threshold. Warning: This could alter the order of output objects when batching is enabled.
+        [Parameter(Mandatory = $false)]
+        [int] $SkipRelationshipThreshold,
         # Specify Batch size.
         [Parameter(Mandatory = $false)]
         [int] $BatchSize = 20
@@ -43,9 +46,16 @@ function Expand-MsGraphRelationship {
     }
 
     process {
+        if ($SkipRelationshipThreshold -gt 0) {
+            [int]$Total = Get-MsGraphResultsCount ($uri -f $InputObject.id)
+            if ($null -ne $Total -and $Total -gt $SkipRelationshipThreshold) {
+                return $InputObject
+            }
+        }
         $InputObjects.Add($InputObject)
         ## Wait For Full Batch
         if ($InputObjects.Count -ge $BatchSize) {
+            #[int] $Total = $InputObjects[0..($BatchSize - 1)] | ForEach-Object { $uri -f $_.id } | Get-MsGraphResultsCount -GraphBaseUri $GraphBaseUri
             if ($Top -gt 1) {
                 [array] $Results = $InputObjects[0..($BatchSize - 1)] | Get-MsGraphResults $uri -Top $Top -DisableUniqueIdDeduplication -GroupOutputByRequest
             }

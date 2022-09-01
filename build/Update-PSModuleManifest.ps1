@@ -12,9 +12,9 @@ param
     # Indicates the module is prerelease.
     [Parameter(Mandatory = $false)]
     [string] $Prerelease,
-    # Skip Update of RequiredAssemblies
+    # Skip automatic additions to RequiredAssemblies from module file list.
     [Parameter(Mandatory = $false)]
-    [switch] $SkipRequiredAssemblies
+    [switch] $SkipRequiredAssembliesDetection
 )
 
 ## Initialize
@@ -22,12 +22,13 @@ Import-Module "$PSScriptRoot\CommonFunctions.psm1" -Force -WarningAction Silentl
 [hashtable] $paramUpdateModuleManifest = @{ }
 if ($Guid) { $paramUpdateModuleManifest['Guid'] = $Guid }
 if ($ModuleVersion) { $paramUpdateModuleManifest['ModuleVersion'] = $ModuleVersion }
-if ($Prerelease) { $paramUpdateModuleManifest['Prerelease'] = $Prerelease }
 
 [System.IO.FileInfo] $ModuleManifestFileInfo = Get-PathInfo $ModuleManifestPath -DefaultFilename "*.psd1" -ErrorAction Stop
 
 ## Read Module Manifest
 $ModuleManifest = Import-PowerShellDataFile $ModuleManifestFileInfo.FullName
+if ($ModuleManifest.PrivateData.PSData['Prerelease'] -eq 'source') { $paramUpdateModuleManifest['Prerelease'] = "" }
+if ($Prerelease) { $paramUpdateModuleManifest['Prerelease'] = $Prerelease }
 if ($ModuleManifest.NestedModules) { $paramUpdateModuleManifest['NestedModules'] = $ModuleManifest.NestedModules }
 $paramUpdateModuleManifest['FunctionsToExport'] = $ModuleManifest.FunctionsToExport
 $paramUpdateModuleManifest['CmdletsToExport'] = $ModuleManifest.CmdletsToExport
@@ -43,10 +44,13 @@ $ModuleFileList = Get-RelativePath $ModuleFileListFileInfo.FullName -WorkingDire
 $ModuleFileList = $ModuleFileList -replace '\\net45\\', '\!!!\' -replace '\\netcoreapp2.1\\', '\net45\' -replace '\\!!!\\', '\netcoreapp2.1\'  # PowerShell Core fails to load assembly if net45 dll comes before netcoreapp2.1 dll in the FileList.
 $paramUpdateModuleManifest['FileList'] = $ModuleFileList
 
-if (!$SkipRequiredAssemblies -and $ModuleRequiredAssembliesFileInfo) {
+## Generate RequiredAssemblies list based on existing items and file list
+$paramUpdateModuleManifest['RequiredAssemblies'] += $ModuleManifest.RequiredAssemblies | Where-Object { $_ -notin $ModuleFileListFileInfo.Name }
+if (!$SkipRequiredAssembliesDetection -and $ModuleRequiredAssembliesFileInfo) {
     $ModuleRequiredAssemblies = Get-RelativePath $ModuleRequiredAssembliesFileInfo.FullName -WorkingDirectory $ModuleOutputDirectoryInfo.FullName -ErrorAction Stop
-    $paramUpdateModuleManifest['RequiredAssemblies'] = $ModuleRequiredAssemblies
+    $paramUpdateModuleManifest['RequiredAssemblies'] += $ModuleRequiredAssemblies
 }
+if (!$paramUpdateModuleManifest['RequiredAssemblies']) { $paramUpdateModuleManifest.Remove('RequiredAssemblies') }
 
 ## Clear RequiredAssemblies
 (Get-Content $ModuleManifestFileInfo.FullName -Raw) -replace "(?s)RequiredAssemblies\ =\ @\([^)]*\)", "# RequiredAssemblies = @()" | Set-Content $ModuleManifestFileInfo.FullName

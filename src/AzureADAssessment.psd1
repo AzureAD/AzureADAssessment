@@ -56,7 +56,7 @@ RequiredModules = @(
 )
 
 # Assemblies that must be loaded prior to importing this module
-RequiredAssemblies = @("System.IO.Compression.FileSystem.dll")
+# RequiredAssemblies = @()
 
 # Script files (.ps1) that are run in the caller's environment prior to importing this module.
 # ScriptsToProcess = @()
@@ -86,6 +86,7 @@ NestedModules = @(
     '.\internal\Export-JsonArray.ps1'
     '.\internal\Get-MsGraphResults.ps1'
     '.\internal\Format-Csv.ps1'
+    '.\internal\Format-NumberWithUnit.ps1'
     '.\internal\Get-AadObjectById.ps1'
     '.\internal\Get-ObjectPropertyValue.ps1'
     '.\internal\Get-SpreadsheetJson.ps1'
@@ -179,7 +180,7 @@ PrivateData = @{
     PSData = @{
 
         # Tags applied to this module. These help with module discovery in online galleries.
-            Tags   = 'Microsoft', 'Identity', 'Azure', 'AzureActiveDirectory', 'AzureAD', 'AAD', 'PSEdition_Desktop', 'PSEdition_Core', 'Windows', 'Linux', 'MacOS'
+        Tags   = 'Microsoft', 'Identity', 'Azure', 'AzureActiveDirectory', 'AzureAD', 'AAD', 'PSEdition_Desktop', 'PSEdition_Core', 'Windows', 'Linux', 'MacOS'
 
         # A URL to the license for this module.
         LicenseUri = 'https://raw.githubusercontent.com/AzureAD/AzureADAssessment/master/LICENSE'
@@ -192,6 +193,9 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         # ReleaseNotes = ''
+
+        # Prerelease string of this module
+        Prerelease = 'source'
 
         # External dependent modules of this module
         # ExternalModuleDependencies = @()
