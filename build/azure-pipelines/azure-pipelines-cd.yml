@@ -152,7 +152,7 @@ stages:
 #             parameters:
 #               moduleName: '$(moduleName)'
 #               RepositorySourceLocation: 'https://www.poshtestgallery.com/api/v2'
-#               NuGetApiKeyAzureConnection: 'GTP - Architecture (980e0e9f-178a-4c38-9372-f17806c6b944)'
+#               NuGetApiKeyAzureConnection: 'Azure - MSFT Identity - Community Projects'
 #               NuGetApiKeyVaultName: 'codesign-kv'
 #               NuGetApiKeySecretName: 'PSTestGallery-API-Key'
 #               Unlist: true
@@ -191,7 +191,7 @@ stages:
             parameters:
               moduleName: '$(moduleName)'
               RepositorySourceLocation: 'https://www.powershellgallery.com/api/v2'
-              NuGetApiKeyAzureConnection: 'GTP - Architecture (980e0e9f-178a-4c38-9372-f17806c6b944)'
+              NuGetApiKeyAzureConnection: 'Azure - MSFT Identity - Community Projects'
               NuGetApiKeyVaultName: 'codesign-kv'
               NuGetApiKeySecretName: 'PSGallery-API-Key'
           - task: GitHubRelease@1
