@@ -81,7 +81,7 @@ steps:
   displayName: 'Update PowerShell Module Manifest'
   inputs:
     filePath: '$(System.DefaultWorkingDirectory)/build/Update-PSModuleManifest.ps1'
-    arguments: '-ModuleManifestPath "$(Pipeline.Workspace)/${{ parameters.artifactOutput }}/${{ coalesce(parameters.moduleRename,parameters.moduleName) }}/${{ coalesce(parameters.moduleRename,parameters.moduleName) }}.psd1" -Guid "${{ parameters.moduleGuid }}" -ModuleVersion "${{ parameters.moduleVersion }}" -Prerelease "${{ parameters.prereleaseTag }}" -SkipRequiredAssemblies'
+    arguments: '-ModuleManifestPath "$(Pipeline.Workspace)/${{ parameters.artifactOutput }}/${{ coalesce(parameters.moduleRename,parameters.moduleName) }}/${{ coalesce(parameters.moduleRename,parameters.moduleName) }}.psd1" -Guid "${{ parameters.moduleGuid }}" -ModuleVersion "${{ parameters.moduleVersion }}" -Prerelease "${{ parameters.prereleaseTag }}"'
     pwsh: true
 
 - ${{ if parameters.GenerateManifest }}:
