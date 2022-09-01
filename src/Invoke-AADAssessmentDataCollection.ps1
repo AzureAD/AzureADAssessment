@@ -88,7 +88,7 @@ function Invoke-AADAssessmentDataCollection {
 
         ### Organization Data - 0
         Write-AppInsightsTrace ("{0} - Organization Details" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-ReferencedIdCacheDetail $ReferencedIdCache)
-        Write-Progress -Id 0 -Activity 'Microsoft Azure AD Assessment Data Collection' -Status 'Organization Details' -PercentComplete 0
+        Write-Progress -Id 0 -Activity 'Microsoft Azure AD Assessment' -Status 'Organization Details' -PercentComplete 0
         $OrganizationData = Get-MsGraphResults 'organization?$select=id,displayName,verifiedDomains,technicalNotificationMails' -ErrorAction Stop
         $InitialTenantDomain = $OrganizationData.verifiedDomains | Where-Object isInitial -EQ $true | Select-Object -ExpandProperty name -First 1
         $PackagePath = $PackagePath.Replace("AzureADAssessmentData.aad", "AzureADAssessmentData-$InitialTenantDomain.aad")
@@ -110,7 +110,7 @@ function Invoke-AADAssessmentDataCollection {
 
         ### Licenses - 1
         Write-AppInsightsTrace ("{0} - Subscribed SKU" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-ReferencedIdCacheDetail $ReferencedIdCache)
-        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Subscribed SKU' -PercentComplete 5
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment - {0}' -f $InitialTenantDomain) -Status 'Subscribed SKU' -PercentComplete 5
         Get-MsGraphResults "subscribedSkus" -Select "prepaidunits", "consumedunits", "skuPartNumber", "servicePlans" -OutVariable skus `
         | Export-JsonArray (Join-Path $OutputDirectoryAAD "subscribedSkus.json") -Depth 5 -Compress
 
@@ -125,7 +125,7 @@ function Invoke-AADAssessmentDataCollection {
 
         ### Conditional Access policies - 2
         Write-AppInsightsTrace ("{0} - Conditional Access Policies" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-ReferencedIdCacheDetail $ReferencedIdCache)
-        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Conditional Access Policies' -PercentComplete 10
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment - {0}' -f $InitialTenantDomain) -Status 'Conditional Access Policies' -PercentComplete 10
         #Get-MsGraphResults "identity/conditionalAccess/policies" -ErrorAction Stop `
         Get-MsGraphResults "identity/conditionalAccess/policies" `
         | Add-AadReferencesToCache -Type conditionalAccessPolicy -ReferencedIdCache $ReferencedIdCache -PassThru `
@@ -133,18 +133,18 @@ function Invoke-AADAssessmentDataCollection {
 
         ### Named location - 3
         Write-AppInsightsTrace ("{0} - Conditional Access Named locations" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-ReferencedIdCacheDetail $ReferencedIdCache)
-        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Conditional Access Named locations' -PercentComplete 15
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment - {0}' -f $InitialTenantDomain) -Status 'Conditional Access Named locations' -PercentComplete 15
         Get-MsGraphResults "identity/conditionalAccess/namedLocations" `
         | Export-JsonArray (Join-Path $OutputDirectoryAAD "namedLocations.json") -Depth 5 -Compress
 
         ### EOTP Policy - 4
         Write-AppInsightsTrace ("{0} - Email Auth Method Policy" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-ReferencedIdCacheDetail $ReferencedIdCache)
-        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Email Auth Method Policy' -PercentComplete 20
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment - {0}' -f $InitialTenantDomain) -Status 'Email Auth Method Policy' -PercentComplete 20
         Get-MsGraphResults "policies/authenticationMethodsPolicy/authenticationMethodConfigurations/email" `
         | ConvertTo-Json -Depth 5 -Compress | Set-Content -Path (Join-Path $OutputDirectoryAAD "emailOTPMethodPolicy.json")
 
         ### Directory Role Data - 5 (Remove from next release)
-        # Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Directory Roles' -PercentComplete 21
+        # Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment - {0}' -f $InitialTenantDomain) -Status 'Directory Roles' -PercentComplete 21
         # ## $expand on directoryRole members caps results at 20 members with no NextLink so call members endpoint for each.
         # Get-MsGraphResults 'directoryRoles?$select=id,displayName,roleTemplateId' -DisableUniqueIdDeduplication `
         # | Expand-MsGraphRelationship -ObjectType directoryRoles -PropertyName members -References `
@@ -153,7 +153,7 @@ function Invoke-AADAssessmentDataCollection {
 
         ### Directory Role Definitions - 6
         Write-AppInsightsTrace ("{0} - Directory Role Definitions" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-ReferencedIdCacheDetail $ReferencedIdCache)
-        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Directory Role Definitions' -PercentComplete 25
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment - {0}' -f $InitialTenantDomain) -Status 'Directory Role Definitions' -PercentComplete 25
         Get-MsGraphResults 'roleManagement/directory/roleDefinitions' -Select 'id,templateId,displayName,isBuiltIn,isEnabled' -ApiVersion 'v1.0' -OutVariable roleDefinitions `
         | Where-Object { $_.isEnabled } `
         | Select-Object id, templateId, displayName, isBuiltIn, isEnabled `
@@ -162,7 +162,7 @@ function Invoke-AADAssessmentDataCollection {
         if ($licenseType -eq "P2") {
             ### Directory Role Assignments - 7
             Write-AppInsightsTrace ("{0} - Directory Role Assignments" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-ReferencedIdCacheDetail $ReferencedIdCache)
-            Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Directory Role Assignments' -PercentComplete 30
+            Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment - {0}' -f $InitialTenantDomain) -Status 'Directory Role Assignments' -PercentComplete 30
             ## Getting role assignments via unified role API
             # Get-MsGraphResults 'roleManagement/directory/roleAssignmentScheduleInstances' -Select 'id,directoryScopeId,assignmentType,memberType,principalId,startDateTime,endDateTime' -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -ApiVersion 'v1.0' `
             $roleDefinitions | Get-MsGraphResults 'roleManagement/directory/roleAssignmentScheduleInstances' -Select 'id,directoryScopeId,assignmentType,memberType,principalId,startDateTime,endDateTime' -Filter "roleDefinitionId eq '{0}'" -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -TotalRequests $roleDefinitions.Count -ApiVersion 'v1.0' `
@@ -171,7 +171,7 @@ function Invoke-AADAssessmentDataCollection {
 
             ### Directory Role Eligibility - 8
             Write-AppInsightsTrace ("{0} - Directory Role Eligibility" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-ReferencedIdCacheDetail $ReferencedIdCache)
-            Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Directory Role Eligibility' -PercentComplete 35
+            Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment - {0}' -f $InitialTenantDomain) -Status 'Directory Role Eligibility' -PercentComplete 35
             # Getting role eligibility via unified role API
             #Get-MsGraphResults 'roleManagement/directory/roleEligibilityScheduleInstances' -Select 'id,directoryScopeId,memberType,principalId,startDateTime,endDateTime' -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -ApiVersion 'v1.0' `
             $roleDefinitions | Get-MsGraphResults 'roleManagement/directory/roleEligibilityScheduleInstances' -Select 'id,directoryScopeId,memberType,principalId,startDateTime,endDateTime' -Filter "roleDefinitionId eq '{0}'" -QueryParameters @{ '$expand' = 'principal($select=id),roleDefinition($select=id,templateId,displayName)' } -TotalRequests $roleDefinitions.Count -ApiVersion 'v1.0' `
@@ -182,7 +182,7 @@ function Invoke-AADAssessmentDataCollection {
         else {
             ### Directory Role Assignments - 7
             Write-AppInsightsTrace ("{0} - Directory Role Assignments" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-ReferencedIdCacheDetail $ReferencedIdCache)
-            Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Directory Role Assignments' -PercentComplete 30
+            Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment - {0}' -f $InitialTenantDomain) -Status 'Directory Role Assignments' -PercentComplete 30
             Get-MsGraphResults 'roleManagement/directory/roleAssignments' -Select 'id,directoryScopeId,principalId' -QueryParameters @{ '$expand' = 'roleDefinition($select=id,templateId,displayName)' } `
             | Add-AadReferencesToCache -Type roleAssignments -ReferencedIdCache $ReferencedIdCache -PassThru `
             | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "roleAssignmentsData.xml")
@@ -203,14 +203,14 @@ function Invoke-AADAssessmentDataCollection {
 
         ### Application Data - 9
         Write-AppInsightsTrace ("{0} - Applications" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-ReferencedIdCacheDetail $ReferencedIdCache)
-        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Applications' -PercentComplete 40
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment - {0}' -f $InitialTenantDomain) -Status 'Applications' -PercentComplete 40
         Get-MsGraphResults 'applications?$select=id,appId,displayName,appRoles,keyCredentials,passwordCredentials' -Top 999 -ApiVersion 'v1.0' `
         | Where-Object { $_.keyCredentials.Count -or $_.passwordCredentials.Count -or $ReferencedIdCache.application.Contains($_.id) -or $ReferencedIdCache.appId.Contains($_.appId) } `
         | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "applicationData.xml")
 
         ### Service Principal Data - 10
         Write-AppInsightsTrace ("{0} - Service Principals" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-ReferencedIdCacheDetail $ReferencedIdCache)
-        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Service Principals' -PercentComplete 45
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment - {0}' -f $InitialTenantDomain) -Status 'Service Principals' -PercentComplete 45
         ## Option 1: Get servicePrincipal objects without appRoleAssignments. Get appRoleAssignments
         # $servicePrincipalsCount = Get-MsGraphResults 'servicePrincipals/$count' `
         # ## Although much more performant, $expand on servicePrincipal appRoleAssignedTo appears to miss certain appRoleAssignments.
@@ -225,7 +225,7 @@ function Invoke-AADAssessmentDataCollection {
 
         ### App Role Assignments Data - 11
         Write-AppInsightsTrace ("{0} - App Role Assignments" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-ReferencedIdCacheDetail $ReferencedIdCache)
-        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'App Role Assignments' -PercentComplete 50
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment - {0}' -f $InitialTenantDomain) -Status 'App Role Assignments' -PercentComplete 50
         ## Option 1: Loop through all servicePrincipals to get appRoleAssignments
         # Import-Clixml -Path (Join-Path $OutputDirectoryAAD "servicePrincipalData.xml") `
         # | Get-MsGraphResults 'servicePrincipals/{0}/appRoleAssignedTo' -Top 999 -TotalRequests $servicePrincipalsCount -DisableUniqueIdDeduplication `
@@ -239,7 +239,7 @@ function Invoke-AADAssessmentDataCollection {
 
         ### OAuth2 Permission Grants Data - 12
         Write-AppInsightsTrace ("{0} - OAuth2 Permission Grants" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-ReferencedIdCacheDetail $ReferencedIdCache)
-        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'OAuth2 Permission Grants' -PercentComplete 55
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment - {0}' -f $InitialTenantDomain) -Status 'OAuth2 Permission Grants' -PercentComplete 55
         ## https://graph.microsoft.com/v1.0/oauth2PermissionGrants fails with "Service is temorarily unavailable" if too much data is returned in a single request. 600 works on microsoft.onmicrosoft.com.
         Get-MsGraphResults 'oauth2PermissionGrants' -Top 600 `
         | Add-AadReferencesToCache -Type oauth2PermissionGrant -ReferencedIdCache $ReferencedIdCache -PassThru `
@@ -247,7 +247,7 @@ function Invoke-AADAssessmentDataCollection {
 
         ### Filter Service Principals - 13
         Write-AppInsightsTrace ("{0} - Filtering Service Principals" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-ReferencedIdCacheDetail $ReferencedIdCache)
-        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Filtering Service Principals' -PercentComplete 60
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment - {0}' -f $InitialTenantDomain) -Status 'Filtering Service Principals' -PercentComplete 60
         Remove-Item (Join-Path $OutputDirectoryAAD "servicePrincipalData-Unfiltered.xml") -ErrorAction Ignore
         Rename-Item (Join-Path $OutputDirectoryAAD "servicePrincipalData.xml") -NewName "servicePrincipalData-Unfiltered.xml"
         Import-Clixml -Path (Join-Path $OutputDirectoryAAD "servicePrincipalData-Unfiltered.xml") `
@@ -259,21 +259,21 @@ function Invoke-AADAssessmentDataCollection {
         ### Administrative units data - 14
         Write-AppInsightsTrace ("{0} - Administrative Units" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-ReferencedIdCacheDetail $ReferencedIdCache)
         Set-Content -Path (Join-Path $OutputDirectoryAAD "administrativeUnits.csv") -Value 'id,displayName,visibility'
-        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Administrative Units' -PercentComplete 65
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment - {0}' -f $InitialTenantDomain) -Status 'Administrative Units' -PercentComplete 65
         Get-MsGraphResults 'directory/administrativeUnits' -Select 'id,displayName,visibility' `
         | Export-Csv (Join-Path $OutputDirectoryAAD "administrativeUnits.csv")  -NoTypeInformation -Append
 
         ### Registration details data - 15
         if ($licenseType -ne "Free") {
             Write-AppInsightsTrace ("{0} - Registration Details" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-ReferencedIdCacheDetail $ReferencedIdCache)
-            Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Registration Details' -PercentComplete 70
+            Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment - {0}' -f $InitialTenantDomain) -Status 'Registration Details' -PercentComplete 70
             Get-MsGraphResults 'reports/authenticationMethods/userRegistrationDetails' -ApiVersion 'beta' `
             | Export-JsonArray (Join-Path $OutputDirectoryAAD "userRegistrationDetails.json") -Depth 5 -Compress
         }
 
         ### Group Data - 16
         Write-AppInsightsTrace ("{0} - Groups" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-ReferencedIdCacheDetail $ReferencedIdCache)
-        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Groups' -PercentComplete 75
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment - {0}' -f $InitialTenantDomain) -Status 'Groups' -PercentComplete 75
         # add technical notifications groups
         if ($OrganizationData) {
             $OrganizationData.technicalNotificationMails | Get-MsGraphResults 'groups?$select=id' -Filter "proxyAddresses/any(c:c eq 'smtp:{0}')" `
@@ -308,7 +308,7 @@ function Invoke-AADAssessmentDataCollection {
         # | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "groupData.xml")
 
         # ### Group Transitive members - 16
-        # Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Group Transitive Membership' -PercentComplete 75
+        # Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment - {0}' -f $InitialTenantDomain) -Status 'Group Transitive Membership' -PercentComplete 75
         # $ReferencedIdCache.group | Get-MsGraphResults 'groups/{0}/transitiveMembers/$ref' -Top 999 -TotalRequests $ReferencedIdCache.group.Count -IncapsulateReferenceListInParentObject -DisableUniqueIdDeduplication `
         # | ForEach-Object {
         #     $group = $_
@@ -329,7 +329,7 @@ function Invoke-AADAssessmentDataCollection {
 
         ### User Data - 17
         Write-AppInsightsTrace ("{0} - Users" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-ReferencedIdCacheDetail $ReferencedIdCache)
-        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Users' -PercentComplete 80
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment - {0}' -f $InitialTenantDomain) -Status 'Users' -PercentComplete 80
         # add technical notifications users
         if ($OrganizationData) {
             $OrganizationData.technicalNotificationMails | Get-MsGraphResults 'users?$select=id' -Filter "proxyAddresses/any(c:c eq 'smtp:{0}') or otherMails/any(c:c eq '{0}')" `
@@ -343,13 +343,14 @@ function Invoke-AADAssessmentDataCollection {
         }
         $ReferencedIdCache.user | Get-MsGraphResults $userQuery -TotalRequests $ReferencedIdCache.user.Count -DisableUniqueIdDeduplication -BatchSize 20 -ApiVersion 'beta' `
         | Select-Object -Property "*" -ExcludeProperty '@odata.type' `
+        | Select-Object -Property "*", @{ Name = "assignedPlans"; Expression = { $_.assignedPlans | Where-Object service -EQ 'AADPremiumService' } } -ExcludeProperty 'assignedPlans' `
         | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "userData.xml")
         $ReferencedIdCache.user.Clear()
 
         ### Generate Reports
         if (!$SkipReportOutput) {
             Write-AppInsightsTrace ("{0} - Output Reports" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-ReferencedIdCacheDetail $ReferencedIdCache)
-            Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Status 'Output Report Data' -PercentComplete 85
+            Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment - {0}' -f $InitialTenantDomain) -Status 'Output Report Data' -PercentComplete 85
             Export-AADAssessmentReportData -SourceDirectory $OutputDirectoryAAD -LicenseType $licenseType -Force
 
             ## Remove Raw Data Output
@@ -358,7 +359,7 @@ function Invoke-AADAssessmentDataCollection {
         }
 
         ### Complete
-        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment Data Collection - {0}' -f $InitialTenantDomain) -Completed
+        Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment - {0}' -f $InitialTenantDomain) -Completed
 
         ### Write Custom Event
         Write-AppInsightsEvent 'AAD Assessment Data Collection Complete' -OverrideProperties -Properties @{
