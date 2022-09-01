@@ -343,7 +343,7 @@ function Invoke-AADAssessmentDataCollection {
         }
         $ReferencedIdCache.user | Get-MsGraphResults $userQuery -TotalRequests $ReferencedIdCache.user.Count -DisableUniqueIdDeduplication -BatchSize 20 -ApiVersion 'beta' `
         | Select-Object -Property "*" -ExcludeProperty '@odata.type' `
-        | Select-Object -Property "*", @{ Name = "assignedPlans"; Expression = { $_.assignedPlans | Where-Object service -EQ 'AADPremiumService' } } -ExcludeProperty 'assignedPlans' `
+        | Select-Object -Property "*", @{ Name = "assignedPlans"; Expression = { Write-Output @($_.assignedPlans | Where-Object service -EQ 'AADPremiumService') -NoEnumerate } } -ExcludeProperty 'assignedPlans' `
         | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "userData.xml")
         $ReferencedIdCache.user.Clear()
 
