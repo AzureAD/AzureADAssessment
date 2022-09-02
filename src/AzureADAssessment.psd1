@@ -10,7 +10,7 @@
 RootModule = 'AzureADAssessment.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.2'
+ModuleVersion = '2.3'
 
 # Supported PSEditions
 CompatiblePSEditions = 'Core','Desktop'
@@ -25,7 +25,7 @@ Author = 'Microsoft Identity'
 CompanyName = 'Microsoft Corporation'
 
 # Copyright statement for this module
-Copyright = '(c) 2021 Microsoft Corporation. All rights reserved.'
+Copyright = '(c) 2022 Microsoft Corporation. All rights reserved.'
 
 # Description of the functionality provided by this module
 Description = 'This module analyzes your Azure Active Directory configuration and provides best practice recommendations.'
