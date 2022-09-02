@@ -27,7 +27,7 @@ if ($ModuleVersion) { $paramUpdateModuleManifest['ModuleVersion'] = $ModuleVersi
 
 ## Read Module Manifest
 $ModuleManifest = Import-PowerShellDataFile $ModuleManifestFileInfo.FullName
-if ($ModuleManifest.PrivateData.PSData['Prerelease'] -eq 'source') { $paramUpdateModuleManifest['Prerelease'] = "" }
+if ($ModuleManifest.PrivateData.PSData['Prerelease'] -eq 'source') { $paramUpdateModuleManifest['Prerelease'] = " " }
 if ($Prerelease) { $paramUpdateModuleManifest['Prerelease'] = $Prerelease }
 if ($ModuleManifest.NestedModules) { $paramUpdateModuleManifest['NestedModules'] = $ModuleManifest.NestedModules }
 $paramUpdateModuleManifest['FunctionsToExport'] = $ModuleManifest.FunctionsToExport
