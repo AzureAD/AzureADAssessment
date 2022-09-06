@@ -358,6 +358,23 @@ function Invoke-AADAssessmentDataCollection {
             Remove-Item -Path (Join-Path $OutputDirectoryAAD "*") -Include "*Data.csv" -ErrorAction Ignore
         }
 
+        ### Package Output
+        if (!$SkipPackaging) {
+            Write-AppInsightsTrace ("{0} - Package Output" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-ReferencedIdCacheDetail $ReferencedIdCache)
+            Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment - {0}' -f $InitialTenantDomain) -Status 'Packaging Data' -PercentComplete 95
+
+            ### Remove pre existing package (zip) if it exists
+            if (Test-Path -Path $PackagePath) { Remove-Item $PackagePath -Force }
+            
+            ### Package Output
+            #Compress-Archive (Join-Path $OutputDirectoryData '\*') -DestinationPath $PackagePath -Force -ErrorAction Stop
+            [System.IO.Compression.ZipFile]::CreateFromDirectory($OutputDirectoryData, $PackagePath)
+            $PackageFileInfo = Get-Item $PackagePath
+            Write-AppInsightsTrace ("{0} - Package Complete" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties ((Get-ReferencedIdCacheDetail $ReferencedIdCache) + [ordered]@{ PackageSize = Format-NumberWithUnit $PackageFileInfo.Length 'B'; PackageSizeInBytes = $PackageFileInfo.Length })
+
+            Remove-Item $OutputDirectoryData -Recurse -Force
+        }
+
         ### Complete
         Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment - {0}' -f $InitialTenantDomain) -Completed
 
@@ -371,21 +388,6 @@ function Invoke-AADAssessmentDataCollection {
         ### Stop Transcript
         #Stop-Transcript
         #$Error | Select-Object -Last ($Error.Count - $ErrorStartCount) | Export-Clixml -Path (Join-Path $OutputDirectoryData "PowerShell_errors.xml") -Depth 10
-
-        if (!$SkipPackaging) {
-            Write-AppInsightsTrace ("{0} - Package" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-ReferencedIdCacheDetail $ReferencedIdCache)
-
-            ### Remove pre existing package (zip) if it exists
-            if (Test-Path -Path $PackagePath) {
-                Remove-Item $PackagePath -Force
-            }
-            
-            ### Package Output
-            #Compress-Archive (Join-Path $OutputDirectoryData '\*') -DestinationPath $PackagePath -Force -ErrorAction Stop
-            [System.IO.Compression.ZipFile]::CreateFromDirectory($OutputDirectoryData,$PackagePath)
-
-            Remove-Item $OutputDirectoryData -Recurse -Force
-        }
 
         ### Open Directory
         try {
