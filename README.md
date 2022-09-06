@@ -44,6 +44,11 @@ Invoke-AADAssessmentHybridDataCollection
 
 The output package will be named according to the following pattern: `AzureADAssessmentData-<TenantDomain>.aad`
 
+If Data Collection command fails before completing, try running it again with the SkipReportOutput parameter.
+```PowerShell
+Invoke-AADAssessmentDataCollection -SkipReportOutput
+```
+
 Once data collection is complete, provide the output packages to whoever is completing the assessment. Please avoid making any changes to the generated files including the name of the file.
 
 ## Complete Assessment Reports
