@@ -133,7 +133,7 @@ function Get-MsGraphResults {
                 else {
                     ## Ignore errors with specific codes else display non-terminating error
                     if ($ResponseDetail['ContentParsed'].error.code -eq 'Request_ResourceNotFound') {
-                        Write-Error -Exception $_.Exception -Message $ResponseDetail['ContentParsed'].error.message -ErrorId $ResponseDetail['ContentParsed'].error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorVariable cmdError -ErrorAction SilentlyContinue
+                        #Write-Error -Exception $_.Exception -Message $ResponseDetail['ContentParsed'].error.message -ErrorId $ResponseDetail['ContentParsed'].error.code -Category $_.CategoryInfo.Category -CategoryActivity $_.CategoryInfo.Activity -CategoryReason $_.CategoryInfo.Reason -CategoryTargetName $_.CategoryInfo.TargetName -CategoryTargetType $_.CategoryInfo.TargetType -TargetObject $_.TargetObject -ErrorVariable cmdError -ErrorAction SilentlyContinue
                         #Write-Warning $ResponseDetail['ContentParsed'].error.message
                     }
                     else {
@@ -158,7 +158,7 @@ function Get-MsGraphResults {
                 else {
                     ## Ignore errors with specific codes else display non-terminating error
                     if ($BatchResponse.body.error.code -eq 'Request_ResourceNotFound') {
-                        Write-Error -Message $BatchResponse.body.error.message -ErrorId $BatchResponse.body.error.code -ErrorVariable cmdError -ErrorAction SilentlyContinue
+                        #Write-Error -Message $BatchResponse.body.error.message -ErrorId $BatchResponse.body.error.code -ErrorVariable cmdError -ErrorAction SilentlyContinue
                         #Write-Warning $BatchResponse.body.error.message
                     }
                     else {
