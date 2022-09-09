@@ -79,7 +79,7 @@ function Get-AADAssessUserReport {
                     "onPremisesSyncEnabled" = [bool]$_.onPremisesSyncEnabled
                     "onPremisesImmutableId" = ![string]::IsNullOrWhiteSpace($InputObject.onPremisesImmutableId)
                     "mail" = $InputObject.mail
-                    "otherMails" = $InputObject.otherMails -join ';' 
+                    "otherMails" = $InputObject.otherMails
                     "AADLicense" = $aadLicense
                     "lastInteractiveSignInDateTime" = $lastInteractiveSignInDateTime
                     "lastNonInteractiveSignInDateTime" = $lastNonInteractiveSignInDateTime

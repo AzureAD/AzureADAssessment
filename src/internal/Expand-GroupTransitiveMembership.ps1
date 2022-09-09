@@ -22,19 +22,21 @@ function Expand-GroupTransitiveMembership {
     if ($Group.psobject.Properties.Name.Contains('transitiveMembers')) { $Group.transitiveMembers }
     else {
         $transitiveMembers = New-Object 'System.Collections.Generic.Dictionary[guid,psobject]'
-        foreach ($member in $Group.members) {
-            if (!$transitiveMembers.ContainsKey($member.id)) {
-                $transitiveMembers.Add($member.id, $member)
-                $member
-            }
-            if ($member.'@odata.type' -eq '#microsoft.graph.group') {
-                if (!$GroupId.Contains($member.id)) {
-                    $GroupId.Push($member.id)
-                    $transitiveMembersNested = Expand-GroupTransitiveMembership $GroupId -LookupCache $LookupCache
-                    foreach ($memberNested in $transitiveMembersNested) {
-                        if (!$transitiveMembers.ContainsKey($memberNested.id)) {
-                            $transitiveMembers.Add($memberNested.id, $memberNested)
-                            $memberNested
+        if ($Group.psobject.Properties.Name.Contains('members')) {
+            foreach ($member in $Group.members) {
+                if (!$transitiveMembers.ContainsKey($member.id)) {
+                    $transitiveMembers.Add($member.id, $member)
+                    $member
+                }
+                if ($member.'@odata.type' -eq '#microsoft.graph.group') {
+                    if (!$GroupId.Contains($member.id)) {
+                        $GroupId.Push($member.id)
+                        $transitiveMembersNested = Expand-GroupTransitiveMembership $GroupId -LookupCache $LookupCache
+                        foreach ($memberNested in $transitiveMembersNested) {
+                            if (!$transitiveMembers.ContainsKey($memberNested.id)) {
+                                $transitiveMembers.Add($memberNested.id, $memberNested)
+                                $memberNested
+                            }
                         }
                     }
                 }

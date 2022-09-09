@@ -8,22 +8,22 @@ function Format-Csv {
         [psobject[]] $InputObjects,
         #
         [Parameter(Mandatory = $false)]
-        [string] $ArrayDelimiter = "`r`n"
+        [string] $ArrayDelimiter = ";"
     )
 
     begin {
         function Transform ($InputObject) {
             if ($InputObject) {
-                if ($Property.Value -is [DateTime]) {
+                if ($InputObject -is [DateTime]) {
                     $InputObject = $InputObject.ToString("o")
                 }
-                elseif ($Property.Value -is [Array] -or $Property.Value -is [System.Collections.ArrayList]) {
+                elseif ($InputObject -is [Array] -or $InputObject -is [System.Collections.ArrayList]) {
                     for ($i = 0; $i -lt $InputObject.Count; $i++) {
                         $InputObject[$i] = Transform $InputObject[$i]
                     }
                     $InputObject = $InputObject -join $ArrayDelimiter
                 }
-                elseif ($Property.Value -is [System.Management.Automation.PSCustomObject]) {
+                elseif ($InputObject -is [System.Management.Automation.PSCustomObject]) {
                     return ConvertTo-Json $InputObject
                 }
             }
