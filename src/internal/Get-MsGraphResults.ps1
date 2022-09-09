@@ -444,7 +444,6 @@ function Get-MsGraphResults {
                             $Activity = ('{0} {1}' -f $Request.method.ToUpper(), $uriEndpoint.AbsolutePath)
                             $ProgressState = Start-Progress -Activity $Activity -Total $Total
                             $ProgressState.CurrentIteration = $Result.value.Count
-                            $MaxRetries = 5
                             try {
                                 while (Get-ObjectPropertyValue $Result '@odata.nextLink') {
                                     Update-Progress $ProgressState -IncrementBy $Result.value.Count
