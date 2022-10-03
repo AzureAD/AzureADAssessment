@@ -36,13 +36,15 @@ Connect-AADAssessment
 Invoke-AADAssessmentDataCollection
 ```
 
+The output package will be named according to the following pattern: `AzureADAssessmentData-<TenantDomain>.aad`
+
 On each server running hybrid components, install the same module and run the Invoke-AADAssessmentHybridDataCollection command.
 ```PowerShell
 ## Export Data to "C:\AzureADAssessment" into a single output package.
 Invoke-AADAssessmentHybridDataCollection
 ```
 
-The output package will be named according to the following pattern: `AzureADAssessmentData-<TenantDomain>.aad`
+The output package will be named according to the following pattern: `AzureADAssessmentData-<Svc>-<ServerName>.zip`
 
 If Data Collection command fails before completing, try running it again with the SkipReportOutput parameter.
 ```PowerShell
