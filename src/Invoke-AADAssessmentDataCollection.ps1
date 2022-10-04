@@ -117,9 +117,9 @@ function Invoke-AADAssessmentDataCollection {
         # Check tenant license status
         $licenseType = "Free"
         if ($skus | Where-Object { $_.prepaidUnits.enabled -gt 0 -and ($_.servicePlans | Where-Object { $_.servicePlanId -eq "41781fb2-bc02-4b7c-bd55-b576c07bb09d" })}) {
-            $licenseType = "P2"
-        } elseif ($skus | Where-Object { $_.prepaidUnits.enabled -gt 0 -and ($_.servicePlans | Where-Object { $_.servicePlanId -eq "eec0eb4f-6444-4f95-aba0-50c24d67f998" })}) {
             $licenseType = "P1"
+        } elseif ($skus | Where-Object { $_.prepaidUnits.enabled -gt 0 -and ($_.servicePlans | Where-Object { $_.servicePlanId -eq "eec0eb4f-6444-4f95-aba0-50c24d67f998" })}) {
+            $licenseType = "P2"
         }
         Remove-Variable skus
 
