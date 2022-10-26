@@ -38,6 +38,12 @@ Invoke-AADAssessmentDataCollection
 
 The output package will be named according to the following pattern: `AzureADAssessmentData-<TenantDomain>.aad`
 
+If Data Collection command fails before completing, try running it again with the SkipReportOutput parameter.
+
+```PowerShell
+Invoke-AADAssessmentDataCollection -SkipReportOutput
+```
+
 On each server running hybrid components, install the same module and run the Invoke-AADAssessmentHybridDataCollection command.
 ```PowerShell
 ## Export Data to "C:\AzureADAssessment" into a single output package.
@@ -45,11 +51,6 @@ Invoke-AADAssessmentHybridDataCollection
 ```
 
 The output package will be named according to the following pattern: `AzureADAssessmentData-<Svc>-<ServerName>.zip`
-
-If Data Collection command fails before completing, try running it again with the SkipReportOutput parameter.
-```PowerShell
-Invoke-AADAssessmentDataCollection -SkipReportOutput
-```
 
 Once data collection is complete, provide the output packages to whoever is completing the assessment. Please avoid making any changes to the generated files including the name of the file.
 
@@ -73,20 +74,39 @@ Import-Module "C:\AzureADAssessment\AzureADAssessmentPortable.psm1"
 Invoke-AADAssessmentHybridDataCollection
 ```
 
-### I want to use a service principal identity to run the assessment instead of a user identity
-```PowerShell
-## If you prefer to use your own app registration (service principal) for automation purposes, you may connect using your own ClientId and Certificate like the example below. Your app registration should include Directory.Read.All and Policy.Read.All permissions to MS Graph for a complete assessment. Once added, ensure you have completed admin consent on the service principal for those application permissions.
-Connect-AADAssessment -ClientId <ClientId> -ClientCertificate (Get-Item 'Cert:\CurrentUser\My\<Thumbprint>') -TenantId <TenantId>
+### I want to output the assessment files to a different directory
 
+```PowerShell
 ## If you would like to specify a different directory, use the OutputDirectory parameter.
 Invoke-AADAssessmentDataCollection "C:\Temp"
 Invoke-AADAssessmentHybridDataCollection "C:\Temp"
 ```
 
+### I want to use a service principal identity to run the assessment instead of a user identity
+If you prefer to use your own app registration (service principal) for automation purposes, you may connect using your own ClientId and Certificate like the example below. Your app registration should include Directory.Read.All and Policy.Read.All permissions to MS Graph for a complete assessment. Once added, ensure you have completed admin consent on the service principal for those application permissions.
+```PowerShell
+## Connect using Service Principal identity with app permissions.
+Connect-AADAssessment -ClientId <ClientId> -ClientCertificate (Get-Item 'Cert:\CurrentUser\My\<Thumbprint>') -TenantId <TenantId>
+```
+
+### I have a tenant in sovereign cloud, how do I run this assessment?
+You must create an application registration in your tenant and provide the ClientId when running Connect-AADAssessment. The default application configuration should work as long as you define the correct redirect URI for your cloud environment. For example, a "Mobile and desktop application" Redirect URI of `https://login.microsoftonline.us/common/oauth2/nativeclient`.
+```PowerShell
+## Example connecting to USGov cloud environment using user delegated permissions.
+Connect-AADAssessment -ClientId <ClientId> -CloudEnvironment USGov -TenantId <TenantId>
+
+## Example connecting to USGov cloud environment using app permissions.
+Connect-AADAssessment -ClientId <ClientId> -ClientCertificate (Get-Item 'Cert:\CurrentUser\My\<Thumbprint>') -CloudEnvironment USGov -TenantId <TenantId>
+```
+
 ### When trying to install the module I'm receiving the error 'A parameter cannot be found that matches parameter name 'AcceptLicense' 
-Run the following command to update PowerShellGet to the latest version before attempting to install the AzureADAssessment module again.
+Run the following command to update PowerShellGet to the latest version before attempting to install the AzureADAssessment module again. Option 1 is a single command executing a script (<https://aka.ms/Update-PowerShellGet>), while option 2 requires multiple commands and some possible troubleshooting.
 
 ```PowerShell
+### Option 1: Run the following command to download and execute a script to update PowerShellGet. Note: Navigate to this URL in a web browser to see the contents of the script in GitHub.
+iex $(irm 'https://aka.ms/Update-PowerShellGet')
+
+### Option 2: Run the following commands individually.
 ## Update Nuget Package and PowerShellGet Module
 Install-PackageProvider NuGet -Scope CurrentUser -Force
 Install-Module PowerShellGet -Scope CurrentUser -Force -AllowClobber

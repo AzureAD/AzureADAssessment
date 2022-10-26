@@ -84,8 +84,8 @@ $script:mapMgEnvironmentToAadRedirectUri = @{
     'Global'   = 'https://login.microsoftonline.com/common/oauth2/nativeclient'
     'China'    = 'https://login.partner.microsoftonline.cn/common/oauth2/nativeclient'
     'Germany'  = 'https://login.microsoftonline.com/common/oauth2/nativeclient'
-    'USGov'    = 'https://login.microsoftonline.com/common/oauth2/nativeclient' #'https://login.microsoftonline.us/common/oauth2/nativeclient'
-    'USGovDoD' = 'https://login.microsoftonline.com/common/oauth2/nativeclient' #'https://login.microsoftonline.us/common/oauth2/nativeclient'
+    'USGov'    = 'https://login.microsoftonline.us/common/oauth2/nativeclient'
+    'USGovDoD' = 'https://login.microsoftonline.us/common/oauth2/nativeclient'
 }
 $script:mapMgEnvironmentToMgEndpoint = @{
     'Global'   = 'https://graph.microsoft.com/'

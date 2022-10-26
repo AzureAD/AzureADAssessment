@@ -183,9 +183,18 @@ function Invoke-AADAssessmentDataCollection {
             ### Directory Role Assignments - 7
             Write-AppInsightsTrace ("{0} - Directory Role Assignments" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties (Get-ReferencedIdCacheDetail $ReferencedIdCache)
             Write-Progress -Id 0 -Activity ('Microsoft Azure AD Assessment - {0}' -f $InitialTenantDomain) -Status 'Directory Role Assignments' -PercentComplete 30
-            Get-MsGraphResults 'roleManagement/directory/roleAssignments' -Select 'id,directoryScopeId,principalId' -QueryParameters @{ '$expand' = 'roleDefinition($select=id,templateId,displayName)' } `
-            | Add-AadReferencesToCache -Type roleAssignments -ReferencedIdCache $ReferencedIdCache -PassThru `
-            | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "roleAssignmentsData.xml")
+
+            if ($script:ConnectState.CloudEnvironment -in 'USGov', 'USGovDoD') {
+                ## MS Graph endpoint roleManagement/directory/roleAssignments must still have filter on Gov tenants
+                $roleDefinitions | Get-MsGraphResults 'roleManagement/directory/roleAssignments' -Select 'id,directoryScopeId,principalId' -Filter "roleDefinitionId eq '{0}'" -QueryParameters @{ '$expand' = 'roleDefinition($select=id,templateId,displayName)' } `
+                | Add-AadReferencesToCache -Type roleAssignments -ReferencedIdCache $ReferencedIdCache -PassThru `
+                | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "roleAssignmentsData.xml")
+            }
+            else {
+                Get-MsGraphResults 'roleManagement/directory/roleAssignments' -Select 'id,directoryScopeId,principalId' -QueryParameters @{ '$expand' = 'roleDefinition($select=id,templateId,displayName)' } `
+                | Add-AadReferencesToCache -Type roleAssignments -ReferencedIdCache $ReferencedIdCache -PassThru `
+                | Export-Clixml -Path (Join-Path $OutputDirectoryAAD "roleAssignmentsData.xml")
+            }
         }
         Remove-Variable roleDefinitions
 

@@ -43,6 +43,11 @@ function Connect-AADAssessment {
     Start-AppInsightsRequest $MyInvocation.MyCommand.Name
     try {
 
+        ## Parameter Validation
+        if ($CloudEnvironment -ne 'Global' -and $ClientId -eq $script:ModuleConfig.'aad.clientId') {
+            Write-Error -Exception (New-Object System.ArgumentException -ArgumentList "Connecting to Cloud Environment [$CloudEnvironment] requires a ClientId to be specified for an application in your tenant.") -ErrorId 'ClientIdParameterRequired' -Category InvalidArgument -ErrorAction Stop
+        }
+
         ## Update WebSession User Agent String with Module Info
         $script:MsGraphSession.UserAgent = $script:MsGraphSession.UserAgent -replace 'AzureADAssessment(/[0-9.]*)?', ('{0}/{1}' -f $PSCmdlet.MyInvocation.MyCommand.Module.Name, $MyInvocation.MyCommand.Module.Version)
 
