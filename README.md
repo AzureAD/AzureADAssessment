@@ -83,7 +83,7 @@ Invoke-AADAssessmentHybridDataCollection "C:\Temp"
 ```
 
 ### I want to use a service principal identity to run the assessment instead of a user identity
-If you prefer to use your own app registration (service principal) for automation purposes, you may connect using your own ClientId and Certificate like the example below. Your app registration should include Directory.Read.All and Policy.Read.All permissions to MS Graph for a complete assessment. Once added, ensure you have completed admin consent on the service principal for those application permissions.
+If you prefer to use your own app registration (service principal) for automation purposes, you may connect using your own ClientId and Certificate like the example below. Your app registration should include Directory.Read.All, Policy.Read.All, and AuditLog.Read.All application permissions to MS Graph for a complete assessment. Once added, ensure you have completed admin consent on the service principal for those permissions.
 ```PowerShell
 ## Connect using Service Principal identity with app permissions.
 Connect-AADAssessment -ClientId <ClientId> -ClientCertificate (Get-Item 'Cert:\CurrentUser\My\<Thumbprint>') -TenantId <TenantId>
