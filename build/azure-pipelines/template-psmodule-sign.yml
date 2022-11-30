@@ -64,7 +64,7 @@ steps:
       pwsh: true
 
 - ${{ if ne(parameters.EsrpCodeSigningServiceName,'') }}:
-  - task: EsrpCodeSigning@1
+  - task: EsrpCodeSigning@2
     displayName: 'Sign PowerShell Module Files'
     inputs:
       ConnectedServiceName: '${{ parameters.EsrpCodeSigningServiceName }}'
@@ -101,7 +101,7 @@ steps:
       StagingDirectory: '$(Pipeline.Workspace)/${{ parameters.artifactOutput }}'
       ModuleName: '${{ parameters.moduleName }}'
 
-  - task: EsrpCodeSigning@1
+  - task: EsrpCodeSigning@2
     displayName: 'Sign File Catalog'
     inputs:
       ConnectedServiceName: '${{ parameters.EsrpCodeSigningServiceName }}'
