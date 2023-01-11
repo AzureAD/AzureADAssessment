@@ -73,6 +73,7 @@ function Confirm-ModuleAuthentication {
             $Stopwatch.Stop()
             if ($MsGraphToken) {
                 $AuthDetail = [ordered]@{
+                    ClientId      = $ClientApplication.ClientId
                     TokenType     = $MsGraphToken.TokenType
                     ExpiresOn     = $MsGraphToken.ExpiresOn
                     CorrelationId = $MsGraphToken.CorrelationId
@@ -85,16 +86,6 @@ function Confirm-ModuleAuthentication {
             }
             elseif ($script:ConnectState.MsGraphToken.AccessToken -ne $MsGraphToken.AccessToken) {
                 Write-AppInsightsDependency 'GET Access Token' -Type 'Azure AD' -Data 'GET Access Token' -Duration $Stopwatch.Elapsed -Success ($null -ne $MsGraphToken) -OrderedProperties $AuthDetail
-            }
-        }
-        if (!$script:ConnectState.MsGraphToken -or ($script:ConnectState.MsGraphToken.AccessToken -ne $MsGraphToken.AccessToken)) {
-            Write-Verbose 'Connecting Modules...'
-            #Connect-MgGraph -Environment $CloudEnvironment -TenantId $MsGraphToken.TenantId -AccessToken $MsGraphToken.AccessToken | Out-Null
-            if ($script:MsGraphSession.Headers.ContainsKey('Authorization')) {
-                $script:MsGraphSession.Headers['Authorization'] = $MsGraphToken.CreateAuthorizationHeader()
-            }
-            else {
-                $script:MsGraphSession.Headers.Add('Authorization', $MsGraphToken.CreateAuthorizationHeader())
             }
         }
     }
@@ -110,6 +101,7 @@ function Confirm-ModuleAuthentication {
             if (!$script:ConnectState.MsGraphToken -or ($script:ConnectState.MsGraphToken.AccessToken -ne $MsGraphToken.AccessToken)) {
                 if ($MsGraphToken) {
                     $AuthDetail = [ordered]@{
+                        ClientId      = $ClientApplication.ClientId
                         TokenType     = $MsGraphToken.TokenType
                         ExpiresOn     = $MsGraphToken.ExpiresOn
                         CorrelationId = $MsGraphToken.CorrelationId
@@ -120,20 +112,20 @@ function Confirm-ModuleAuthentication {
                 Write-AppInsightsDependency 'GET Access Token (Confidential Client)' -Type 'Azure AD' -Data 'GET Access Token (Confidential Client)' -Duration $Stopwatch.Elapsed -Success ($null -ne $MsGraphToken) -OrderedProperties $AuthDetail
             }
         }
-        if (!$script:ConnectState.MsGraphToken -or ($script:ConnectState.MsGraphToken.AccessToken -ne $MsGraphToken.AccessToken)) {
-            Write-Verbose 'Connecting Modules...'
-            #Connect-MgGraph -Environment $CloudEnvironment -TenantId $MsGraphToken.TenantId -AccessToken $MsGraphToken.AccessToken | Out-Null
-            if ($script:MsGraphSession.Headers.ContainsKey('Authorization')) {
-                $script:MsGraphSession.Headers['Authorization'] = $MsGraphToken.CreateAuthorizationHeader()
-            }
-            else {
-                $script:MsGraphSession.Headers.Add('Authorization', $MsGraphToken.CreateAuthorizationHeader())
-            }
+    }
+    if (!$script:ConnectState.MsGraphToken -or ($script:ConnectState.MsGraphToken.AccessToken -ne $MsGraphToken.AccessToken)) {
+        Write-Verbose 'Connecting Modules...'
+        #Connect-MgGraph -Environment $CloudEnvironment -TenantId $MsGraphToken.TenantId -AccessToken $MsGraphToken.AccessToken | Out-Null
+        if ($script:MsGraphSession.Headers.ContainsKey('Authorization')) {
+            $script:MsGraphSession.Headers['Authorization'] = $MsGraphToken.CreateAuthorizationHeader()
+        }
+        else {
+            $script:MsGraphSession.Headers.Add('Authorization', $MsGraphToken.CreateAuthorizationHeader())
         }
     }
     $script:ConnectState.MsGraphToken = $MsGraphToken
 
     if ($MsGraphSession) {
-        Write-Output $script:MsGraphSession
+        return $script:MsGraphSession
     }
 }
