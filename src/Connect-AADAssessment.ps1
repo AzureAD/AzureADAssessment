@@ -68,6 +68,9 @@ function Connect-AADAssessment {
         }
         $script:ConnectState.CloudEnvironment = $CloudEnvironment
 
+        if ($script:ConnectState.ClientApplication -is [Microsoft.Identity.Client.IConfidentialClientApplication]) {
+            Write-Warning 'Using a confidential client is non-interactive and requires that the necessary scopes/permissions be added to the application or have permissions on-behalf-of a user.'
+        }
         Confirm-ModuleAuthentication $script:ConnectState.ClientApplication -CloudEnvironment $script:ConnectState.CloudEnvironment -User $User -CorrelationId $script:AppInsightsRuntimeState.OperationStack.Peek().Id -ErrorAction Stop
         #Get-MgContext
         #Get-AzureADCurrentSessionInfo
