@@ -90,7 +90,9 @@ function Confirm-ModuleAuthentication {
         }
     }
     else {
-        Write-Warning 'Using a confidential client is non-interactive and requires that the necessary scopes/permissions be added to the application or have permissions on-behalf-of a user.'
+        if (!$script:ConnectState.MsGraphToken) {
+            Write-Warning 'Using a confidential client is non-interactive and requires that the necessary scopes/permissions be added to the application or have permissions on-behalf-of a user.'
+        }
         $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
         try {
             $MsGraphToken = Get-MsalToken -ConfidentialClientApplication $ClientApplication -Scopes ([IO.Path]::Combine($script:mapMgEnvironmentToMgEndpoint[$CloudEnvironment], '.default')) -CorrelationId $CorrelationId -Verbose:$false -ErrorAction Stop
