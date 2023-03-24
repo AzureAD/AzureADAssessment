@@ -25,6 +25,12 @@ function Confirm-ModuleAuthentication {
         [string[]] $MsGraphScopes = $script:MsGraphScopes
     )
 
+    ## Throw error if no client application exists
+    if (!$script:ConnectState.ClientApplication) {
+        $Exception = New-Object System.Security.Authentication.AuthenticationException -ArgumentList ('You must call the Connect-AADAssessment cmdlet before calling any other cmdlets.')
+        Write-Error -Exception $Exception -Category ([System.Management.Automation.ErrorCategory]::AuthenticationError) -CategoryActivity $MyInvocation.MyCommand -ErrorId 'ConnectAADAssessmentRequired' -ErrorAction Stop
+    }
+
     ## Override scopes on microsoft tenant only
     if ($ClientApplication.AppConfig.TenantId -in ('72f988bf-86f1-41af-91ab-2d7cd011db47', 'microsoft.onmicrosoft.com', 'microsoft.com') -and $ClientApplication.ClientId -in ('1b730954-1685-4b74-9bfd-dac224a7b894', '1950a258-227b-4e31-a9cf-717495945fc2', '65df9042-2439-4b70-94ac-6cc892f61d85')) { $MsGraphScopes = '.default' }
 
@@ -36,12 +42,6 @@ function Confirm-ModuleAuthentication {
     }
 
     if (!$MsGraphScopes.Contains('openid')) { $MsGraphScopes += 'openid' }
-
-    ## Throw error if no client application exists
-    if (!$script:ConnectState.ClientApplication) {
-        $Exception = New-Object System.Security.Authentication.AuthenticationException -ArgumentList ('You must call the Connect-AADAssessment cmdlet before calling any other cmdlets.')
-        Write-Error -Exception $Exception -Category ([System.Management.Automation.ErrorCategory]::AuthenticationError) -CategoryActivity $MyInvocation.MyCommand -ErrorId 'ConnectAADAssessmentRequired' -ErrorAction Stop
-    }
 
     ## Initialize
     #if (!$User) { $User = Get-MsalAccount $script:ConnectState.ClientApplication | Select-Object -First 1 -ExpandProperty Username }

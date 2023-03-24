@@ -545,7 +545,7 @@ function Get-MsGraphResults {
                     if ($id) {
                         ## If the URI contains '{0}', then replace it with Unique Id.
                         if ($uriQueryEndpoint.Uri.AbsoluteUri.Contains('%7B0%7D')) {
-                            $uriQueryEndpointUniqueId = New-Object System.UriBuilder -ArgumentList ([System.Net.WebUtility]::UrlDecode($uriQueryEndpoint.Uri.AbsoluteUri) -f $id)
+                            $uriQueryEndpointUniqueId = New-Object System.UriBuilder -ArgumentList ([System.Net.WebUtility]::UrlDecode($uriQueryEndpoint.Uri.AbsoluteUri) -f [System.Net.WebUtility]::UrlEncode($id))
                         }
                         else {
                             $uriQueryEndpointUniqueId = New-Object System.UriBuilder -ArgumentList $uriQueryEndpoint.Uri
