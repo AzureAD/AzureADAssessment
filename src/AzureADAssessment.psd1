@@ -120,7 +120,7 @@ NestedModules = @(
     '.\Get-AADAssessUserReport.ps1'
     '.\Invoke-AADAssessmentDataCollection.ps1'
     '.\New-AADAssessmentRecommendations.ps1'
-    '.\Export-AADASsessmentRecommendations.ps1'
+    '.\Export-AADAssessmentRecommendations.ps1'
     '.\Import-AADAssessmentEvidence.ps1'
     '.\Export-AADAssessmentReportData.ps1'
     '.\analysis\AccessManagement\AuthenticationExperience\Test-AADAssessmentEmailOtp.ps1'
