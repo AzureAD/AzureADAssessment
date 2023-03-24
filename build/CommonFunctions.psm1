@@ -179,8 +179,10 @@ function Get-PathInfo {
             if ($Path) {
                 ## Look for existing path
                 try {
-                    $ResolvePath = Resolve-FullPath $Path -BaseDirectory $DefaultDirectory -ErrorAction SilentlyContinue
-                    $OutputPath = Get-Item $ResolvePath -ErrorAction SilentlyContinue
+                    $ResolvePath = Resolve-FullPath $Path -BaseDirectory $DefaultDirectory -ErrorAction Ignore
+                    if ($ResolvePath) {
+                        $OutputPath = Get-Item $ResolvePath -ErrorAction Ignore
+                    }
                 }
                 catch { }
                 if ($OutputPath -is [array]) {
@@ -189,6 +191,7 @@ function Get-PathInfo {
                     return
                 }
 
+                [string] $AbsolutePath = $null
                 ## If path could not be found and there are no wildcards, then create a FileSystemInfo object for the path.
                 if (!$OutputPath -and $Path -notmatch '[*?]') {
                     ## Get Absolute Path
@@ -206,8 +209,10 @@ function Get-PathInfo {
                     [string] $AbsolutePath = (Join-Path $OutputPath.FullName $DefaultFileName)
                     $OutputPath = $null
                     try {
-                        $ResolvePath = Resolve-FullPath $AbsolutePath -BaseDirectory $DefaultDirectory -ErrorAction SilentlyContinue
-                        $OutputPath = Get-Item $ResolvePath -ErrorAction SilentlyContinue
+                        $ResolvePath = Resolve-FullPath $AbsolutePath -BaseDirectory $DefaultDirectory -ErrorAction Ignore
+                        if ($ResolvePath) {
+                            $OutputPath = Get-Item $ResolvePath -ErrorAction Ignore
+                        }
                     }
                     catch { }
                     if (!$OutputPath -and $AbsolutePath -notmatch '[*?]') {
@@ -216,8 +221,9 @@ function Get-PathInfo {
                 }
 
                 if (!$OutputPath -or !$OutputPath.Exists) {
-                    if ($OutputPath) { Write-Error -Exception (New-Object System.Management.Automation.ItemNotFoundException -ArgumentList ('Cannot find path ''{0}'' because it does not exist.' -f $OutputPath.FullName)) -TargetObject $OutputPath.FullName -ErrorId 'PathNotFound' -Category ObjectNotFound }
-                    else { Write-Error -Exception (New-Object System.Management.Automation.ItemNotFoundException -ArgumentList ('Cannot find path ''{0}'' because it does not exist.' -f $AbsolutePath)) -TargetObject $AbsolutePath -ErrorId 'PathNotFound' -Category ObjectNotFound }
+                    if ($OutputPath) { Write-Error -Exception (New-Object System.Management.Automation.ItemNotFoundException -ArgumentList ('Cannot find path ''{0}'' because it does not exist.' -f $OutputPath.FullName)) -TargetObject $OutputPath.FullName -ErrorId 'PathNotFound' -Category ObjectNotFound -ErrorAction $ErrorActionPreference }
+                    elseif ($AbsolutePath) { Write-Error -Exception (New-Object System.Management.Automation.ItemNotFoundException -ArgumentList ('Cannot find path ''{0}'' because it does not exist.' -f $AbsolutePath)) -TargetObject $AbsolutePath -ErrorId 'PathNotFound' -Category ObjectNotFound -ErrorAction $ErrorActionPreference }
+                    else { Write-Error -Exception (New-Object System.Management.Automation.ItemNotFoundException -ArgumentList ('Cannot find path ''{0}'' because it does not exist.' -f $Path)) -TargetObject $Path -ErrorId 'PathNotFound' -Category ObjectNotFound -ErrorAction $ErrorActionPreference }
                 }
             }
 
@@ -658,7 +664,7 @@ function ConvertTo-PsString {
                         break
                     }
                     ## Convert objects with object initializers
-                    { $_ -is [object] -and ($_.GetConstructors() | foreach { if ($_.IsPublic -and !$_.GetParameters()) { $true } }) } {
+                    { $_ -is [object] -and ($_.GetConstructors() | ForEach-Object { if ($_.IsPublic -and !$_.GetParameters()) { $true } }) } {
                         [void]$OutputString.Append('@{')
                         $iInput = 0
                         foreach ($Item in ($InputObject | Get-Member -MemberType Property, NoteProperty)) {
@@ -790,7 +796,7 @@ function Select-PsBoundParameters {
             if ($CommandParameterSets) {
                 [System.Collections.Generic.List[string]] $listCommandParameters = New-Object System.Collections.Generic.List[string]
                 foreach ($CommandParameterSet in $CommandParameterSets) {
-                    $listCommandParameters.AddRange([string[]]($CommandInfo.ParameterSets | Where-Object Name -eq $CommandParameterSet | Select-Object -ExpandProperty Parameters | Select-Object -ExpandProperty Name))
+                    $listCommandParameters.AddRange([string[]]($CommandInfo.ParameterSets | Where-Object Name -EQ $CommandParameterSet | Select-Object -ExpandProperty Parameters | Select-Object -ExpandProperty Name))
                 }
                 $CommandParameters = $listCommandParameters | Select-Object -Unique
             }

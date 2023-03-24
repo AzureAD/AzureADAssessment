@@ -2,7 +2,7 @@ param
 (
     # Path to Module Manifest
     [Parameter(Mandatory = $false)]
-    [string] $ModuleManifestPath = ".\release\*\*.*.*\*.psd1",
+    [string] $ModuleManifestPath = ".\release\*\*.*.*",
     # Specifies the certificate that will be used to sign the script or file.
     [Parameter(Mandatory = $false)]
     [object] $SigningCertificate = (Get-ChildItem Cert:\CurrentUser\My\E7413D745138A6DC584530AECE27CEFDDA9D9CD6 -CodeSigningCert),
@@ -27,7 +27,7 @@ else { $SigningCertificate = Get-X509Certificate $SigningCertificate -EndEntityC
 ## Read Module Manifest
 $ModuleManifest = Import-PowerShellDataFile $ModuleManifestFileInfo.FullName
 
-$FileList = $ModuleManifest.FileList -like "*.ps*1"
+$FileList = $ModuleManifest['FileList'] -like "*.ps*1*"
 for ($i = 0; $i -lt $FileList.Count; $i++) {
     $FileList[$i] = Join-Path $ModuleManifestFileInfo.DirectoryName $FileList[$i] -Resolve
 }

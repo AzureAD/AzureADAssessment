@@ -1,4 +1,4 @@
-# PowerShell Module Package Pipeline Template
+# PowerShell Module Sign Pipeline Template
 # https://aka.ms/yaml
 
 parameters:
@@ -97,12 +97,14 @@ steps:
 
   - pwsh: 'New-FileCatalog "$env:StagingDirectory/$env:ModuleName/$env:ModuleName.cat" -Path "$env:StagingDirectory/$env:ModuleName" -CatalogVersion 2.0'
     displayName: 'Create File Catalog'
+    condition: 'and(succeeded(), eq(variables[''Agent.OS''], ''Windows_NT''))'
     env:
       StagingDirectory: '$(Pipeline.Workspace)/${{ parameters.artifactOutput }}'
       ModuleName: '${{ parameters.moduleName }}'
 
   - task: EsrpCodeSigning@2
     displayName: 'Sign File Catalog'
+    condition: 'and(succeeded(), eq(variables[''Agent.OS''], ''Windows_NT''))'
     inputs:
       ConnectedServiceName: '${{ parameters.EsrpCodeSigningServiceName }}'
       FolderPath: '$(Pipeline.Workspace)/${{ parameters.artifactOutput }}'

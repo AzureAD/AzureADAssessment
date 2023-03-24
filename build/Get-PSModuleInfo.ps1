@@ -26,7 +26,7 @@ Write-Host ('##vso[task.setvariable variable=moduleName;isOutput=true]{0}' -f $e
 Write-Host ('##[debug] {0} = {1}' -f 'moduleName', $env:moduleName)
 
 ## Output moduleVersion Azure Pipelines
-$env:moduleVersion = $ModuleManifest.ModuleVersion
+$env:moduleVersion = $ModuleManifest['ModuleVersion']
 Write-Host ('##vso[task.setvariable variable=moduleVersion;isOutput=true]{0}' -f $env:moduleVersion)
 Write-Host ('##[debug] {0} = {1}' -f 'moduleVersion', $env:moduleVersion)
 

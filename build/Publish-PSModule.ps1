@@ -24,7 +24,7 @@ Import-Module "$PSScriptRoot\CommonFunctions.psm1" -Force -WarningAction Silentl
 $ModuleManifest = Import-PowerShellDataFile $ModuleManifestFileInfo.FullName
 
 ## Install Module Dependencies
-foreach ($Module in $ModuleManifest.RequiredModules) {
+foreach ($Module in $ModuleManifest['RequiredModules']) {
     if ($Module -is [hashtable]) { $ModuleName = $Module.ModuleName }
     else { $ModuleName = $Module }
     if ($ModuleName -notin $ModuleManifest.PrivateData.PSData['ExternalModuleDependencies'] -and !(Get-Module $ModuleName -ListAvailable)) {
@@ -34,7 +34,7 @@ foreach ($Module in $ModuleManifest.RequiredModules) {
 
 ## Publish
 $PSRepositoryAll = Get-PSRepository
-$PSRepository = $PSRepositoryAll | Where-Object SourceLocation -like "$RepositorySourceLocation*"
+$PSRepository = $PSRepositoryAll | Where-Object SourceLocation -Like "$RepositorySourceLocation*"
 if (!$PSRepository) {
     try {
         [string] $RepositoryName = New-Guid
@@ -54,9 +54,9 @@ else {
 ## Unlist the Package
 if ($Unlist) {
     if ($ModuleManifest.PrivateData.PSData['Prerelease']) {
-        Invoke-RestMethod -Method Delete -Uri ("{0}/{1}/{2}-{3}" -f $PSRepository.PublishLocation, $ModuleManifestFileInfo.BaseName, $ModuleManifest.ModuleVersion, $ModuleManifest.PrivateData.PSData['Prerelease']) -Headers @{ 'X-NuGet-ApiKey' = ConvertFrom-SecureString $NuGetApiKey -AsPlainText }
+        Invoke-RestMethod -Method Delete -Uri ("{0}/{1}/{2}-{3}" -f $PSRepository.PublishLocation, $ModuleManifestFileInfo.BaseName, $ModuleManifest['ModuleVersion'], $ModuleManifest.PrivateData.PSData['Prerelease']) -Headers @{ 'X-NuGet-ApiKey' = ConvertFrom-SecureString $NuGetApiKey -AsPlainText }
     }
     else {
-        Invoke-RestMethod -Method Delete -Uri ("{0}/{1}/{2}" -f $PSRepository.PublishLocation, $ModuleManifestFileInfo.BaseName, $ModuleManifest.ModuleVersion) -Headers @{ 'X-NuGet-ApiKey' = ConvertFrom-SecureString $NuGetApiKey -AsPlainText }
+        Invoke-RestMethod -Method Delete -Uri ("{0}/{1}/{2}" -f $PSRepository.PublishLocation, $ModuleManifestFileInfo.BaseName, $ModuleManifest['ModuleVersion']) -Headers @{ 'X-NuGet-ApiKey' = ConvertFrom-SecureString $NuGetApiKey -AsPlainText }
     }
 }
