@@ -379,7 +379,7 @@ function Invoke-AADAssessmentDataCollection {
             #Compress-Archive (Join-Path $OutputDirectoryData '\*') -DestinationPath $PackagePath -Force -ErrorAction Stop
             [System.IO.Compression.ZipFile]::CreateFromDirectory($OutputDirectoryData, $PackagePath)
             $PackageFileInfo = Get-Item $PackagePath
-            Write-AppInsightsTrace ("{0} - Package Complete" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties ((Get-ReferencedIdCacheDetail $ReferencedIdCache) + [ordered]@{ PackageSize = Format-NumberWithUnit $PackageFileInfo.Length 'B'; PackageSizeInBytes = $PackageFileInfo.Length })
+            Write-AppInsightsTrace ("{0} - Package Complete" -f $MyInvocation.MyCommand.Name) -SeverityLevel Verbose -IncludeProcessStatistics -OrderedProperties ((Get-ReferencedIdCacheDetail $ReferencedIdCache) + [ordered]@{ PackageSize = Format-DataSize $PackageFileInfo.Length; PackageSizeInBytes = $PackageFileInfo.Length })
 
             Remove-Item $OutputDirectoryData -Recurse -Force
         }

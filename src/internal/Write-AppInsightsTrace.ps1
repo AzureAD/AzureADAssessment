@@ -49,14 +49,14 @@ function Write-AppInsightsTrace {
         $PsProcess = Get-Process -PID $PID
         $AppInsightsTelemetry.data.baseData['properties']['TotalProcessorTime'] = $PsProcess.TotalProcessorTime.ToString()
 
-        $AppInsightsTelemetry.data.baseData['properties']['VirtualMemorySize'] = Format-NumberWithUnit $PsProcess.VM 'B'
-        $AppInsightsTelemetry.data.baseData['properties']['WorkingSetMemorySize'] = Format-NumberWithUnit $PsProcess.WS 'B'
-        $AppInsightsTelemetry.data.baseData['properties']['PagedMemorySize'] = Format-NumberWithUnit $PsProcess.PM 'B'
-        $AppInsightsTelemetry.data.baseData['properties']['NonpagedMemorySize'] = Format-NumberWithUnit $PsProcess.NPM 'B'
+        $AppInsightsTelemetry.data.baseData['properties']['VirtualMemorySize'] = Format-DataSize $PsProcess.VM
+        $AppInsightsTelemetry.data.baseData['properties']['WorkingSetMemorySize'] = Format-DataSize $PsProcess.WS
+        $AppInsightsTelemetry.data.baseData['properties']['PagedMemorySize'] = Format-DataSize $PsProcess.PM
+        $AppInsightsTelemetry.data.baseData['properties']['NonpagedMemorySize'] = Format-DataSize $PsProcess.NPM
 
-        $AppInsightsTelemetry.data.baseData['properties']['PeakVirtualMemorySize'] = Format-NumberWithUnit $PsProcess.PeakVirtualMemorySize64 'B'
-        $AppInsightsTelemetry.data.baseData['properties']['PeakWorkingSetMemorySize'] = Format-NumberWithUnit $PsProcess.PeakWorkingSet64 'B'
-        $AppInsightsTelemetry.data.baseData['properties']['PeakPagedMemorySize'] = Format-NumberWithUnit $PsProcess.PeakPagedMemorySize64 'B'
+        $AppInsightsTelemetry.data.baseData['properties']['PeakVirtualMemorySize'] = Format-DataSize $PsProcess.PeakVirtualMemorySize64
+        $AppInsightsTelemetry.data.baseData['properties']['PeakWorkingSetMemorySize'] = Format-DataSize $PsProcess.PeakWorkingSet64
+        $AppInsightsTelemetry.data.baseData['properties']['PeakPagedMemorySize'] = Format-DataSize $PsProcess.PeakPagedMemorySize64
 
         $AppInsightsTelemetry.data.baseData['properties']['TotalProcessorTimeInSeconds'] = $PsProcess.CPU
 

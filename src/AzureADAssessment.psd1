@@ -86,7 +86,7 @@ NestedModules = @(
     '.\internal\Export-JsonArray.ps1'
     '.\internal\Get-MsGraphResults.ps1'
     '.\internal\Format-Csv.ps1'
-    '.\internal\Format-NumberWithUnit.ps1'
+    '.\internal\Format-DataSize.ps1'
     '.\internal\Get-AadObjectById.ps1'
     '.\internal\Get-ObjectPropertyValue.ps1'
     '.\internal\Get-SpreadsheetJson.ps1'
