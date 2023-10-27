@@ -84,7 +84,7 @@ stages:
       parameters:
         moduleName: '$(moduleName)'
         pipelineId: 'CI'
-        EsrpCodeSigningServiceName: 'ESRP - MSFT Identity - Community Projects'
+        EsrpCodeSigningServiceName: 'ESRP-MI'
 
 - stage: Package
   displayName: 'Standalone Package'
