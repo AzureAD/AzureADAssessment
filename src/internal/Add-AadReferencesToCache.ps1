@@ -67,8 +67,8 @@ function Add-AadReferencesToCache {
                 $InputObject.conditions.users.excludeUsers | Where-Object { $_ -notin 'GuestsOrExternalUsers' } | ForEach-Object { [void]$ReferencedIdCache.user.Add($_) }
                 $InputObject.conditions.users.includeGroups | Where-Object { $_ -notin 'All' } | ForEach-Object { [void]$ReferencedIdCache.group.Add($_) }
                 $InputObject.conditions.users.excludeGroups | ForEach-Object { [void]$ReferencedIdCache.group.Add($_) }
-                $InputObject.conditions.applications.includeApplications | Where-Object { $_ -notin 'None', 'All', 'Office365' } | ForEach-Object { [void]$ReferencedIdCache.appId.Add($_) }
-                $InputObject.conditions.applications.excludeApplications | Where-Object { $_ -notin 'Office365' } | ForEach-Object { [void]$ReferencedIdCache.appId.Add($_) }
+                $InputObject.conditions.applications.includeApplications | Where-Object { $_ -notin 'None', 'All', 'Office365', 'MicrosoftAdminPortals' } | ForEach-Object { [void]$ReferencedIdCache.appId.Add($_) }
+                $InputObject.conditions.applications.excludeApplications | Where-Object { $_ -notin 'Office365', 'MicrosoftAdminPortals' } | ForEach-Object { [void]$ReferencedIdCache.appId.Add($_) }
                 break
             }
             # roleDefinition {
