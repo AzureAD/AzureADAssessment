@@ -15,6 +15,21 @@ Install-Module AzureADAssessment -Force -Scope CurrentUser
 Update-Module AzureADAssessment -Force -Scope CurrentUser
 ```
 
+## Create an app in Entra ID
+
+The assessment requires a custom app to be created in your tenant.
+
+* Open **Entra admin center** > **Identity** > **Applications** > **App registrations**
+* Select **New registration**
+  * Name: Enter a name for the application (e.g. Entra Assessment Account)
+  * Redirect URI:
+    * Select **Mobile and desktop applications** from the drop down
+    * Set the uri as `https://login.microsoftonline.com/common/oauth2/nativeclient`
+  * Select **Register** to create the app
+* Select the **Authentication** blade of the app you just created from the left navigation
+* Set **Allow public client flows** to **Yes**
+* Click **Save**
+
 ## Run the Data Collection
 Data collection from Azure AD can be run from any client with access to Azure AD. However, data collection from hybrid components such as AD FS, AAD Connect, etc. are best run locally on those servers. The AAD Connect data collection needs to be run on both Primary and Staging servers.
 
@@ -30,7 +45,7 @@ Verify that you have authorized credentials to access these workloads:
 Run following commands to produce a package of all the Azure AD data necessary to complete the assessment.
 ```PowerShell
 ## Authenticate using a Global Admin or Global Reader account.
-Connect-AADAssessment
+Connect-AADAssessment -ClientId "AppId of app created in the previous step"
 
 ## Export data to "C:\AzureADAssessment" into a single output package.
 Invoke-AADAssessmentDataCollection
